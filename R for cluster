@@ -1,0 +1,5 @@
+# all my R packages are installed here:
+.libPaths()
+
+"/Library/Frameworks/R.framework/Versions/3.6/Resources/library"
+

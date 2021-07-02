@@ -1,0 +1,780 @@
+---
+title: "linkMap"
+author: "Nurit Eliash"
+date: "6/21/2021"
+output: html_document
+---
+I have already ran the pairs command on all data (203 individuals, all sites )
+now i run it again on a subset with males < 0.2 heterozygosity, calculated in the last chunk of LinkMap.Rmd
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### load libraries
+```{r}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+```
+
+### set directory and load files
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git")
+```
+
+### Heterozygosity and inbreeding coefficient per individual
+```{r}
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.het", delim = "\t",
+           col_names = c("ind","ho", "he", "nsites", "f"), skip = 1)
+
+# find all 'female' and 'male' 
+male <- grep("son",ind_het$ind)
+female <- grep("dat|fn|sis",ind_het$ind)
+
+ind_het_sex <- ind_het %>%
+  mutate(sex = ifelse(row_number() %in% female, "female", ifelse(row_number() %in% male, "male", "not-determined"))) %>%
+  mutate(hom_prop =  ho/nsites) %>%
+  mutate(het_prop = (nsites-ho)/nsites)
+ 
+#plot inbreeding coefficient per individual
+ggplot(ind_het_sex, aes(f, fill = sex)) + geom_histogram(color = "black") + 
+  theme_light() +
+  ggtitle("Inbreeding coefficient per individual")
+
+# plot heterozygosity proportion, in each sex
+ggplot(ind_het_sex) +
+    geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + scale_y_continuous() + 
+    theme_classic() +
+    ggtitle("Proportion of heterzygotic sites")
+
+# is there a significant difference in the proportion of heterozygotic sites between males and females?5
+test <- ind_het_sex %>%
+  filter(sex == c("female", "male"))
+
+wilcox.test(het_prop ~ sex, alternative = "two.sided", data = test)
+t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = test)
+
+# no significant different (both wilcoxone and welch-test)
+```
+
+### Heterozygosity per site
+--hardy
+
+Reports a p-value for each site from a Hardy-Weinberg Equilibrium test (as defined by Wigginton, Cutler and Abecasis (2005)). The resulting file (with suffix ".hwe") also contains the Observed numbers of Homozygotes and Heterozygotes and the corresponding Expected numbers under HWE.
+#### for all individuals
+```{r}
+site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+
+site_het <- site_hwe %>%
+  select(CHR, POS, "OBS(HOM1/HET/HOM2)") %>%
+  separate(col = "OBS(HOM1/HET/HOM2)", into = c("hom1", "het", "hom2"), sep = "\\/") %>%
+  mutate_at(c("hom1", "het", "hom2"), as.numeric) %>%
+  mutate(prop_het = (het/(hom1+ het+ hom2)))
+
+site_het <-  mutate(site_het, site = paste(site_het$CHR, site_het$POS)) 
+  
+ggplot(site_het, aes(prop_het)) + geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+  theme_light() +
+  ggtitle("Heterozygosity per site")+
+  xlab("Proportion of het genotype") + 
+  ylab("Number of sites")
+```
+
+#### for males 
+```{r}
+site_hwe_males <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+
+site_het_males <- site_hwe_males %>%
+  select(CHR, POS, "OBS(HOM1/HET/HOM2)") %>%
+  separate(col = "OBS(HOM1/HET/HOM2)", into = c("hom1", "het", "hom2"), sep = "\\/") %>%
+  mutate_at(c("hom1", "het", "hom2"), as.numeric) %>%
+  mutate(prop_het = (het/(hom1+ het+ hom2)))
+
+site_het_males <- mutate(site_het_males, site = paste(site_het_males$CHR, site_het_males$POS)) 
+  
+ggplot(site_het_males, aes(prop_het)) + geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+  theme_light() +
+  ggtitle("Heterozygosity per site - MALES")+
+  xlab("Proportion of het genotype") + 
+  ylab("Number of sites")
+```
+
+#### for females 
+```{r}
+site_hwe_females <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+
+site_het_females <- site_hwe_females %>%
+  select(CHR, POS, "OBS(HOM1/HET/HOM2)") %>%
+  separate(col = "OBS(HOM1/HET/HOM2)", into = c("hom1", "het", "hom2"), sep = "\\/") %>%
+  mutate_at(c("hom1", "het", "hom2"), as.numeric) %>%
+  mutate(prop_het = (het/(hom1+ het+ hom2)))
+
+site_het_females <- mutate(site_het_females, site = paste(site_het_females$CHR, site_het_females$POS)) 
+  
+ggplot(site_het_females, aes(prop_het)) + geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+  theme_light() +
+  ggtitle("Heterozygosity per site - FEMALES")+
+  xlab("Proportion of het genotype") + 
+  ylab("Number of sites")
+```
+
+are the more heterozygotic sites more abundant in males compared to females?
+meaning, are there specific sites that tend to be more heterozygotic then others?
+```{r}
+site_het_males <- mutate(site_het_males, site = paste(site_het_males$CHR, site_het_males$POS)) 
+site_het_females <- mutate(site_het_females, site = paste(site_het_females$CHR, site_het_females$POS)) 
+
+# correlate the het-prop per site, for all common heterozygotic sites
+comp_sites <- inner_join(site_het_females, site_het_males, by = "site")
+
+ggplot(comp_sites, aes(x = prop_het.x, y = prop_het.y)) +
+  geom_point() +
+ # geom_smooth(method = "lm") +
+  ggtitle("Heterozygosity proportion in the population, per site")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# compare heterozygosity distribution btw males and females
+hist(comp_sites$prop_het.y, breaks=30, xlim=c(0,1), col=rgb(1,0,0,0.5), xlab="Proportion of het genotype", 
+     ylab="Number of sites", main="Distribution of heterozygotic sites")
+hist(comp_sites$prop_het.x, breaks=30, xlim=c(0,1), col=rgb(0,0,1,0.5), add=T)
+
+legend("topright", legend=c("Males","Females"), col=c(rgb(1,0,0,0.5), 
+     rgb(0,0,1,0.5)), pt.cex=2, pch=15 )
+```
+
+plot the sites that are almost never heterozygous in males (e.g., < 0.1) vs females
+```{r}
+site_het_males <- mutate(site_het_males, site = paste(site_het_males$CHR, site_het_males$POS)) 
+site_het_males.1 <- site_het_males %>%
+  filter(prop_het<0.1)
+
+site_het_females <- mutate(site_het_females, site = paste(site_het_females$CHR, site_het_females$POS)) 
+
+# correlate the het-prop per site, for all common heterozygotic sites
+comp_sites.1 <- inner_join(site_het_females,site_het_males.1, by = "site")
+
+ggplot(comp_sites.1, aes(x = prop_het.x, y = prop_het.y)) +
+  geom_point() +
+ # geom_smooth(method = "lm") +
+  ggtitle("Heterozygosity proportion in the population, per site, for p<0.1")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+this looks better, as there is no correlation.
+but what about other info on the sites?
+
+### explore site info
+```{r}
+# before, combine the heterozygosity prop per site for males and females.
+site_het_males <- mutate(site_het_males, site = paste(site_het_males$CHR, site_het_males$POS)) 
+site_het_females <- mutate(site_het_females, site = paste(site_het_females$CHR, site_het_females$POS)) 
+
+# what are the common sites?
+comp_sites <- inner_join(site_het_females, site_het_males, by = "site") %>%
+  select(site = site, prop_het_fem = prop_het.x, prop_het_male = prop_het.y)
+```
+on the 7 chromosomes, filtering for sites of quality >20, biallelic sites, minimum depth of 5, and maximum missing of 0.5
+
+--max-alleles 2 --minQ 20 --minDP 5 --max-missing 0.5--chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 
+
+use this filter for each subset vcf:
+1. 220,219 sites of all 203 samples
+2. 365,173 sites of 84 females
+3. 198,897 sites of 51 males
+
+then calculate info and stats based on each of the 3 filtered vcf:
+- site quality
+- site mean depth
+- site missingness
+- allele frequency
+- site allele count
+- heterozygosity per site
+- hardy-weinberg equilibrium
+
+#### site quality
+```{r}
+# (1) 88972 sites of all 203 samples 
+var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.lqual", delim = "\t",col_names = c("chr", "pos", "qual"), skip = 1)
+var_qual <- mutate(var_qual, site = paste(var_qual$chr, var_qual$pos)) 
+
+# color code the sites with their quality as continuous variable
+qual <- inner_join(var_qual, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pqual <- ggplot(qual, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = qual)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, quality color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# (2) 88972 sites of 84 females
+var_qual_f <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.lqual", delim = "\t",col_names = c("chr", "pos", "qual"), skip = 1)
+var_qual_f <- mutate(var_qual_f, site = paste(var_qual_f$chr, var_qual_f$pos)) 
+
+# color code the sites with their quality as continuous variable
+qual_f <- inner_join(var_qual_f, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pqual_f <- ggplot(qual_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = qual)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, quality color coded-females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# (3) 88972 sites of 51 males
+var_qual_m <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.lqual", delim = "\t",col_names = c("chr", "pos", "qual"), skip = 1)
+var_qual_m <- mutate(var_qual_m, site = paste(var_qual_m$chr, var_qual_m$pos)) 
+
+# color code the sites with their quality as continuous variable
+qual_m <- inner_join(var_qual_m, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pqual_m <- ggplot(qual_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = qual)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, quality color coded-Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+
+#### site mean depth
+```{r}
+# 1. 88972 sites of all 203 samples
+var_depth <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)
+# doenst work, i dont know why:
+#var_depth <- mutate(var_depth, site = paste(var_depth$chr, var_depth$pos)) 
+
+# i used a different way, assuming the order of rows doesnt change..
+site <- var_qual$site
+var_depth$site <- site
+
+# color code the sites with their quality as continuous variable
+depth <- inner_join(var_depth, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pdepth <- ggplot(depth, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = mean_depth)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, mean_depth color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 2. 88972 sites of 84 females
+var_depth_f <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)
+var_depth_f <- mutate(var_depth_f, site = paste(var_depth_f$chr, var_depth_f$pos)) 
+
+# color code the sites with their quality as continuous variable
+depth_f <- inner_join(var_depth_f, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pdepth_f <- ggplot(depth_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = mean_depth)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, mean_depth color coded- Females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 3. 88972 sites of 51 males
+var_depth_m <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)
+var_depth_m <- mutate(var_depth_m, site = paste(var_depth_m$chr, var_depth_m$pos)) 
+
+# color code the sites with their quality as continuous variable
+depth_m <- inner_join(var_depth_m, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pdepth_m <- ggplot(depth_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = mean_depth)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, mean_depth color coded- Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+
+#### site missingness
+```{r}
+# 1. 88972 sites of all 203 samples
+var_miss <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1)
+var_miss <- mutate(var_miss, site = paste(var_miss$chr, var_miss$pos))
+# color code the sites with their quality as continuous variable
+miss <- inner_join(var_miss, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pmiss <- ggplot(miss, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = fmiss)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, fmiss color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 2. 365,173 sites of 84 females
+var_miss_f <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1)
+var_miss_f <- mutate(var_miss_f, site = paste(var_miss_f$chr, var_miss_f$pos))
+# color code the sites with their quality as continuous variable
+miss_f <- inner_join(var_miss_f, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pmiss_f <- ggplot(miss_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = fmiss)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, fmiss color coded - Females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 3. 198,897 sites of 51 males
+var_miss_m <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1)
+var_miss_m <- mutate(var_miss_m, site = paste(var_miss_m$chr, var_miss_m$pos))
+# color code the sites with their quality as continuous variable
+miss_m <- inner_join(var_miss_m, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pmiss_m <- ggplot(miss_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = fmiss)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, fmiss color coded - Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+
+#### allele frequency
+```{r}
+# 1. 220,219 sites of all 203 samples
+var_freq <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.frq", delim = "\t", col_names = c("chr", "pos", "nalleles", "nchr", "a1", "a2"), skip = 1)
+
+#However, this is simply the allele frequencies. To find the minor allele frequency at each site, we need to use a bit of dplyr based code.
+# find minor allele frequency
+var_freq$maf <- var_freq %>% select(a1, a2) %>% apply(1, function(z) min(z))
+var_freq <- mutate(var_freq, site = paste(var_freq$chr, var_freq$pos))
+
+# Here we used apply on our allele frequencies to return the lowest allele frequency at each variant. We then added these to our dataframe as the variable maf. Next we will plot the distribution.
+ggplot(var_freq, aes(maf)) + 
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
+  theme_light()
+summary(var_freq$maf)
+
+# color code the sites with their quality as continuous variable
+maf <- inner_join(var_freq, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pmaf <- ggplot(maf, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = maf)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, maf color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 2. 365,173 sites of 84 females
+var_freq_f <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.frq", delim = "\t", col_names = c("chr", "pos", "nalleles", "nchr", "a1", "a2"), skip = 1)
+
+#However, this is simply the allele frequencies. To find the minor allele frequency at each site, we need to use a bit of dplyr based code.
+# find minor allele frequency
+var_freq_f$maf <- var_freq_f %>% select(a1, a2) %>% apply(1, function(z) min(z))
+var_freq_f <- mutate(var_freq_f, site = paste(var_freq_f$chr, var_freq_f$pos))
+
+# Here we used apply on our allele frequencies to return the lowest allele frequency at each variant. We then added these to our dataframe as the variable maf. Next we will plot the distribution.
+ggplot(var_freq_f, aes(maf)) + 
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
+  theme_light()
+summary(var_freq_f$maf)
+
+# color code the sites with their quality as continuous variable
+maf_f <- inner_join(var_freq_f, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pmaf_f <- ggplot(maf_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = maf)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, maf color coded -Females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 3. 198,897 sites of 51 males
+var_freq_m <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.frq", delim = "\t", col_names = c("chr", "pos", "nalleles", "nchr", "a1", "a2"), skip = 1)
+
+#However, this is simply the allele frequencies. To find the minor allele frequency at each site, we need to use a bit of dplyr based code.
+# find minor allele frequency
+var_freq_m$maf <- var_freq_m %>% select(a1, a2) %>% apply(1, function(z) min(z))
+var_freq_m <- mutate(var_freq_m, site = paste(var_freq_m$chr, var_freq_m$pos))
+
+# Here we used apply on our allele frequencies to return the lowest allele frequency at each variant. We then added these to our dataframe as the variable maf. Next we will plot the distribution.
+ggplot(var_freq_m, aes(maf)) + 
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
+  theme_light()
+summary(var_freq_m$maf)
+
+# color code the sites with their quality as continuous variable
+maf_m <- inner_join(var_freq_m, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pmaf_m <- ggplot(maf_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = maf)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, maf color coded -Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+
+#### site allele count
+```{r}
+# 1. 220,219 sites of all 203 samples
+var_count <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.frq.count", delim = "\t", col_names = c("chr", "pos", "nalleles", "nchr", "ref (allele:count)", "alt (allele:count)"), skip = 1)
+var_count <- var_count %>%
+  mutate(site = paste(var_count$chr, var_count$pos)) %>%
+  select(site, "ref (allele:count)", "alt (allele:count)") %>%
+  separate(col = "ref (allele:count)", into = c("ref_GT", "ref_count"), sep = "\\:") %>%
+  separate(col = "alt (allele:count)", into = c("alt_GT", "alt_count"), sep = "\\:") 
+
+# color code the sites with their quality as continuous variable
+count <- inner_join(var_count, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pref_count <- ggplot(count, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(ref_count))) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, ref_count color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# correlate the het-prop per site, for all common sites
+Palt_count <- ggplot(count, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(alt_count))) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, alt_count color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 2. 365,173 sites of 84 females
+var_count_f <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.frq.count", delim = "\t", col_names = c("chr", "pos", "nalleles", "nchr", "ref (allele:count)", "alt (allele:count)"), skip = 1)
+var_count_f <- var_count_f %>%
+  mutate(site = paste(var_count_f$chr, var_count_f$pos)) %>%
+  select(site, "ref (allele:count)", "alt (allele:count)") %>%
+  separate(col = "ref (allele:count)", into = c("ref_GT", "ref_count"), sep = "\\:") %>%
+  separate(col = "alt (allele:count)", into = c("alt_GT", "alt_count"), sep = "\\:") 
+
+# color code the sites with their quality as continuous variable
+count_f <- inner_join(var_count_f, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pref_count_f <- ggplot(count_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(ref_count))) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, ref_count color coded - Females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# correlate the het-prop per site, for all common sites
+Palt_count_f <- ggplot(count_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(alt_count))) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, alt_count color coded-Females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 3. 198,897 sites of 51 males
+var_count_m <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.frq.count", delim = "\t", col_names = c("chr", "pos", "nalleles", "nchr", "ref (allele:count)", "alt (allele:count)"), skip = 1)
+var_count_m <- var_count_m %>%
+  mutate(site = paste(var_count_m$chr, var_count_m$pos)) %>%
+  select(site, "ref (allele:count)", "alt (allele:count)") %>%
+  separate(col = "ref (allele:count)", into = c("ref_GT", "ref_count"), sep = "\\:") %>%
+  separate(col = "alt (allele:count)", into = c("alt_GT", "alt_count"), sep = "\\:") 
+
+# color code the sites with their quality as continuous variable
+count_m <- inner_join(var_count_m, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Pref_count_m <- ggplot(count_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(ref_count))) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, ref_count color coded - Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# correlate the het-prop per site, for all common sites
+Palt_count_m <- ggplot(count_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(alt_count))) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, alt_count color coded-Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+
+#### hardy-weinberg equilibrium
+```{r}
+# 1. 220,219 sites of all 203 samples
+site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+site_hwe <- site_hwe %>%
+  mutate(site = paste(site_hwe$CHR, site_hwe$POS)) %>%
+  select(site, P_HWE) %>%
+  mutate(logp = log(P_HWE))
+
+# color code the sites with their quality as continuous variable
+hwe_pv <- inner_join(site_hwe, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Phwe_pv <- ggplot(hwe_pv, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = logp)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, hwe_pv color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 2. 365,173 sites of 84 females
+site_hwe_f <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2fem/malesHet.2Q20BIALLDP5mis.5Chr7Females.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+site_hwe_f <- site_hwe_f %>%
+  mutate(site = paste(site_hwe_f$CHR, site_hwe_f$POS)) %>%
+  select(site, P_HWE) %>%
+  mutate(logp = log(P_HWE))
+
+# color code the sites with their quality as continuous variable
+hwe_pv_f <- inner_join(site_hwe_f, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Phwe_pv_f <- ggplot(hwe_pv_f, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = logp)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, hwe_pv color coded-Females")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+# 3. 198,897 sites of 51 males
+site_hwe_m <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+site_hwe_m <- site_hwe_m %>%
+  mutate(site = paste(site_hwe_m$CHR, site_hwe_m$POS)) %>%
+  select(site, P_HWE) %>%
+  mutate(logp = log(P_HWE))
+
+# color code the sites with their quality as continuous variable
+hwe_pv_m <- inner_join(site_hwe_m, comp_sites, by = "site") 
+
+# correlate the het-prop per site, for all common sites
+Phwe_pv_m <- ggplot(hwe_pv_m, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = logp)) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, hwe_pv color coded-Males")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+```
+
+### plot all together, hetero prop between 0 to 1.
+```{r}
+# combine all variables into one data frame
+info_all_Het.2 <- qual %>%
+  inner_join(depth, by = "site") %>%
+  inner_join(miss, by = "site") %>%
+  inner_join(maf, by = "site") %>%
+  inner_join(count, by = "site") %>%
+  inner_join(hwe_pv, by = "site") %>%
+  select(site, prop_het_fem = prop_het_fem.x, prop_het_male = prop_het_male.x, qual, mean_depth, var_depth, fmiss, maf, ref_GT, ref_count, alt_GT, alt_count, hweLogPv = logp)
+
+write_csv(info_all_Het.2, file  = "/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/info_all_Het.2.csv")
+
+info_sites_Het.2_fem <- qual_f %>%
+  inner_join(depth_f, by = "site") %>%
+  inner_join(miss_f, by = "site") %>%
+  inner_join(maf_f, by = "site") %>%
+  inner_join(count_f, by = "site") %>%
+  inner_join(hwe_pv_f, by = "site") %>%
+  select(site, prop_het_fem = prop_het_fem.x, prop_het_male = prop_het_male.x, qual, mean_depth, var_depth, fmiss, maf, ref_GT, ref_count, alt_GT, alt_count, hweLogPv = logp)
+
+info_sites_Het.2_male <- qual_m %>%
+  inner_join(depth_m, by = "site") %>%
+  inner_join(miss_m, by = "site") %>%
+  inner_join(maf_m, by = "site") %>%
+  inner_join(count_m, by = "site") %>%
+  inner_join(hwe_pv_m, by = "site") %>%
+  select(site, prop_het_fem = prop_het_fem.x, prop_het_male = prop_het_male.x, qual, mean_depth, var_depth, fmiss, maf, ref_GT, ref_count, alt_GT, alt_count, hweLogPv = logp)
+
+# make a joint table for all parameters for both males and females mutual sites.
+info_fem_male_Het.2 <- inner_join(info_sites_Het.2_fem, info_sites_Het.2_male, by = "site")
+
+# save it as csv
+write_csv(info_fem_male_Het.2, path = "/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/info_fem_male_Het.2.csv")
+
+
+
+
+Plots_qual <- grid.arrange(Pqual, Pqual_f, Pqual_m, nrow = 1)
+
+Plots_mean_depth <- grid.arrange(Pdepth, Pdepth_f, Pdepth_m, nrow = 1)
+  
+Plots_miss <- grid.arrange(Pmiss, Pmiss_f, Pmiss_m, nrow = 1)
+  
+Plots_maf <- grid.arrange(Pmaf, Pmaf_f, Pmaf_m, nrow = 1)
+  
+Plots_RefCount <- grid.arrange(Pref_count, Pref_count_f, Pref_count_m, nrow = 1)
+  
+Plots_AltCount <- grid.arrange(Palt_count, Palt_count_f, Palt_count_m, nrow = 1)
+  
+Plots_hwe <- grid.arrange(Phwe_pv, Phwe_pv_f, Phwe_pv_m, nrow = 1)
+```
+
+### zoom-in: plot all together, hetero prop between 0.2 to 0.2
+```{r}
+# correlate the het-prop per site, for all common sites
+Phwe_pv_z <- ggplot(hwe_pv, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = logp)) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, hwe_pv color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+Pqual_z <- ggplot(qual, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = qual)) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, quality color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+Pdepth_z <- ggplot(depth, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = mean_depth)) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, mean_depth color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+Pmiss_z <- ggplot(miss, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = fmiss)) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, fmiss color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+Pmaf_z <- ggplot(maf, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = maf)) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, maf color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+Pref_count_z <- ggplot(count, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(ref_count))) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, ref_count color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+Palt_count_z <- ggplot(count, aes(x = prop_het_fem, y = prop_het_male)) +
+  geom_point(aes(color = as.numeric(alt_count))) +
+  xlim(0,0.2) +
+  ylim(0,0.2) +
+  scale_color_gradient(low = "darkblue", high = "orange") +
+  ggtitle("Heterozygosity prop per site, alt_count color coded")+
+  xlab("Heterozygosity proportion in females") + 
+  ylab("Heterozygosity proportion in males")
+
+grid.arrange(Phwe_pv_z, 
+             Pref_count_z, 
+             Palt_count_z, 
+             Pmaf_z,
+             Pmiss_z,
+             Pqual_z,
+             Pdepth_z,
+             nrow = 3, ncol = 3)
+```
+
+
+### pairs for all site parameters
+```{r}
+# read the info table for males and females mutual sites 
+info_fem_male_Het.2 <- read.csv("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/info_fem_male_Het.2.csv")
+
+# subset for 10 % of the sites and remove the columns we dont wish to plot
+dat_Het.2_sub10 <- info_fem_male_Het.2 %>%
+  sample_frac(size = .1) %>%
+  select(-c(site, ref_GT.x, ref_GT.y, alt_GT.x, alt_GT.y))
+
+# pairs code:
+pairs(~ mean_depth.x + mean_depth.y +var_depth.x + var_depth.y + fmiss.x +fmiss.y + fmiss.x +fmiss.y + ref_count.x +ref_count.y + alt_count.x +alt_count.y + prop_het_fem.x +prop_het_male.x +  maf.x + maf.y +hweLogPv.x +hweLogPv.y +qual.x +qual.y, 
+      data = dat_Het.2_sub10, 
+      upper.panel = NULL, 
+      cex.labels = 1, 
+      cex = .2) 
+
+# original values
+pairs(~ mean_depth.x + maf.x +ref_count.x + maf.y + ref_count.y,
+      data = dat_sub, 
+      upper.panel = NULL, 
+      cex.labels = 1, 
+      cex = .2) 
+# scaled 
+pairs(~ scales::rescale(mean_depth.x, to=c(0,1)) + maf.x +ref_count.x + maf.y + ref_count.y,
+      data = dat_sub, 
+      upper.panel = NULL, 
+      cex.labels = 1, 
+      cex = .2) 
+
+# log transformed
+pairs(~ log(mean_depth.x) + maf.x +log(ref_count.x) + maf.y + log(ref_count.y),
+      data = dat_sub, 
+      upper.panel = NULL, 
+      cex.labels = 1, 
+      cex = .2) 
+
+
+# ggpairs (with color code by maf.x)
+data <- select(info_fem_male, -c(site, ref_GT.x, ref_GT.y, alt_GT.x, alt_GT.y))
+ggpairs(data = dat_sub, 
+        legends = T, 
+        lower = list(continuous = "points", mapping = aes(color=maf.x))) +
+  ggtitle("pairwise correlation per site parameters") +
+  theme_bw() +
+  theme(legend.position = "right")
+```
+
+### pairs for subset of males < 0.2 heterozygosity
+```{r}
+# now we run again the pairs, with a subset of males < 0.2 heterozygosity
+# first we make a list of all sites (# chrom , # pos, tab delimited) that match this filter
+info_all <- read.csv("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter/info_all.csv")
+
+info_all$prop_het_male
+
+het_male.2 <- info_all %>%
+  filter(prop_het_male < 0.2) %>%
+  select(site)
+
+write_csv( het_male.2, file = "/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter/het_male.2.csv")
+```
+
+---
+  #didnt use :
+  pivot_longer(cols = c("hom1", "het", "hom2"), names_to = "zyg", values_to = "count") %>%
+
+# compare the sites (x = females, y = males) for high prop >0.9
+het.9_males <- site_het_males %>%
+  filter(prop_het >0.9)
+
+comp_sites.9 <- full_join(site_het_females, het.9_males, by = "site")
+comp_sites.9 <- na.omit(comp_sites)
+
+ggplot(comp_sites, aes(prop_het.x)) + geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+  theme_light() +
+  ggtitle("Heterozygosity per site > 0.9 - MALES")+
+  xlab("Proportion of het genotype") + 
+  ylab("Number of individuals")

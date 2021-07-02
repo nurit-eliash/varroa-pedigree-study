@@ -1,0 +1,167 @@
+---
+title: "vcftools"
+author: "Nurit Eliash"
+date: "6/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load libraries
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+## set directory and load files
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam")
+
+
+```
+
+## Variant based statistics
+The first thing we will do is look at the statistics we generated for each of the variants in our subset VCF - quality, depth, missingness and allele frequency.
+### Variant quality
+The first metric we will look at is the (Phred encoded) site quality. This is a measure of how much confidence we have in our variant calls. First of all, we read in the site quality report we generated using vcftools. We will use the read_delim command from the readr package (part of the the tidyverse) because it is more efficient for reading in large datafiles. It also allows us to set our own column names.
+```{r}
+var_qual_177fQ1Chr7 <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fQ1Chr7.lqual", delim = "\t",
+           col_names = c("chr", "pos", "qual"), skip = 1)
+
+var_qual_177_harsh <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177_Q20BIALLDP5mis1maf0.2Chr7.lqual", delim = "\t",
+           col_names = c("chr", "pos", "qual"), skip = 1)
+
+
+# remove rows with qual = 0
+#var_qual_noz <- filter(var_qual, qual > 0)
+#var_qual_1 <- filter(var_qual, qual > 80000)
+
+harsh_fil <- filter(var_qual_177_harsh, qual > 10000)
+
+a <- ggplot(var_qual_177_harsh, aes(qual)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+a + theme_light() 
+  #expand_limits(x=c(20,10000)) 
+
+# i tried to subset the data randomly
+#var_fil <- slice_sample(var_qual, prop = 0.01) 
+
+# but i get no graph.. 
+```
+Take a look at the data when it is read in. You will see that for each site in our subsampled VCF, we have extracted the site quality score. Now we will plot the distribution of this quality using ggplot. Usually, the geom_density function works best, but you can use geom_histogram too.
+
+### Variant mean depth
+Next we will examine the mean depth for each of our variants. This is essentially the number of reads that have mapped to this position. The output we generated with vcftools is the mean of the read depth across all individuals - it is for both alleles at a position and is not partitioned between the reference and the alternative. First we read in the data.
+```{r}
+# i will try to first use the unfiltered data..
+var_depth <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fChr7.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)
+
+#and compare to the filtered data:
+var_depth_harsh <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177_Q20BIALLDP5mis1maf0.2Chr7.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)
+
+a <- ggplot(var_depth, aes(mean_depth)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+a + theme_light()
+
+b <- ggplot(var_depth_harsh, aes(mean_depth)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+b + theme_light()
+
+summary(var_depth$mean_depth)
+summary(var_depth_harsh$mean_depth)
+
+a + theme_light() + xlim(0, 100)
+```
+Again take a moment to look at the data - mean_depth is our column of interest but note that you can also get a an idea of the variance in depth among individuals from the var_depth column. Once again, we will use ggplot to look at the distribution of read depths
+
+### Variant missingness
+Next up we will look at the proportion of missingness at each variant. This is a measure of how many individuals lack a genotype at a call site.
+```{r}
+var_miss <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fChr7.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1)
+
+mis <- ggplot(var_miss, aes(fmiss)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+mis + theme_light()
+
+summary(var_miss$fmiss)
+
+# after excluding any site with less then 1 missing data,  
+var_miss_harsh <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177_Q20BIALLDP5mis1maf0.2Chr7.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1)
+
+mis_harsh <- ggplot(var_miss_harsh, aes(fmiss)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+mis_harsh + theme_light()
+
+summary(var_miss_harsh$fmiss)
+```
+Then we plot the data with ggplot2. One thing to keep in mind here is that different datasets will likely have different missingness profiles. RAD-sequencing data for example is likely to have a slightly higher mean missingnes than whole genome resequencing data because it is a random sample of RAD sites from each individual genome - meaning it is very unlikely all individuals will share exactly the same loci (although you would hope the majority share a subset).
+
+### Minor allele frequency
+Last of all for our per variant analyses, we will take a look at the distribution of allele frequencies. This will help inform our minor-allele frequency (MAF) thresholds. 
+```{r}
+var_freq <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fChr7.frq", delim = "\t",
+                       col_names = c("chr", "pos", "nalleles", "nchr", "a1", "a2"), skip = 1)
+
+#However, this is simply the allele frequencies. To find the minor allele frequency at each site, we need to use a bit of dplyr based code.
+# find minor allele frequency
+var_freq$maf <- var_freq %>% select(a1, a2) %>% apply(1, function(z) min(z))
+
+# Here we used apply on our allele frequencies to return the lowest allele frequency at each variant. We then added these to our dataframe as the variable maf. Next we will plot the distribution.
+frq <- ggplot(var_freq, aes(maf)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+frq + theme_light()
+
+summary(var_freq$maf)
+
+# after excluding --maf 0.2 :
+var_freq_harsh <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177_Q20BIALLDP5mis1maf0.2Chr7.frq", delim = "\t",
+                       col_names = c("chr", "pos", "nalleles", "nchr", "a1", "a2"), skip = 1)
+
+#However, this is simply the allele frequencies. To find the minor allele frequency at each site, we need to use a bit of dplyr based code.
+# find minor allele frequency
+var_freq_harsh$maf <- var_freq_harsh %>% select(a1, a2) %>% apply(1, function(z) min(z))
+
+# Here we used apply on our allele frequencies to return the lowest allele frequency at each variant. We then added these to our dataframe as the variable maf. Next we will plot the distribution.
+frq_harsh <- ggplot(var_freq_harsh, aes(maf)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+frq_harsh + theme_light()
+
+summary(var_freq_harsh$maf)
+```
+
+## Individual based statistics
+As well as a our per variant statistics we generated earlier, we also calculated some individual metrics too. WE can look at the distribution of these to get an idea whether some of our individuals have not sequenced or mapped as well as others. This is good practice to do with a new dataset. A lot of these statistics can be compared to other measures generated from the data (i.e. principal components as a measure of population structure) to see if they drive any apparent patterns in the data.
+
+### Mean depth per individual
+First we will look at the distribution of mean depth among individuals. We read the data in with read_delim:
+```{r}
+# NO filtering
+ind_depth <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fChr7.idepth", delim = "\t",
+                        col_names = c("ind", "nsites", "depth"), skip = 1)
+
+#Then we plot the distribution as a histogram using ggplot and geom_hist.
+a <- ggplot(ind_depth, aes(depth)) + geom_histogram(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+a + theme_light()
+```
+
+### Proportion of missing data per individual
+Next we will look at the proportion of missing data per individual. We read in the data below:
+```{r}
+ind_miss  <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fChr7.imiss", delim = "\t",
+                        col_names = c("ind", "ndata", "nfiltered", "nmiss", "fmiss"), skip = 1)
+a <- ggplot(ind_miss, aes(fmiss)) + geom_histogram(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+a + theme_light()
+```
+
+### Heterozygosity and inbreeding coefficient per individual
+```{r}
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_177fam/177fChr7.het", delim = "\t",
+           col_names = c("ind","ho", "he", "nsites", "f"), skip = 1)
+a <- ggplot(ind_het, aes(f)) + geom_histogram(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+a + theme_light()
+
+```
+
+
+
+
