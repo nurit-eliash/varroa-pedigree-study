@@ -1,4 +1,4 @@
-#varroa-linkage-map
+# varroa-linkage-map
 
 This project aims to construct a linkage map of Varroa destructor genome.
 We used genomes of 223 varroa mite samples, belonging to 30 families, of 3 colonies.
