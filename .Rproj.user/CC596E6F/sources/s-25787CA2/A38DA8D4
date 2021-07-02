@@ -1,0 +1,32 @@
+{
+    "id": "A38DA8D4",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1625198854183.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "expression": "ped",
+        "caption": "ped",
+        "totalObservations": 1010,
+        "displayedObservations": 1010,
+        "variables": 5,
+        "cacheKey": "7BF599AF",
+        "object": "ped",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=ped&cache_key=7BF599AF&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 266287972359,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1625198854183,
+    "read_only": false,
+    "read_only_alternatives": []
+}
