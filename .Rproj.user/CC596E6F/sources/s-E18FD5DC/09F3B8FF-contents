@@ -1,0 +1,480 @@
+---
+title: "varroa_virus_networks"
+author: "Sasha Mikheyev and Nurit Eliash"
+date: "1/22/2020"
+output:
+  html_document:
+    theme: paper
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+---
+this analysis is on the 66 libraries (i removed the 5 outlirered libraries from the "data/kallisto" folder in GitHub)
+the working directory is in GitHb:
+"/Users/nuriteliash/Documents/GitHub/varroa-virus-networks"
+
+I save all the big outputs results in my local storage:
+"/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results"
+
+# Load libraries
+```{r load library, message=FALSE, warning=FALSE, echo=FALSE}
+library("dplyr")
+library("tidyverse")
+library("vegan")
+library("DESeq2")
+library("ggfortify")
+library("WGCNA")
+library("rmarkdown")
+library("knitr") # for the markdown
+library("kableExtra") # for creating a scrolling table
+library("ggplot2") # for plotting 
+library("ape") # for reading the phylogenetic tree and for mantel.test
+library("Biostrings")
+library("ggtree") # for plotting the tree
+library("ggrepel") # for spreading text labels on the plot
+library("scales") # for axis labels notation
+library("GO.db")
+library("reshape2")
+library("RSQLite")
+library("AnnotationDbi")
+library("GSEABase")
+library("GOstats")
+library("maps") # for the map background
+library("leaflet") #for the interactive maps
+library("htmltools")
+library("rgdal")
+library("grid")
+library("gridExtra")
+library("GeneOverlap")
+library("cluster")
+library("rmdformats")
+library("corrplot")
+library("viridis")
+library("hrbrthemes")
+library("ggthemes")
+library("RColorBrewer")
+library("naniar")
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Gene network analysis
+A gene co-expression network identify genes that interact with one another based on common expression profiles (Barabási and Oltvai 2004). Groups of co-expressed genes that have similar expression patterns across samples are identified using hierarchical clustering and are placed in gene ‘modules’ (Miller, Horvath, and Geschwind 2010). 
+Weighted gene co-expression analysis was conducted using the WGCNA package in R (Langfelder and Horvath 2008).
+
+## Data selection
+We searched for “varroa” in the SRA databases (NCBI, January 2020) with the following filters:
+ *  _Source_: "RNA"
+ *  _Library Strategy_: “RNA-seq” (Random sequencing of whole transcriptome)
+ *  _Library Source_: “TRANSCRIPTOMIC”, “VIRAL RNA”
+ *  Only whole mites (not partial organs)
+
+after filtering outlier libraries (based on PCA analysis), 
+we used a total of 66 SRAs belonging to 11 studies of varroa RNAseq for the network analysis (details of the final libraries available in Supp table 1)
+
+## Load data 
+The input data frame "df" contains 35,669 isoforms of 66 varroa SRA libraries, downloaded from NCBI, using the 
+
+consisted of a regularized log transformed matrix of 18,313 genes (as columns) and 29 libraries (as rows) of the venom gland which was filtered for low expressed transcripts (tpm > 0.05). Pm_7 was excluded due to low spike-in (see methods)
+
+mapping RNAseq reads to viruses and varroa genes
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-virus-networks")
+
+# read the viruses IDs:
+# awk '$3=="mRNA"' GCF_002443255.1_Vdes_3.0_genomic.gff | perl -n -e 'print "$1\t$2\n" if /gene=LOC(\d+);.*transcript_id=(.*)/' | gzip >! gene2isoform.txt.gz
+virusId <- read_tsv("data/viruses.txt", col_names = c("target_id", "description"))
+# rename all 6 VOV_1 segemnts with the same name: "VOV_1"
+virusId[3:8, 2] <- "VOV_1"
+
+# map the Varroa and viruses' reads
+# first make a function for mapping the reads
+read_kallisto <- function(filename) {
+  sampleName <- sub("data/kallisto/(.*).tsv.gz","\\1", filename)
+  return(read_tsv(filename) %>%
+           dplyr::select(!!sampleName := tpm))
+}
+
+# map the reads in the SRA libraries to varroa and viruses genomes 
+df <- list.files(path = "data/kallisto", full.names = TRUE) %>% 
+  lapply(read_kallisto) %>% 
+  bind_cols() 
+
+# add a column "target_id" with the genes id
+df$target_id <- list.files(path = "data/kallisto", full.names = TRUE)[1] %>% 
+  read_tsv() %>% 
+  dplyr::select(target_id) %>% 
+  pull()
+
+# save the virus list and the isoform tpm as RDS 
+saveRDS(df, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/data/kallisto.rds")
+saveRDS(virusId, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/data/virusId.rds")
+```
+
+## AIM: describing viruses' abundance in the different varroa SRA libraries
+first make the suitable data frame containing virus load in each library
+```{r first make the suitable data frame containing virus load in each library, message=FALSE, warning=FALSE}
+x <- left_join(virusId, df, by = "target_id") %>% dplyr::select(-target_id) 
+  
+# VOV_1. virus genome has been described in 6 different segments (Levin et al. 2016). 
+# so we sum the 6 segments tpms in each library in a separate table 'VOV_1':
+VOV_1 <- x %>% 
+      dplyr::slice(3:8) %>%
+      group_by(description) %>%
+      summarize_all(sum)
+#filter out the segments of VOV_1,  
+x <- dplyr::filter(x, description != "VOV_1")
+
+# insert VOV_1 in row 3 
+r <- 3
+insertRow <- function(x, VOV_1, r) {
+  x[seq(r+1,nrow(x)+1),] <- x[seq(r,nrow(x)),]
+  x[r,] <- VOV_1
+  x
+}
+
+viruses_load <- insertRow(x, VOV_1, r)
+head(viruses_load)
+saveRDS(viruses_load, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/viruses_load.RData")
+```
+ 
+### vizualize viruses distribution and abundance in (1)abundance plot; (2)PCA of viruses; (3)heat-map
+```{r message=FALSE, warning=FALSE}
+df <- readRDS("/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/data/kallisto.rds")
+viruses_load <- readRDS(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/viruses_load.RData")
+
+# (1) virus abundance plot
+joined_virus_lib <- viruses_load %>% gather("library", "tpm", -description)
+
+ggplot(joined_virus_lib, aes(x= library, y = tpm, fill = description)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 90)) 
+
+# (2) plot a PCA of viruses abundance 
+joined_virus_lib_PCA <- joined_virus_lib %>% group_by(description, library) %>% summarise(tpm = sum(tpm)) %>% spread(description, tpm) %>% dplyr::select(-library) 
+
+virus_PCA <- princomp(joined_virus_lib_PCA)  
+
+biplot(virus_PCA)
+
+# (3) heat-map ov viruses loads (log tpm) per library
+# plot the viruses abundance in each library
+# make a vector of the new viruses order
+
+new_order <- c("DWVa", "VDV1/DWVb", "VDV2", "BMV","VOV_1","ARV_2", "DWVc", "AmFV", "VDV3", "ABPV", "VTLV", "SV", "BQCV","VDV4", "IAPV", "KBV", "SBPV", "LSV","CBPV" ,"AFV", "ANV", "VPVL_46","VPVL_36")
+
+# re-order the viruses, based on viral load and viral abundance, and change the names of the viruses:
+viruses_load_arranged <- viruses_load  %>%
+  mutate(description =  factor(description, levels = new_order)) %>%
+  arrange(description) %>%
+  mutate(across("description", str_replace, "VOV_1", "VOV-1")) %>%
+  mutate(across("description", str_replace, "ARV_2", "ARV-2")) %>%
+  mutate(across("description", str_replace, "SV", "SBV")) %>%
+  mutate(across("description", str_replace, "LSBV", "LSV")) 
+
+
+
+# lock in factor level order
+viruses_load_arranged$description <- factor(viruses_load_arranged$description, levels = viruses_load_arranged$description)
+
+# spread the df with tpm in logscale
+virus_abund <- viruses_load_arranged %>%  
+    gather("library", "tpm", -description) 
+
+virus_abund[, 3] <- (virus_abund[,3]+ 0.000001)
+virus_abund[, 3] <- log10(virus_abund[,3]) 
+virus_abund <- replace_with_na(virus_abund, replace = list(tpm = -6))
+
+# now make a heat map
+ggplot(data = virus_abund, mapping = aes(x = description,
+                                                       y = library,
+                                                       fill = tpm)) +
+  scale_fill_gradient2(low="#FFFFCC", mid = "#FF9933", high="#990000",  na.value = "grey92") +
+  geom_tile() +
+  theme_linedraw() +
+  xlab(label = "Viruses") +
+  ylab(label = "Varroa SRA libraries") +
+  labs(fill = "Viral load \n log10(TPM)") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12)) + 
+  theme(axis.ticks = element_blank()) +
+  theme(axis.title = element_text(size = 16)) 
+
+  theme(legend.position=c(0.9,0.975), legend.justification = c(1,1))
+  
+  
+                              
+
+# or use heatmap() function
+x <- viruses_load %>%
+  column_to_rownames("description") %>%
+  as.matrix()
+heatmap(x, Colv = NA, xlab="Libraries", ylab="Viruses", cexRow=1, labRow=paste(rownames(x)))
+
+
+#FFFFCC - cream color
+#scale= "row",
+#Rowv = NA, 
+# virus_heatmap + scale_color_brewer(palette = "BuPu")
+
+#scale_fill_manual(values=c("red", "blue", "green")) +
+#scale_fill_gradient(low="cream", high="blue", space = "Lab")
+ #theme(axis.text.x = element_text(angle = 30)) 
+ # scale_color_brewer(palette = "RdYlBu") 
+#coul <- colorRampPalette(brewer.pal(8, "Blues"))(25)
+#scale_fill_gradient2(low="#FFFFCC", mid = "#FF9933", high="#990000", space = "Lab")
+```
+
+## virus Correlation matrix: 66 libs, 15 viruses
+```{r prepare virus data: 66, message=FALSE, warning=FALSE}
+viruses_load <- readRDS(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/viruses_load.RData")
+
+# plot the viruses abundance in each library 
+
+# prepare the 'viruses_load' table, with 15 viruses, 
+# excluding viruses with 'zero tpm': "CBPV", "AFV", "ANV" , "VPVL_46", "VPVL_36", "SBPV", also excluding viruses with low abundance :"KBV", "LSV".  left with 15 viruses
+a_viruses_load_66 <- viruses_load %>%
+  filter(description %in% c("DWVa", "ARV_2","VOV_1", "BMV","AmFV","ABPV","VTLV","IAPV","SV","VDV1/DWVb","DWVc","BQCV","VDV3","VDV2","VDV4")) %>%
+  column_to_rownames("description") %>% 
+  transposeBigData() %>%
+  rownames_to_column("library") %>%
+  #identify and remove the row numbers of the outlierd libraries (found by PCA) 
+  #filter(!(library %in% c("SRR5109825", "SRR5109827", "SRR533974" , "SRR3927496", "SRR8867385"))) %>% 
+  column_to_rownames("library")
+
+# correlate viruses load (66 libs)
+corrplot2 <- function(data,
+                      method = "pearson",
+                      sig.level = 0.05,
+                      order = "original",
+                      diag = FALSE,
+                      type = "upper",
+                      tl.srt = 75,
+                      number.font = 1,
+                      number.cex = 0.5,
+                      mar = c(0, 0, 0, 0)) {
+  
+  data_incomplete <- data
+  data <- data[complete.cases(data), ]
+  mat <- cor(data, method = method)
+  cor.mtest <- function(mat, method) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], method = method)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
+  p.mat <- cor.mtest(data, method = method)
+  col <- colorRampPalette(c("#053061","#2166ac","#4393c3","#92c5de","#d1e5f0","#f7f7f7","#fddbc7","#f4a582","#d6604d","#b2182b","#67001f"))
+  corrplot(mat,
+    method = "color", col = col(200), 
+    mar = mar, 
+    type = type, order = order,
+    tl.col = "black",
+    # hide correlation coefficients on the diagonal
+    diag = diag
+  )
+}
+
+virusAbundCor_66 <- corrplot2(
+  data = a_viruses_load_66,
+  method = "pearson",
+  sig.level = 0.05,
+  order = "original",
+  diag = F, 
+  type = "upper",
+  tl.srt = 75
+)
+
+
+# correlogram without viruses names:
+corrplot2 <- function(data,
+                      method = "pearson",
+                      order = "original",
+                      diag = FALSE,
+                      type = "upper",
+                      tl.srt = 270,
+                      mar = c(0, 0, 0, 0)) {
+  
+  data_incomplete <- data
+  data <- data[complete.cases(data), ]
+  mat <- cor(data, method = method)
+  cor.mtest <- function(mat, method) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], method = method)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
+  p.mat <- cor.mtest(data, method = method)
+  col <- colorRampPalette(c("#053061","#2166ac","#4393c3","#92c5de","#d1e5f0","#f7f7f7","#fddbc7","#f4a582","#d6604d","#b2182b","#67001f"))
+  corrplot(mat,
+    method = "color", col = col(200), 
+    mar = mar, 
+    type = type, order = order,
+    tl.col = "black",
+    # hide correlation coefficients on the diagonal
+    diag = diag
+  )
+}
+
+virusAbundCor_66 <- corrplot2(
+  data = a_viruses_load_66,
+  method = "pearson",
+ order = "original",
+  diag = T, 
+ tl.srt = 270,
+  type = "upper")
+
+#tl.srt = 75 - for tilting the viruses names in 75 degrees
+# hcl.colors(n = 50, palette = "RdYlBu", alpha = NULL, rev = FALSE, fixup = TRUE)
+# col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+# red - negative, blue- positive: col <- colorRampPalette(c("#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#f7f7f7","#d1e5f0","#92c5de","#4393c3","#2166ac","#053061"))
+# save the matrice for future analysis (Mantel)
+save(virusAbundCor_66, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/virusAbundCor_66.RData")
+```
+
+## virus Correlation matrix: 57 libs
+```{r prepare virus data: 57, message=FALSE, warning=FALSE}
+# make your data set:
+# plot the viruses abundance in each library 
+viruses_load <- readRDS(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/viruses_load.RData")
+
+# prepare the 'viruses_load' table
+# excluding viruses with 'zero tpm': "CBPV", "AFV", "ANV" , "VPVL_46", "VPVL_36", "SBPV", also excluding viruses with low abundance :"KBV", "LSV".  left with 15 viruses
+a_viruses_load_57 <- viruses_load %>%
+  filter(description %in% c("DWVa", "DWVc", "IAPV",  "ABPV", "BQCV","SV", "VDV1/DWVb", "VDV2", "VDV3", "BMV", "ARV_2", "AmFV","VTLV","VDV4","VOV_1")) %>%
+  column_to_rownames("description") %>% 
+  transposeBigData() %>%
+  rownames_to_column("library") %>%
+  #identify and remove the row numbers of the outlierd libraries (found by PCA) 
+  #filter(!(library %in% c("SRR5109825", "SRR5109827", "SRR533974" , "SRR3927496", "SRR8867385"))) %>% 
+  # remove 9 male libraries:
+  filter(!(library %in% c("SRR5760848", "SRR5760838", "SRR5760828", "SRR5760818", "SRR5377265" ,"SRR5377270" ,"SRR5377269" ,"SRR5377263" ,"SRR5377266"))) %>%
+  column_to_rownames("library")
+
+# correlate viruses load-57 libs
+corrplot2 <- function(data,
+                      method = "pearson",
+                      sig.level = 0.05,
+                      order = "original",
+                      diag = FALSE,
+                      type = "upper",
+                      tl.srt = 75,
+                      number.font = 1,
+                      number.cex = 0.5,
+                      mar = c(0, 0, 0, 0)) {
+  
+  data_incomplete <- data
+  data <- data[complete.cases(data), ]
+  mat <- cor(data, method = method)
+  cor.mtest <- function(mat, method) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], method = method)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
+  p.mat <- cor.mtest(data, method = method)
+  col <- colorRampPalette(c("#053061","#2166ac","#4393c3","#92c5de","#d1e5f0","#f7f7f7","#fddbc7","#f4a582","#d6604d","#b2182b","#67001f"))
+  corrplot(mat,
+    method = "color", col = col(200), 
+    mar = mar, 
+    type = type, order = order,
+    tl.col = "black",
+    # hide correlation coefficients on the diagonal
+    diag = diag
+  )
+}
+
+virusAbundCor_57 <- corrplot2(
+  data = a_viruses_load_57,
+  method = "pearson",
+  sig.level = 0.05,
+  order = "original",
+  diag = T, 
+  type = "upper",
+  tl.srt = 75
+)
+
+# save the matrice for future analysis (Mantel)
+save(virusAbundCor_57, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/virusAbundCor_57.RData")
+```
+
+```{r old version of 57 libs, eval=FALSE, include=FALSE}
+
+
+
+############ theres an error
+corrplot2 <- function(data,
+                      method = "pearson",
+                      sig.level = 0.05,
+                      order = "original",
+                      diag = FALSE,
+                      type = "upper",
+                      tl.srt = 90,
+                      number.font = 1,
+                      number.cex = 0.5,
+                      mar = c(0, 0, 0, 0)) {
+  
+  data_incomplete <- data
+  data <- data[complete.cases(data), ]
+  mat <- cor(data, method = method)
+  cor.mtest <- function(mat, method) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], method = method)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
+  p.mat <- cor.mtest(data, method = method)
+  col <- colorRampPalette(c("blue","white","red"))(200)
+  corrplot(mat,
+    method = "color", col = col(200), number.font = number.font,
+    mar = mar, number.cex = number.cex,
+    type = type, order = order,
+    addCoef.col = "black", # add correlation coefficient
+    tl.col = "black", tl.srt = tl.srt, # rotation of text labels
+    # combine with significance level
+    p.mat = p.mat, sig.level = sig.level, insig = "blank",
+    # hide correlation coefficiens on the diagonal
+    diag = diag
+  )
+}
+
+virusAbundCor_57 <- corrplot2(
+  data = a_viruses_load_57,
+  method = "pearson",
+  sig.level = 0.05,
+  order = "original",
+  diag = FALSE,
+  type = "upper",
+  tl.srt = 75
+)

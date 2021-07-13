@@ -1,0 +1,24 @@
+{
+    "id": "8A2BFD6B",
+    "path": "~/Documents/GitHub/varroa-virus-knockdown/knockdown.Rmd",
+    "project_path": null,
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1625471274564.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "cursorPosition": "152,3",
+        "scrollLine": "114"
+    },
+    "folds": "96|62|110|0|\n113|6|142|0|\n255|35|267|0|\n270|36|317|0|\n322|36|440|0|\n448|36|493|0|\n495|62|505|0|\n507|63|536|0|\n",
+    "lastKnownWriteTime": 1626160102,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1626160102954,
+    "read_only": false,
+    "read_only_alternatives": []
+}

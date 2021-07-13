@@ -1,0 +1,1029 @@
+---
+title: "varroa_modules"
+author: "Nurit"
+date: "4/13/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+this analysis is on the 66 libraries (i removed the 5 outlirered libraries from the "data/kallisto" folder in GitHub, however they still exsist in the local folder: "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/data/kallisto.rds".
+the working directory is in GitHb:
+"/Users/nuriteliash/Documents/GitHub/varroa-virus-networks"
+
+I save all the big outputs results in my local storage, on OneDrive:
+"/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results"
+
+```{r data storage, eval=FALSE, include=FALSE}
+#the working directory is in GitHb:
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-virus-networks")
+
+#I save all the big outputs results in my local storage:
+"/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results"
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+NOTE: before runing this rmd, first run "varroa virus networks.Rmd" to get the virus data. 
+```{r libraries, message=FALSE, warning=FALSE}
+library("dplyr")
+library("tidyverse")
+library("vegan")
+library("DESeq2")
+library("ggfortify")
+library("WGCNA")
+library("rmarkdown")
+library("knitr") # for the markdown
+library("kableExtra") # for creating a scrolling table
+library("ggplot2") # for plotting 
+library("ape") # for reading the phylogenetic tree and for mantel.test
+library("Biostrings")
+library("ggtree") # for plotting the tree
+library("ggrepel") # for spreading text labels on the plot
+library("scales") # for axis labels notation
+library("GO.db")
+library("reshape2")
+library("RSQLite")
+library("AnnotationDbi")
+library("GSEABase")
+library("GOstats")
+library("maps") # for the map background
+library("leaflet") #for the interactive maps
+library("htmltools")
+library("rgdal")
+library("grid")
+library("gridExtra")
+library("GeneOverlap")
+library("cluster")
+library("ggpubr")
+library("GGally")
+```
+
+### Import and join varroa data
+```{r message=FALSE, warning=FALSE}
+#import the varroa transcripts ("target_id") and their corresponding gene ("gene_id"). and add a col names.
+varroa_isoforms <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-virus-networks/data/gene2isoform.txt.gz", col_names = c("gene_id", "target_id"))
+
+#import the SRR libraries with tpms
+df <- read_rds("/Users/nuriteliash/Documents/GitHub/varroa-virus-networks/data/kallisto.rds")
+
+#join the varroa transcripts (varroa_isoforms), and the library tpm (df), by the varroa reads ("target_id"). As we do "left_join" to create the final data frame of"gene_tpm" contain ONLY varroa genes, excluding viruses' tpm. 
+gene_tpm <-  left_join(varroa_isoforms, df, by = "target_id")
+
+#collapse isoforms ("target_id") to a single row of a gene ("gene_id"), and sum the tpm(s) per gene per library
+gene_tpm_collps <- gene_tpm %>% gather("library","tpm", -target_id, -gene_id) %>%
+  group_by(gene_id, library) %>% summarise(gene_tpm = sum(tpm))
+
+# spread the table again, by library
+final_gene_tpm <- spread(gene_tpm_collps, key = "library", value = "gene_tpm") %>% column_to_rownames('gene_id')
+
+save(final_gene_tpm, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/gene_tpm.RData")
+```
+
+no need to look at this chunk, as i already removed the 5 outliers libraries from the /data/kallisto folder.
+just make the "for_modules" file and save it for subsequent analysis. 
+("SRR5109825", "SRR5109827", "SRR533974" , "SRR3927496", "SRR8867385")
+### PCA libraries by gene, to detect outlier libraries
+```{r  message=FALSE, warning=FALSE}
+#load data:
+load("/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/gene_tpm.RData")
+
+#transpose final_gene_tpm, and transform (log10+0.000001) 
+final_gene_tpm_T<- transposeBigData(log10(final_gene_tpm + 0.000001))
+
+# load the libraries properties 
+libs_factors <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-virus-networks/data/module_trait_factors.csv")
+# add the factors to each library by joining "libs_factors" with "final_gene_tpm_T"
+tpm_66 <- final_gene_tpm_T %>%
+  rownames_to_column("Library") 
+
+data_66 <- left_join(tpm_66,libs_factors, by = "Library") %>%
+  column_to_rownames("Library")
+
+PCA_66 <- prcomp(final_gene_tpm_T)
+
+# to avoid incompatibility between ggplot2 and autoplot ,
+#dev.off(), 
+# or clean the plots window
+
+#plot PCA, color coded by "mite_stage"
+p1<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'mite_stage')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+#plot PCA, color coded by "mite species"
+p2<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'mite_sp')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+#plot PCA, color coded by "host (bee) species"
+p3<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'bee_sp')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+#plot PCA, color coded by collection method
+p4<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'collec_method')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+#plot PCA, color coded by library selection method
+p5<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'Lib_select')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+#plot PCA, color coded by library treatment method
+p6<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'Lib_treat')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+#plot PCA, color coded by study
+p7<- autoplot(PCA_66, label = TRUE, x = 1, y = 2, data = data_66, colour = 'study')+
+  ggtitle("PCA of 66 libraries based on gene expression")
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,nrow = 3, ncol = 3)
+
+
+#remove outlier libraries (by col) - no need to do this step as i removed these 5 libs form the kalisto folder
+for_modules <- final_gene_tpm %>% transposeBigData() 
+#%>% dplyr::select(-c("SRR5109825", "SRR5109827", "SRR533974" , "SRR3927496", "SRR8867385"))
+
+saveRDS(for_modules, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/for_modules.rds")
+
+#OPTIONAL
+#remove outlier libraries + significant interacting libraries (17), from the "module-covariate-reg" analysis
+#sig_lib_17 <- c("SRR6823684", "SRR6824277", "SRR5760848","SRR5760838", "SRR5760828", "SRR5760818","SRR5377265", "SRR7339931","SRR5377270", "SRR5377269", "SRR5377268","SRR5377267",  "SRR5377266", "SRR5377265","SRR5377264","SRR5377263","SRR8864012")
+#for_modules_49 <- final_gene_tpm %>% dplyr::select(-c("SRR5109825", "SRR5109827", "SRR533974" , "SRR3927496", "SRR8867385", "SRR6823684", "SRR6824277", "SRR5760848","SRR5760838", "SRR5760828", "SRR5760818","SRR5377265", "SRR7339931","SRR5377270", "SRR5377269", "SRR5377268","SRR5377267",  "SRR5377266", "SRR5377265","SRR5377264","SRR5377263","SRR8864012")) %>%transposeBigData() 
+
+#plot PCA - the reduced file
+#autoplot(prcomp(transposeBigData(log10(for_modules + 0.000001))), label = TRUE)
+```
+
+### optional:PCA libraries by isoform
+```{r eval=FALSE, include=FALSE}
+#transpose final_gene_tpm, and transform 
+gene_tpm_T <- gene_tpm %>% 
+  dplyr::select(-"gene_id") %>%
+  column_to_rownames("target_id") %>% 
+  transposeBigData() 
+
+#plot PCA, detect outliers
+autoplot(prcomp(log10(gene_tpm_T + 0.000001)), label = TRUE)
+
+# log10 transform
+isoform_modules <- log10(gene_tpm_T + 0.000001)
+```
+
+now the table is ready for varroa module making!
+
+# following the 2.a step in WGCNA tutorial: "Automatic, one-step network construction and module detection"
+###  WGCNA set directory and library
+```{r eval=F, echo=T}
+#=====================================================================================
+#
+#  Code chunk 1
+#
+#=====================================================================================
+
+# If necessary, change the path below to the directory where the data files are stored.
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-virus-networks")
+# Display the current working directory
+getwd()
+
+# Allow multi-threading within WGCNA. This helps speed up certain calculations.
+options(stringsAsFactors = FALSE)
+```
+
+### 2.a.1 Choosing the soft-thresholding power: analysis of network topology
+```{r eval=F, echo=T}
+#=====================================================================================
+#
+#  Code chunk 2
+#
+#=====================================================================================
+
+# Choose a set of soft-thresholding powers
+powers = c(c(1:10), seq(from = 12, to=25, by=2))
+# Call the network topology analysis function
+sft = pickSoftThreshold(for_modules, powerVector = powers, verbose = 5)
+# Plot the results:
+sizeGrWindow(9, 5)
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     main = paste("Scale independence"));
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels=powers,cex=cex1,col="red");
+# this line corresponds to using an R^2 cut-off of h
+abline(h=0.80,col="red")
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+```
+
+### Constructing the gene network and identifying modules is now a simple function call:
+```{r eval=F, echo=T}
+#=====================================================================================
+#
+#  Code chunk 3 - automatic!
+#
+#=====================================================================================
+
+net = blockwiseModules(for_modules, power = 12,
+                       TOMType = "unsigned", minModuleSize = 30,
+                       reassignThreshold = 0, mergeCutHeight = 0.25,
+                       numericLabels = TRUE, pamRespectsDendro = FALSE,
+                       saveTOMs = TRUE,
+                       saveTOMFileBase = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/Varroa_modulesTOM", 
+                       verbose = 3)
+
+# To see how many modules were identified and what the module sizes are, one can use table(net$colors). Its output is 
+
+table(net$colors)
+```
+The hierarchical clustering dendrogram (tree) used for the module identification is returned in net$dendrograms[[1]];
+The dendrogram can be displayed together with the color assignment using the following code
+```{r eval=F, echo=T}
+#=====================================================================================
+#
+#  Code chunk 4 - automatic!
+#
+#=====================================================================================
+
+# open a graphics window
+sizeGrWindow(12, 9)
+# Convert labels to colors for plotting
+mergedColors = labels2colors(net$colors)
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+                    "Module colors",
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+```
+
+### chunk 5. save the module assignment and module eigengene information necessary for subsequent analysis:
+all data saved to "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/"
+```{r eval=F, echo=T}
+#=====================================================================================
+#
+#  Code chunk 5
+#
+#=====================================================================================
+
+moduleLabels = net$colors
+moduleColors = labels2colors(net$colors)
+MEs = net$MEs;
+geneTree = net$dendrograms[[1]];
+save(MEs, moduleLabels, moduleColors, geneTree, 
+     file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/Varroa_modules_networkConstruction-auto.RData")
+```
+
+### Relating modules to external information and identifying important genes
+prepare the "viralTraits" table (like the "clinicalTraits.csv") of virus variables you wish to correlate to varroa modules
+```{r eval=F, echo=T}
+# prepare the 'viruses_load' table, with 15 viruses, 
+# excluding viruses with tpm=zero for all libraries, in addition to viruses with very low levels, that appear in a few libraries: LSV, SBPV, KBV. So we are left with 15 of the initial 23 viruses
+
+viruses_load <- read_rds("/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/viruses_load.RData")
+
+b_viruses_load <- viruses_load %>%
+  # filter for specific viruses (15)
+  filter(description %in% c("DWVa", "DWVc", "IAPV", "ABPV", "BQCV","SV", "VDV1/DWVb", "VDV2", "VDV3", "BMV", "ARV_2", "AmFV","VTLV","VDV4","VOV_1")) %>%
+  column_to_rownames("description") %>% 
+  transposeBigData() %>%
+  rownames_to_column("library") %>%
+  #identify and remove the row numbers of the outlierd libraries (found by PCA) 
+  filter(!(library %in% c("SRR5109825", "SRR5109827", "SRR533974" , "SRR3927496", "SRR8867385"))) %>% 
+  column_to_rownames("library")
+
+# The last step is to save the relevant expression and trait data for use in the next steps 
+
+# the varroa modules with the 'viruses load' (15 viruses)
+save(for_modules, b_viruses_load, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/varroa_virus-01-dataInput.RData")
+
+# also optional to remove another 16 outliered libraries:
+#outLib_16 <- c("SRR6823684","SRR6824277","SRR5760848","SRR5760838","SRR5760828","SRR5760818","SRR7339931","SRR5377270","SRR5377269","SRR5377268","SRR5377267","SRR5377266","SRR5377265","SRR5377264","SRR5377263","SRR8864012")
+```
+
+now that we have a 'viralTraits' tables, we can associate it with the varroa modules we found earlier
+
+i have saved the two files as in the tutorial:
+datTraits = "viralTraits": traits in columns, libraries in rows
+datExpr = "for_modules" : varroa genes in columns, libraries in rows  
+*note: in these files i have only 66 libraries, as we took 5 out after PCA
+
+### WGCNA 3.a Quantifying module–trait associations
+```{r eval=F, echo=T}
+#if you are starting from this chunk,  
+# Load the expression and trait data saved in the first part 
+load(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/varroa_virus-01-dataInput.RData"); 
+
+# Load network data saved in the second part.
+load(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/Varroa_modules_networkConstruction-auto.RData"); 
+
+# Define numbers of genes and samples
+nGenes = ncol(for_modules);
+nSamples = nrow(for_modules)
+# Recalculate MEs with color labels 
+MEs0 = moduleEigengenes(for_modules, moduleColors)$eigengenes
+MEs = orderMEs(MEs0)
+
+# correlate the modules eigengenes (MEs) with the viral load (b_viruses_load)
+moduleTraitCor = cor(MEs, b_viruses_load, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples)
+
+### Controlling the false discovery rate: Benjamini–Hochberg procedure ###
+# using p.adjust function, for all comparisons, 15 modules and 15 viruses (m=225). 
+
+# first make the p-value matrix into a dataframe
+moduleTraitPvalue_0 <- as.data.frame(moduleTraitPvalue)
+
+# then "gather" all the p-values, so they will apear in one column
+longer_Pvalue <- moduleTraitPvalue_0 %>% 
+  rownames_to_column("module") %>%
+  gather("virus", "pvalue", -module)
+
+# now calculate the p.adjust for each p-value 
+Padjust <- p.adjust(longer_Pvalue$pvalue, method = "fdr")
+
+# and add the column of adjusted pvalues
+Padjust <- add_column(longer_Pvalue, Padjust)
+
+# now spread it back
+moduleTraitPadjust <- Padjust %>% 
+  dplyr::select(-pvalue) %>% 
+  group_by(virus) %>%
+  pivot_wider(names_from = virus, values_from = Padjust)
+moduleTraitPadjust <- column_to_rownames(moduleTraitPadjust, "module")
+
+# before correlating, make the two dataframes into "matrixes"
+moduleTraitCor_66 <- as.matrix(moduleTraitCor)
+moduleTraitPadjust_66 <- as.matrix(moduleTraitPadjust)
+
+#  Display correlations and their adjusted p-values
+sizeGrWindow(10,6)
+textMatrix = paste(signif(moduleTraitCor_66, 2), "\n(",
+                   signif(moduleTraitPadjust_66, 1), ")", sep = "");
+dim(textMatrix) = dim(moduleTraitCor_66)
+par(mar = c(6, 8.5, 3, 3));
+# Display the correlation values within a heatmap plot
+labeledHeatmap(Matrix = moduleTraitCor_66,
+               xLabels = names(b_viruses_load),
+               yLabels = names(MEs),
+               #xLabelsAngle = 90,
+               ySymbols = names(MEs),
+               colorLabels = FALSE,
+               colors = hcl.colors(n = 50, palette = "RdBu", alpha = NULL, rev = FALSE, fixup = TRUE),
+               invertColors = TRUE,
+               textMatrix = textMatrix,
+               setStdMargins = FALSE,
+               cex.text = 0.7,
+               zlim = c(-1,1),
+               main = paste("Varroa Module-viruses relationships"))
+
+# save the matrices for next analysis
+save(moduleTraitCor_66,moduleTraitPadjust_66, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/moduleTraitCor_66.RData")
+
+
+#colors = blueWhiteRed(50),
+#colors = hcl.colors(n = 80, palette = "viridis", alpha = NULL, rev = FALSE, fixup = TRUE),
+#colors = hcl.colors(n = 50, palette = "RdBu", alpha = NULL, rev = FALSE, fixup = TRUE)
+
+# or plot it in a "clean" mode
+sizeGrWindow(10,6)
+# Will display correlations and their p-values
+textMatrix = paste(signif(moduleTraitCor_66, 2), "\n(",
+                   signif(moduleTraitPadjust_66, 1), ")", sep = "");
+dim(textMatrix) = dim(moduleTraitCor_66)
+par(mar = c(6, 8.5, 3, 3));
+# Display the correlation values within a heatmap plot
+labeledHeatmap(Matrix = moduleTraitCor_66,
+               xLabels = names(b_viruses_load),
+               xLabelsAngle = 90,
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = FALSE,
+               colors = hcl.colors(n = 50, palette = "RdBu", alpha = NULL, rev = FALSE, fixup = TRUE),
+               invertColors = TRUE,
+               #textMatrix = textMatrix,
+               setStdMargins = FALSE,
+               cex.text = 0.7,
+               zlim = c(-1,1),
+               main = paste("Varroa Module-viruses relationships"))
+```
+
+#### hirarchial clustering of the viruses, based to their correlation to the varroa modules
+```{r eval=F, echo=T}
+#plot hierarchical clustering of the viruses, based to their correlation to the varroa modules.
+plot(hclust(dist(abs(transposeBigData(moduleTraitCor)))))
+
+#plot hierarchical clustering of the modules, based to their correlation to the viruses load
+plot(hclust(dist(abs(moduleTraitCor))))
+```
+
+# Mantel-test: Can we predict the virus-varroa interaction given the virus abundance? 
+correlation btw two matrices
+```{r eval=F, echo=T}
+# x: how virus interacts with varroa expression, and y: the correlation of viral abundance across samples
+
+# load the two matrices:
+# the module–trait association matrix 
+load(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/moduleTraitCor_66.RData"); 
+
+# and the viral abundance correlogram
+load(file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/virusAbundCor_66.RData"); 
+
+# make correlation matrix of the "moduleTraitCor":
+corModulTrait_66 <- cor(moduleTraitCor_66)
+
+# (1) Mantel test using "ape" library:
+mantel.test(corModulTrait_66, virusAbundCor_66, graph = TRUE,
+            main = "Mantel test",
+            xlab = "z-statistic", ylab = "Density",
+            sub = "The vertical line shows the observed z-statistic")
+
+# (2) Mantel test using "vegan" library:
+mantel(corModulTrait_66, virusAbundCor_66, method="pearson", permutations=1000)
+
+#plot the correlation
+verboseScatterplot(x = virusAbundCor_66, y = corModulTrait_66, main = "Viral abundance predicts varroa-virus interaction", xlab = "Viruses interaction", ylab = "Varroa-virus interaction", abline = T, abline.color = "black", bg = "black")
+
+# or flip the axis:
+verboseScatterplot(x = corModulTrait_66, y = virusAbundCor_66, main = "Viral abundance predicts varroa-virus interaction", xlab = "Correlation of viral interaction with varroa modules", ylab = "Correlation of viral abundances", abline = T, abline.color = "black")
+```
+
+### Plot specific virus-virus-module interactions 
+```{r eval=F, echo=T}
+# before joining the tables, take out the SRA columns:
+Modules <- MEs %>%
+  rownames_to_column("library")
+viruses_load <- b_viruses_load %>%
+   rownames_to_column("library") 
+
+# make a new table with SRAs as rows, and viral loads and modules in the columns:
+dat <- left_join(viruses_load, Modules, by = "library") 
+
+# take out 6 male libraries:
+x <- dat %>%
+  dplyr::filter(!(library %in% c("SRR5760848","SRR5760838", "SRR5760828", "SRR5760818", "SRR5377266", "SRR5377265"))) 
+
+
+# now plot each of the significant interactions of virus-virus-module
+```
+#### (1) Module 3 (Brown module) positively correlates to ARV_2, VOV_1 (all 66 libraries)
+```{r eval=F, echo=T}
+# Module 3 (Brown module) positively correlates to ARV_2, VOV_1. the 2 viruses are positively correlated. 
+Brown <- dat %>%
+  dplyr::select(c("library","MEbrown", "ARV_2", "VOV_1")) %>%
+  pivot_longer(cols = c(ARV_2, VOV_1),
+                           names_to = "virus", values_to = "load")
+
+# plot the eigengenes against the viral load
+pBr_virus <- ggplot(Brown,aes(x = MEbrown, y = load, col = virus, group = virus)) +
+  geom_point() + 
+  labs( x = "Module 3 eigengenes", y = "Viral load",
+title ="Module 3 - ARV_2 and VOV_1 interaction") +
+  theme_bw() +
+  geom_text(label= dat$library, check_overlap = T)+
+stat_cor(aes(color = virus))+
+    geom_smooth(method = "lm", se=T, col = "black") 
+
+pBr_ARV_2 <- ggplot(dat,aes(x = MEbrown, y =ARV_2)) +
+  geom_point() + 
+  geom_text(label= dat$library, check_overlap = T)+
+  labs( x = "Module 3 eigengenes", y = "ARV_2 load",
+title ="ARV_2 load - Module 3 interaction") +
+  theme_classic() +
+stat_cor()+
+    geom_smooth(method = "lm", se=T, col = "black") 
+
+pBr_VOV_1 <- ggplot(dat,aes(x = MEbrown, y = VOV_1)) +
+  geom_point() + 
+  geom_text(label= dat$library,check_overlap = T)+
+  labs( x = "Module 3 eigengenes", y = "VOV_1 load",
+title ="VOV_1 load - Module 3 interaction") +
+  theme_classic() +
+stat_cor()+
+    geom_smooth(method = "lm", se=T, col = "black") 
+
+# and the viruses against each other
+pARV_2_VOV <- ggplot(dat,aes(x = ARV_2, y = VOV_1)) +
+  geom_point() + 
+  geom_text(label= dat$library,check_overlap = T)+
+  labs( x = "ARV_2 load", y = "VOV_1 load",
+title ="ARV_2 - VOV_1 viral load interaction") +
+  theme_classic() +
+stat_cor()+
+    geom_smooth(method = "lm", se=T, col = "#23A242") 
+
+# plot the all viruses with module 13 
+grid.arrange(pARV_2_VOV, pBr_virus, nrow = 1)
+
+grid.arrange(pARV_2_VOV,pBr_VOV_1, pBr_ARV_2 ,nrow = 1)
+grid.arrange(pBr_VOV_1, pBr_ARV_2 ,nrow = 1)
+```
+
+#### (1) Module 3 (Brown module) positively correlates to ARV_2, VOV_1 (excluding ,male libraries)
+```{r eval=F, echo=T}
+# Module 3 (Brown module) positively correlates to ARV_2, VOV_1. the 2 viruses are positively correlated. 
+pBr_ARV_2 <- ggplot(x,aes(x = MEbrown, y =ARV_2)) +
+  geom_point() + 
+  geom_text(label= x$library, check_overlap = T)+
+  labs( x = "Module 3 eigengenes", y = "ARV_2 load",
+title ="ARV_2 load - Module 3 interaction") +
+  theme_classic() +
+stat_cor()+
+    geom_smooth(method = "lm", se=T, col = "black") 
+
+pBr_VOV_1 <- ggplot(x,aes(x = MEbrown, y = VOV_1)) +
+  geom_point() + 
+  geom_text(label= x$library, check_overlap = T)+
+  labs( x = "Module 3 eigengenes", y = "VOV_1 load",
+title ="VOV_1 load - Module 3 interaction") +
+  theme_classic() +
+stat_cor()+
+    geom_smooth(method = "lm", se=T, col = "black") 
+
+# and the viruses against each other
+pARV_2_VOV <- ggplot(x,aes(x = ARV_2, y = VOV_1)) +
+  geom_point() + 
+  geom_text(label= x$library,check_overlap = T)+
+  labs( x = "ARV_2 load", y = "VOV_1 load",
+title ="ARV_2 - VOV_1 viral load interaction") +
+  theme_classic() +
+stat_cor()+
+    geom_smooth(method = "lm", se=T, col = "#23A242") 
+
+# plot the all viruses with module 13 
+grid.arrange(pARV_2_VOV, pBr_virus, nrow = 1)
+
+grid.arrange(pARV_2_VOV,pBr_VOV_1, pBr_ARV_2 ,nrow = 1)
+grid.arrange(pBr_VOV_1, pBr_ARV_2 ,nrow = 1)
+```
+
+#### (2) module 13 (salmon) negatively correlate to viruses DWVa, DWVc, BQCV, VDV3. 
+```{r}
+# (2) module 13 (salmon) negatively correlate to viruses DWVa, DWVc, BQCV, VDV3. all four viruses are positivley correlated.
+Salmon <- dat %>%
+  dplyr::select(c("library","MEsalmon", "DWVc", "BQCV", "VDV3")) %>%
+  pivot_longer(cols = c(DWVc, BQCV, VDV3),
+                           names_to = "virus", values_to = "load")
+
+# plot the eigengenes against the viral load
+pSal_virus <- ggplot(Salmon,aes(x = MEsalmon, y = load, col = virus, group = virus)) +
+  geom_point() + 
+  labs( x = "Module 13 eigengenes", y = "Viral load",
+title ="Interaction between Module 13 and viruses (DWVc, BQCV, VDV3)") +
+  theme_bw() +
+stat_cor(aes(color = virus)) +
+    geom_smooth(method = "lm", se=FALSE) 
+
+##### plot each virus separately
+pSal_BQCV <- ggplot(dat,aes(x = MEsalmon, y = BQCV)) +
+  geom_point() + 
+  labs( x = "Module 13 eigengenes", y = "BQCV load",
+title ="BQCV load - Module 13 interaction") +
+  theme_bw() +
+stat_cor()+
+    geom_smooth(method = "lm", se=FALSE) 
+
+pSal_DWVc <- ggplot(dat,aes(x = MEsalmon, y = DWVc)) +
+  geom_point() + 
+  labs( x = "Module 13 eigengenes", y = "DWVc load",
+title ="DWVc load - Module 13 interaction") +
+  theme_bw() +
+stat_cor()+
+    geom_smooth(method = "lm", se=FALSE)
+
+pSal_VDV3 <- ggplot(dat,aes(x = MEsalmon, y = VDV3)) +
+  geom_point() + 
+  labs( x = "Module 13 eigengenes", y = "VDV3 load",
+title ="VDV3 load - Module 13 interaction") +
+  theme_bw() +
+stat_cor()+
+    geom_smooth(method = "lm", se=FALSE)
+
+pSal_DWVa <- ggplot(dat,aes(x = MEsalmon, y = DWVa)) +
+  geom_point() + 
+  labs( x = "Module 13 eigengenes", y = "DWVa load",
+title ="DWVa load - Module 13 interaction") +
+  theme_bw() +
+stat_cor()+
+    geom_smooth(method = "lm", se=FALSE)
+
+# plot the all viruses with module 13 
+grid.arrange(pSal_BQCV, pSal_DWVc, pSal_VDV3, pSal_DWVa, nrow = 2, ncol = 2)
+
+# all four viruses interaction matrix
+ggpairs(dat, columns = c("DWVa","DWVc", "BQCV", "VDV3"),
+        lower = list(continuous = wrap("smooth", size=1.5, se=FALSE))) +
+            labs(title ="Viruses DWVa, DWVc, BQCV and VDV3 positively interacting with each other") +
+            theme_bw() 
+```
+#### (3) module 9 (magenta) and 6 (red) are positively correlated to viruses VDV2 and VDV4. 
+```{r}
+# (3) module 9 (magenta) and 6 (red) are positively correlated to viruses VDV2 and VDV4. the two viruses are positively correlated.
+pMag_VDV2 <- ggplot(dat,aes(x = MEmagenta, y = log(VDV2+0.1))) +
+  geom_point() + 
+  labs( x = "Module 9 eigengenes", y = "VDV2 load (logTPM)", title ="VDV2 load - Module 9 interaction") +
+  theme_classic() +
+  stat_cor() +
+  geom_smooth(method = "lm", se=FALSE)+
+  theme(title = element_blank())
+
+pMag_VDV4 <- ggplot(dat,aes(x = MEmagenta, y = log(VDV4+0.1))) +
+  geom_point() + 
+  labs( x = "Module 9 eigengenes", y = "VDV4 load (logTPM)", title ="VDV4 - Module 9 interaction") +
+  theme_classic() +
+  stat_cor() +
+  geom_smooth(method = "lm", se=FALSE)+
+  theme(title = element_blank())
+
+pRed_VDV2 <- ggplot(dat,aes(x = MEred, y = log(VDV2+0.1))) +
+  geom_point() + 
+  labs( x = "Module 6 eigengenes", y = "VDV2 load (logTPM)", title ="VDV2 load - Module 6 interaction") +
+  theme_classic() +
+  stat_cor() +
+  geom_smooth(method = "lm", se=FALSE) +
+  theme(title = element_blank())
+
+pRed_VDV4 <- ggplot(dat,aes(x = MEred, y = log(VDV4+0.1))) +
+  geom_point() + 
+  labs( x = "Module 6 eigengenes", y = "VDV4 load (logTPM)", title ="VDV4 logload - Module 6 interaction") +
+  theme_classic() +
+  stat_cor() +
+  geom_smooth(method = "lm", se=FALSE) +
+  theme(title = element_blank())
+
+pVDV2_VDV4 <- ggplot(dat,aes(x = log(VDV4+0.1), y = log(VDV2+0.1))) +
+  geom_point() + 
+  labs( x = "VDV4 load (logTPM)", y = "VDV2 load (logTPM)", title ="VDV2 - VDV4 viral load interaction") +
+  theme_classic() +
+  stat_cor(size=7) +
+  geom_smooth(method = "lm", se=FALSE, color = "#23A242", size=3) +
+  theme(text = element_text(size=20))
+
+pVDV2_VDV4
+grid.arrange(pRed_VDV2, pMag_VDV2, pRed_VDV4, pMag_VDV4, nrow = 2, ncol = 2)
+
+#plotting the viruses together:
+Magenta <- dat %>%
+  dplyr::select(c("library","MEmagenta", "VDV4", "VDV2")) %>%
+  pivot_longer(cols = c(VDV4, VDV2),
+                           names_to = "virus", values_to = "load")
+Red <- dat %>%
+  dplyr::select(c("library","MEred", "MEmagenta", "VDV4", "VDV2")) %>%
+  pivot_longer(cols = c(VDV4, VDV2), names_to = "virus", values_to = "load")
+
+Mod <- dat %>%
+  dplyr::select(c("library","MEred", "MEmagenta", "VDV4", "VDV2")) %>%
+  pivot_longer(cols = c(VDV4, VDV2), names_to = "virus", values_to = "load") %>%
+  pivot_longer(cols = c(MEmagenta, MEred), names_to = "module", values_to = "tpm")
+
+# and plot the eigengenes against the viral load
+pMag <- ggplot(Magenta,aes(x = MEmagenta, y = log(load+0.01), col = virus, group = virus)) +
+  geom_point() + 
+  labs( x = "Module 9 eigengenes", y = "Viral load",
+title ="Module 9 - VDV2, VDV4 interaction") +
+  theme_bw() +
+stat_cor(aes(color = virus))+
+    geom_smooth(method = "lm", se=FALSE) 
+
+pRed <- ggplot(Red,aes(x = MEred, y = log(load+0.01), col = virus, group = virus)) +
+  geom_point() + 
+  labs( x = "Module 6 eigengenes", y = "Viral load",title ="Module 6 - VDV2, VDV4 interaction") +
+  theme_bw() +
+  stat_cor(aes(color = virus)) +
+  geom_smooth(method = "lm", se=FALSE) 
+
+# another option with log(tpm+0.01)
+pVDV2Log <- ggplot(filter(Mod, virus == "VDV2"),aes(x = log(load+0.01), y = tpm, col = module, group = module)) +
+  geom_point() + 
+  labs(x = "VDV2 load (logTPM)", y = "Module eigengenes", title ="VDV2 interaction with modules eigengenes") +
+  theme_bw() +
+  stat_cor(aes(color = module)) +
+  geom_smooth(method = "lm", se=FALSE) 
+
+pVDV4Log <- ggplot(filter(Mod, virus == "VDV4"),aes(x = log(load+0.01), y = tpm, col = module, group = module)) +
+  geom_point() + 
+  labs(x = "VDV4 load (logTPM)", y = "Module eigengenes", title ="VDV4 interaction with modules eigengenes") +
+  theme_bw() +
+  stat_cor(aes(color = module)) +
+  geom_smooth(method = "lm", se=FALSE)
+
+# plot the VDV2 and VDV4 together - (logTPM)
+grid.arrange(pVDV2Log, pVDV4Log, nrow = 1)
+
+
+
+
+# another option -no log
+pVDV2 <- ggplot(filter(Mod, virus == "VDV2"),aes(x = load, y = tpm, col = module, group = module)) +
+  geom_point() + 
+  labs(x = "VDV2 load", y = "Module eigengenes", title ="VDV2 interaction with modules eigengenes") +
+  theme_bw() +
+  stat_cor(aes(color = module)) +
+  geom_smooth(method = "lm", se=FALSE) 
+
+pVDV4 <- ggplot(filter(Mod, virus == "VDV4"),aes(x = load, y = tpm, col = module, group = module)) +
+  geom_point() + 
+  labs(x = "VDV4 load", y = "Module eigengenes", title ="VDV4 interaction with modules eigengenes") +
+  theme_bw() +
+  stat_cor(aes(color = module)) +
+  geom_smooth(method = "lm", se=FALSE)
+
+# plot the VDV2 and VDV4 together
+grid.arrange(pVDV2, pVDV4, nrow = 1)
+```
+
+
+
+
+We quantify associations of individual genes with our trait of interest (viral load) by defining Gene Significance GS as (the absolute value of) the correlation between the gene and the trait. 
+For each module, we also define a quantitative measure of module membership MM as the correlation of the module eigengene and the gene expression profile. 
+This allows us to quantify the similarity of all genes on the array to every module.
+
+### WGCNA 3.b Gene relationship to trait and important modules: Gene Significance and Module Membership
+```{r eval=F, echo=T}
+# Define numbers of genes and samples
+nGenes = ncol(for_modules);
+nSamples = nrow(for_modules);
+# Recalculate MEs with color labels 
+MEs0 = moduleEigengenes(for_modules, moduleColors)$eigengenes
+MEs = orderMEs(MEs0)
+
+# names (colors) of the modules
+modNames = substring(names(MEs), 3)
+virusNames = substring(names(b_viruses_load), 1)
+
+#make a table of the Module-membership ("MM") of each gene (which is its correlation coefficient, pearson)
+geneModuleMembership_66 = as.data.frame(cor(for_modules, MEs, use = "p"));
+MMPvalue_66 = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership_66), nSamples));
+
+### Controlling the false discovery rate: Benjamini–Hochberg procedure ###
+# using p.adjust function, for all comparisons, 15 modules and 15 viruses (m=225). 
+
+# first make the p-value matrix into a dataframe
+MMPvalue_66_0 <- as.data.frame(MMPvalue_66)
+
+# then "gather" all the p-values, so they will apear in one column
+longer_Pvalue <- MMPvalue_66_0 %>% 
+    rownames_to_column("module") %>%
+    gather("virus", "pvalue", -module)
+
+# now calculate the p.adjust for each p-value 
+Padjust <- p.adjust(longer_Pvalue$pvalue, method = "fdr")
+
+# and add the column of adjusted pvalues
+Padjust <- add_column(longer_Pvalue, Padjust)
+
+# now spread it back
+MMPadjust_66 <- Padjust %>% 
+    dplyr::select(-pvalue) %>% 
+    group_by(virus) %>%
+    pivot_wider(names_from = virus, values_from = Padjust)
+MMPadjust_66 <- column_to_rownames(MMPadjust_66, "module")  
+  
+#change the name of the columns to start with "MM" then the module name
+names(geneModuleMembership_66) = paste("MM", modNames, sep="");
+names(MMPadjust_66) = paste("padj.MM", modNames, sep="");
+
+### now the same for Trait-significance ("GS"): 
+# make a table with the Trait-significance ("GS") for each gene (which is its correlation coefficient, pearson)
+geneTraitSignificance_66 = as.data.frame(cor(for_modules, b_viruses_load, use = "p"));
+GSPvalue_66 = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance_66), nSamples));
+
+  ### Controlling the false discovery rate: Benjamini–Hochberg procedure ###
+# using p.adjust function, for all comparisons, 15 modules and 15 viruses (m=225). 
+
+# first make the p-value matrix into a dataframe
+GSPvalue_66_0 <- as.data.frame(GSPvalue_66)
+
+# then "gather" all the p-values, so they will apear in one column
+longer_Pvalue <- GSPvalue_66_0 %>% 
+    rownames_to_column("module") %>%
+    gather("virus", "pvalue", -module)
+
+# now calculate the p.adjust for each p-value 
+Padjust <- p.adjust(longer_Pvalue$pvalue, method = "fdr")
+
+# and add the column of adjusted pvalues
+Padjust <- add_column(longer_Pvalue, Padjust)
+
+# now spread it back
+GSPadjust_66 <- Padjust %>% 
+    dplyr::select(-pvalue) %>% 
+    group_by(virus) %>%
+    pivot_wider(names_from = virus, values_from = Padjust)
+GSPadjust_66 <- column_to_rownames(GSPadjust_66, "module")
+
+#rename the col names by adding the initial "GS." for genesignificance, and "p.GS." for p-value.
+names(geneTraitSignificance_66) = paste("GS.", names(b_viruses_load), sep="");
+names(GSPadjust_66) = paste("pdj.GS.", names(b_viruses_load), sep="");
+
+#save data:
+save(geneTraitSignificance_66, GSPadjust_66, geneModuleMembership_66, MMPadjust_66, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/geneTraitANDgeneMM_66.RData")
+```
+
+Using the GS and MM measures, we can identify genes that have a high significance for total_load as well as high module membership in interesting modules. 
+
+the following verboseScatterplot plots the Varroa genes, based on the correlation between: 
+- their MM value (geneModuleMembership), against 
+- their GS value (geneTraitSignificance).
+
+to get the interaction of each module, against each virus, just change the "module" and "virus" at the beginning of the code.
+
+### WGCNA 3.c Intramodular analysis: identifying genes with high GS and MM
+using the absolute MM value, and the signed GS
+```{r eval=F, echo=T}
+sizeGrWindow(8,6)
+par(mfrow=c(2,2))
+module = "pink"
+virus = "VDV2"
+column = match(module, modNames);
+column1 = match(virus, virusNames);
+moduleGenes = moduleColors==module;
+verboseScatterplot(geneModuleMembership_66[moduleGenes, column],
+                   abs(geneTraitSignificance_66[moduleGenes, column1]),
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = paste("Gene Trait significance for" ,virus, "viral load"),
+                   main = paste(module, "Module membership vs. gene", virus, "significance\n 66 libraries; "),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+module = "green"
+virus = "DWVa"
+column = match(module, modNames);
+column1 = match(virus, virusNames);
+moduleGenes = moduleColors==module;
+verboseScatterplot(abs(geneModuleMembership_66[moduleGenes, column]),
+                   abs(geneTraitSignificance_66[moduleGenes, column1]),
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = paste("Gene Trait significance for" ,virus, "viral load"),
+                   main = paste(module, "Module membership vs. gene", virus, "significance\n 66 libraries; "),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+module = "green"
+virus = "ARV_2"
+column = match(module, modNames);
+column1 = match(virus, virusNames);
+moduleGenes = moduleColors==module;
+verboseScatterplot(abs(geneModuleMembership_66[moduleGenes, column]),
+                   abs(geneTraitSignificance_66[moduleGenes, column1]),
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = paste("Gene Trait significance for" ,virus, "viral load"),
+                   main = paste(module, "Module membership vs. gene", virus, "significance\n 66 libraries; "),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+```
+
+as intramodular connectivity (KIn) and module membership (MM) are positivly and linearly correlated, 
+similarly, we can plot the interaction of the geneTraitSignificance to the intramodular connectivity for each gene.
+ 
+## 7. Module membership, intramodular connectivity and screening for intramodular hub genes
+[link for the tutorial](https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/Rpackages/WGCNA/Tutorials/Simulated-07-Membership.pdf) 
+### 7.a Intramodular connectivity
+```{r eval=F, echo=T}
+# We begin by calculating the intramodular connectivity for each gene. (In network literature, connectivity is often referred to as ”degree”.) The function intramodularConnectivity computes the whole network connectivity kTotal, the within module connectivity kWithin, kOut=kTotal-kWithin, and kDiff=kIn-kOut=2*kIN-kTotal
+
+# calculate the correlation between each pair of genes 
+ADJ1_66 <- abs(cor(for_modules,use="p"))^6
+# compute the different degrees of connectivity:
+Alldegrees1_66 <- intramodularConnectivity(ADJ1_66, moduleColors)
+head(Alldegrees1_66)
+
+#save it 
+save(Alldegrees1_66, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/IntraModCon66.RData")
+```
+
+### 7.b Relationship between gene significance and intramodular connectivity
+```{r eval=F, echo=T}
+#We plot the geneTraitSignificance (gene-virus correlation) against intramodular connectivity (kWithin), *per virus*:
+colorlevels=unique(moduleColors)
+sizeGrWindow(9,6)
+par(mfrow=c(2,as.integer(0.5+length(colorlevels)/2)))
+par(mar = c(4,5,3,1))
+for (i in c(1:length(colorlevels)))
+{
+  whichmodule=colorlevels[[i]];
+  restrict1 = (moduleColors==whichmodule);
+  verboseScatterplot(Alldegrees1_66$kWithin[restrict1],
+                     geneTraitSignificance_66$GS.VDV2[restrict1], col=moduleColors[restrict1],
+                     main=whichmodule,
+                     xlab = "Connectivity", ylab = "Gene Significance", abline = TRUE)
+}
+```
+in the positive correlations,  observe that intramodular hub genes (with high intramodular connectivity) tend to have high gene significance.
+
+### 7.c Generalizing intramodular connectivity for all genes on the array (module membership)
+The intramodular connectivity measure is only defined for the genes inside a given module.
+But in practice it can be very important to measure how connected a given genes is to biologically interesting modules (that are not necessary this gene module)
+The module-membership is a generalized intramodular connectivity for all genes on the array
+```{r eval=F, echo=T}
+# We define a data frame containing the module membership (MM) values for each module. In the past, we called the module membership values kME.
+datKME=signedKME(for_modules, MEs, outputColumnName="MM.")
+# Display the first few rows of the data frame
+head(datKME)
+
+#We have a module membership value for each gene in ALL modules
+```
+
+### 7.d Finding genes with high gene significance and high intramodular connectivity in interesting modules
+Our previous analysis has shown that the *magenta* module is an “interesting” module in that its module significance is high. Here we show how to find genes with high gene significance and high intramodular connectivity in the magenta module.
+
+we wish to filter out genes with:
+1. high module connectivity / membership
+2. significant correlation with viral load (specific viruses)
+
+#### 
+```{r HubGenes based on Module membership (MM) and virus-gene interaction, eval=FALSE, echo=TRUE}
+#simple code for one module-virus interaction:
+#FilterGenes= abs(geneTraitSignificance$GS.DWVa)> .2 & abs(datKME$MM.magenta)>.8
+#table(FilterGenes)
+#dimnames(data.frame(for_modules))[[2]][FilterGenes]
+
+#but we want to look at all possible interactions, so we make a function:
+# we make a function "filterGenes" to filter for the first most significant hub-genes in each module-virus pair:
+  filterGenes <- function(vload.tbl, datKME, genes, virus.col.name, module.name) {
+    GS_virus <- as.numeric(cor(vload.tbl[,virus.col.name],genes, use="p"))
+    FilterGenes <- abs(GS_virus) > 0.2 & abs(datKME[,module.name]) > 0.45
+    inds <- which(FilterGenes == TRUE)
+    #Which genes were filtered in?
+    genes <- colnames(genes)[inds]
+    #What are their connectivity coefficient?  
+    con <- datKME[,module.name][inds]
+    #What are their virus-correlation coefficient?
+    virus_coef <- GS_virus[inds]
+    # sort the genes in descending order, according to the absolute value of the connectivity
+    abs.con <- abs(con)
+    hub <- data.frame(genes,con,abs.con,virus_coef)
+    hub <- hub[order(hub$abs.con, decreasing = TRUE),] 
+    # take the first 50 hubgenes
+    #hub <- hub[0:50,]
+    #hub <- select(.data = hub, -abs.con)
+    return(hub)
+  }
+
+# now we can run it for each virus-module pair (indexed as "i" and "j" respectievly),
+
+# assign the files to the sequences in the for-loop
+viruses <- colnames(b_viruses_load)
+modules <- colnames(datKME)
+# we make a list, in which the tables will be saved 
+ls.66 <- list()
+
+for (i in 1:length(viruses)) {
+  for (j in 1:length(modules)) {
+    ls.name <- paste(viruses[i], modules[j], sep = "_")
+    ls.66[[ls.name]] <- filterGenes(b_viruses_load, datKME, for_modules, viruses[i], modules[j])
+    ls.66[[ls.name]]$virus <- viruses[i]
+    ls.66[[ls.name]]$module <- modules[j]
+    ls.66[[ls.name]] <- na.omit(ls.66[[ls.name]])
+    cat(ls.name, " is done!\n")
+  }
+}
+
+hist(sapply(ls.66, nrow))
+
+ls.66.tbl <- bind_rows(ls.66)
+q=sapply(ls.66, function(x) sum(is.na(x)))
+sum(q > 0)
+
+#save the list as RData in the local folder fo later overlapping:
+save(ls.66.tbl, ls.66, file = "/Users/nuriteliash/OneDrive - OIST/Repos/varroa-virus-networks-Local/results/HubGenes_66.RData")
+```
+
+### 7.e Relationship between the module membership measures (e.g. MM.magenta) and intramodular connectivity
+```{r eval=F, echo=T}
+#We now explore the relationship between the module membership measures (e.g. MM.magenta) and intramodular connectivity
+# this is an important check to see that the data are ok = that there is a linear correlation between the two measures
+sizeGrWindow(8,6)
+par(mfrow=c(2,2))
+# We choose 4 modules to plot: magenta, red, salmon, brown
+# For simplicity we write the code out explicitly for each module.
+which.color="magenta";
+restrictGenes=moduleColors==which.color
+verboseScatterplot(Alldegrees1_66$kWithin[ restrictGenes],
+                   (datKME[restrictGenes, paste("MM.", which.color, sep="")])^6,
+                   col=which.color,
+                   xlab="Intramodular Connectivity",
+                   ylab="(Module Membership)^6")
+
+which.color="red";
+restrictGenes=moduleColors==which.color
+verboseScatterplot(Alldegrees1_66$kWithin[ restrictGenes],
+                   (datKME[restrictGenes, paste("MM.", which.color, sep="")])^6,
+                   col=which.color,
+                   xlab="Intramodular Connectivity",
+                   ylab="(Module Membership)^6")
+
+which.color="salmon";
+restrictGenes=moduleColors==which.color
+verboseScatterplot(Alldegrees1_66$kWithin[ restrictGenes],
+                   (datKME[restrictGenes, paste("MM.", which.color, sep="")])^6,
+                   col=which.color,
+                   xlab="Intramodular Connectivity",
+                   ylab="(Module Membership)^6")
+
+which.color="brown";
+restrictGenes=moduleColors==which.color
+verboseScatterplot(Alldegrees1_66$kWithin[ restrictGenes],
+                   (datKME[restrictGenes, paste("MM.", which.color, sep="")])^6,
+                   col=which.color,
+                   xlab="Intramodular Connectivity",
+                   ylab="(Module Membership)^6")
+```
+
+The resulting plot is shown in Fig. 2. Note that after raising the module membership to a power of 6, it is highly correlated with the intramodular connectivity (kWithin).
