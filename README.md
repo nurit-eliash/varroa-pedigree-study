@@ -8,3 +8,6 @@ Each mite family consists of 3 generations, and contain at least:
 - at least one grandkid (son/daughter)
 
 All mites were collected at the experimental apiary of OIST (Okinawa Institute of Science and Technology) 
+
+The repository contains antyhing that is required for you to re-run the analysis.
+However, the original input fastaq files are too large to be uploaded to the Github repository, therfore, prior to runing the pipline you need to download them to your cluster. 
