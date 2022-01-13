@@ -37,12 +37,12 @@ library("GGally")
 
 ### set directory and load files
 ```{r}
-setwd("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_het")
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-OneRun/VCF-oneRun/data/vcftools_het")
 ```
 
 ### Heterozygosity and inbreeding coefficient per individual
 ```{r}
-ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/vcftools_het/Q20BIALLDP5mis.5Chr7.het", delim = "\t",
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map-OneRun/VCF-oneRun/data/vcftools_het/Q20BIALLDP5mis.5Chr7.het", delim = "\t",
            col_names = c("ind","ho", "he", "nsites", "f"), skip = 1)
 
 # find all 'female' and 'male' 
