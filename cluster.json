@@ -1,0 +1,37 @@
+{
+    "__default__" :
+    {
+        "cpus-per-task" : 1,
+        "partition" : "compute",
+        "mem" : "40G",
+        "time": "1-00:00:00"
+    },
+    "nextgenmap":
+    {
+        "cpus-per-task" : 4,
+        "partition" : "compute",
+        "mem" : "100G",
+        "time": "2-00:00:00"
+    },
+    "bowtie2":
+    {
+        "cpus-per-task" : 4,
+        "partition" : "compute",
+        "mem" : "100G",
+        "time": "2-00:00:00"
+    },
+    "statsbam":
+    {
+        "cpus-per-task" : 2,
+        "partition" : "short",
+        "mem" : "50G",
+        "time": "0-02:00:00"
+    },
+    "freebayes":
+    {
+        "cpus-per-task" : 1,
+        "partition" : "compute",
+        "mem" : "20G",
+        "time": "3-00:00:00"
+    }
+}

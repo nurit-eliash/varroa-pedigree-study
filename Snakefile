@@ -11,9 +11,9 @@ import getpass
 localrules: getHaps, all
 
 ### SET DIRECTORY PATHS FOR REFERENCE AND OUTPUT DATA
-READDir = "/bucket/MikheyevU/Nurit/linkage_map_data/trial"
-OUTDir = "/flash/MikheyevU/Nurit/linkage_map_work/trial_21Dec"
-REFDir = "/flash/MikheyevU/Nurit/ref2020"
+READDir = "/bucket/MikheyevU/Nurit/mrg_linakge_map"
+OUTDir = "/flash/MikheyevU/Nurit/linkage_map_work/mrg_linakge_map"
+REFDir = "/flash/MikheyevU/Nurit/ref2020" 
 SCRATCH  = "/flash/MikheyevU/Nurit/scratch"
 
 ### PATHS FOR VARROA DESTRUCTOR GENOME AND REGIONS SPLIT
@@ -52,13 +52,13 @@ rule nextgenmap:
 		read1 = READDir + "/{sample}_R1_001.fastq.gz",
 		read2 = READDir + "/{sample}_R2_001.fastq.gz",
 	threads: 6
-	output:
-		alignment = temp(OUTDir + "/alignments/ngm/{sample}.bam"),
+	output: 
+		alignment = temp(OUTDir + "/alignments/ngm/{sample}.bam"), 
 		index = temp(OUTDir + "/alignments/ngm/{sample}.bam.bai")
 	shell:
                 """
 		ngm -t {threads} --qry1 {input.read1} --qry2 {input.read2} --paired -r {VDESRef} --local --very-sensitive --rg-id {wildcards.sample} --rg-sm {wildcards.sample} --rg-pl ILLUMINA --rg-lb NEXTERA --rg-cn OIST | samtools view -Su - | samtools sort - -m 20G -T {SCRATCH}/ngm/{wildcards.sample} -o - | samtools rmdup - - | variant - -m 400 --bam -o {output.alignment}
-		samtools index {output.alignment}
+		samtools index {output.alignment}	
 		"""
 
 
