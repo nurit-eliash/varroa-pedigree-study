@@ -1,5 +1,5 @@
 ---
-title: "linkMap"
+title: "explore heterozygocity"
 author: "Nurit Eliash"
 date: "6/21/2021"
 output: html_document
@@ -25,13 +25,13 @@ library("GGally")
 
 ### set directory and load files
 ```{r}
-setwd("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git")
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7")
 ```
 
 ### Heterozygosity and inbreeding coefficient per individual
 ```{r}
-ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.het", delim = "\t",
-           col_names = c("ind","ho", "he", "nsites", "f"), skip = 1)
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
+           col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
 
 # find all 'female' and 'male' 
 male <- grep("son",ind_het$ind)
@@ -39,8 +39,8 @@ female <- grep("dat|fn|sis",ind_het$ind)
 
 ind_het_sex <- ind_het %>%
   mutate(sex = ifelse(row_number() %in% female, "female", ifelse(row_number() %in% male, "male", "not-determined"))) %>%
-  mutate(hom_prop =  ho/nsites) %>%
-  mutate(het_prop = (nsites-ho)/nsites)
+  mutate(hom_prop =  homo_ob/nsites) %>%
+  mutate(het_prop = (nsites-homo_ob)/nsites)
  
 #plot inbreeding coefficient per individual
 ggplot(ind_het_sex, aes(f, fill = sex)) + geom_histogram(color = "black") + 
@@ -61,6 +61,12 @@ wilcox.test(het_prop ~ sex, alternative = "two.sided", data = test)
 t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = test)
 
 # no significant different (both wilcoxone and welch-test)
+
+# plot homozygocity proportion, in each sex
+ggplot(ind_het_sex) +
+    geom_boxplot(aes(x = sex, y = hom_prop, fill = sex)) + scale_y_continuous() + 
+    theme_classic() +
+    ggtitle("Proportion of homozygotic sites")
 ```
 
 ### Heterozygosity per site
@@ -69,7 +75,7 @@ t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = test)
 Reports a p-value for each site from a Hardy-Weinberg Equilibrium test (as defined by Wigginton, Cutler and Abecasis (2005)). The resulting file (with suffix ".hwe") also contains the Observed numbers of Homozygotes and Heterozygotes and the corresponding Expected numbers under HWE.
 #### for all individuals
 ```{r}
-site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/malesHet.2Q20BIALLDP5mis.5Chr7.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
 
 site_het <- site_hwe %>%
   select(CHR, POS, "OBS(HOM1/HET/HOM2)") %>%
@@ -86,6 +92,12 @@ ggplot(site_het, aes(prop_het)) + geom_histogram(fill="#69b3a2", color="#e9ecef"
   ylab("Number of sites")
 ```
 
+# CONTINUE FROM HERE
+14/1/2022 - 
+i got till here.
+it looks like the heterozygocity proportion is not different between males and females
+Sasha suggests to sanger -sequence to see if its a bioinformatic artifact, or a real thing
+----------
 #### for males 
 ```{r}
 site_hwe_males <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map/linkage-map-git/data/site_filter_malesHet.2/site_filter_malesHet.2males/malesHet.2Q20BIALLDP5mis.5Chr7males.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
