@@ -25,12 +25,25 @@ library("gmodels")
 ```
 
 To illustrate the functionalities of detectRUNS, we use data on sheep (Ovis aries) SNP genotypes from the work by Kijas et al. (2016), available on-line through “Dryad” (https://goo.gl/sfAy8k). A subset with two breeds (“Jacobs” and “Navajo-Churro”, 100 animals) and two chromosomes (4841 SNPs from OAA 2 and 24) was used.
+
+ניסיתי להשתמש בקבצים הללו, אבל זה קצת מסובך - כי הם גדולים , ואני צריכה לחלק אותם ... 
+לא בא לי 
+
+ננסה לעבוד עם הקבצים שלי 
+אבל צריך קודם להפוך אותם לקבצים של 
+plink 
+כלומר
+ped and map files
+
+אפשר לעשות זאת כך:
+vcftools --vcf my_data.vcf --out my_data --plink
+
+אז עלי להמיר את הקובץ ולהעתיק אותו חזרה למחשב לפניש אני מתחילה
 ```{r }
-genotypeFilePath <- system.file(
-  "extdata", "Kijas2016_Sheep_subset.ped", package="detectRUNS")
+genotypeFilePath <- system.file("/Users/nuriteliash/Desktop/detectRUNS/Dryad_Submission/4H_160indivs_Final.ped")
 mapFilePath <- system.file(
-  "extdata", "Kijas2016_Sheep_subset.map", package="detectRUNS")
+  "extdata", "/Users/nuriteliash/Desktop/detectRUNS/Dryad_Submission/4H_160indivs_Final.map", package="detectRUNS")
 
 ```
-
+/Users/nuriteliash/Desktop/detectRUNS/Dryad_Submission/4H_160indivs_Final.map
 ```
