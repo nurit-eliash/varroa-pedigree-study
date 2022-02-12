@@ -1,0 +1,36 @@
+---
+title: "detectRUNS_trial"
+author: "Nurit Eliash"
+date: "2/13/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("detectRUNS")
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR")
+library("data.table")
+library("stringr")
+library("janitor")
+library("gmodels")
+```
+
+To illustrate the functionalities of detectRUNS, we use data on sheep (Ovis aries) SNP genotypes from the work by Kijas et al. (2016), available on-line through “Dryad” (https://goo.gl/sfAy8k). A subset with two breeds (“Jacobs” and “Navajo-Churro”, 100 animals) and two chromosomes (4841 SNPs from OAA 2 and 24) was used.
+```{r }
+genotypeFilePath <- system.file(
+  "extdata", "Kijas2016_Sheep_subset.ped", package="detectRUNS")
+mapFilePath <- system.file(
+  "extdata", "Kijas2016_Sheep_subset.map", package="detectRUNS")
+
+```
+
+```

@@ -1,0 +1,624 @@
+---
+title: "explore_vcf_pedigree"
+author: "Nurit Eliash"
+date: "1/24/2022"
+output: html_document
+---
+
+## Is the mode of inheritance differ between males and females? (in the 2 generations: 
+F0 (foundress) -> F1 (son and daughter)
+F1 (son and daughter) -> F2 (grandson and granddaughter) 
+compare proportion of site zygocity 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### load libraries
+```{r}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR")
+library("data.table")
+library("stringr")
+library("janitor")
+library("gmodels")
+```
+
+load all families
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("sample")
+# add additional info for each individual
+gt_info <- gt %>%
+  mutate(fam = str_extract(sample, "[^_]+")) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "male",
+    grepl("dat|fnd|sis", sample) ~ "female",
+    grepl( "_grn_",sample) ~ "ND")) %>%
+  mutate(generation = case_when(
+    grepl("fnd", sample) ~ "F0",
+    grepl("_dat_|sis|_son_", sample) ~ "F1",
+    grepl("grn", sample) ~ "F2")) %>%
+  mutate(fam_membership = case_when(
+    grepl("fnd", sample) ~ "Foundress_mother",
+    grepl("_dat_", sample) ~ "Daughter",
+    grepl("sis", sample) ~ "Second_daughter",
+    grepl("_son_", sample) ~ "Son",
+    grepl("grnson", sample) ~ "Grandson",
+    grepl("_grndat_", sample) ~ "Granddaughter",
+    grepl("_grn_", sample) ~ "Grandson_daughter")) %>%
+  dplyr::select(sample, fam, sex, generation, fam_membership, everything())
+# t() %>%
+#as.data.frame() %>%
+#row_to_names(row_number = 1)
+
+#make a subset of three families to send to sasha
+#subset_gt <- gt_info %>%
+#  filter((fam %in% c("63", "46", "110")))
+#write_csv(subset_gt, "/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/subset_gt.csv")
+
+# lets try with one family, and then make a loop for all families
+gt_63 <- gt_info %>%
+  filter((fam == "63")) %>%
+  dplyr::select(-c(fam, sex, generation, fam_membership)) %>%
+  t() %>%
+as.data.frame() %>%
+row_to_names(row_number = 1)
+
+# change the sample name to a general name:
+colnames(gt_63)[grepl('fnd',colnames(gt_63))] <- 'fnd'
+colnames(gt_63)[grepl('_son_',colnames(gt_63))] <- 'son'
+colnames(gt_63)[grepl('_grnson',colnames(gt_63))] <- 'grnson'
+colnames(gt_63)[grepl('_dat',colnames(gt_63))] <- 'dat'
+colnames(gt_63)[grepl('_sis',colnames(gt_63))] <- 'sis'
+colnames(gt_63)[grepl('grndat',colnames(gt_63))] <- 'grndat'
+#colnames(gt_63)[grepl('a_grndat',colnames(gt_63))] <- 'grndat_a'
+#colnames(gt_63)[grepl('b_grndat',colnames(gt_63))] <- 'grndat_b'
+
+
+# first make a count table with the 3 genotypes for each sample 
+# (1) extract the sites that are homozygotic 0/0 in the founders mite
+F0_0.0 <- gt_63 %>%
+  dplyr::filter(grepl("0/0", fnd))
+
+# (2) extract the sites that are homozygotic 1/1 in the founders mite
+F0_1.1 <- gt_63 %>%
+  dplyr::filter(grepl("1/1", fnd))
+
+# (3) extract the sites that are hetero 0/1 in the founders mite
+F0_0.1 <- gt_63 %>%
+  dplyr::filter(grepl("0/1", fnd))
+
+# (1) how does the son's site behave in reference homo mom? 0/0
+#how many of the son's sites are homozygotic as the mom (0/0)? --> expected from haplo-diplo inheritance mode
+F0_0.0F1son_0.0 <- F0_0.0 %>%
+  dplyr::filter(grepl("0/0", son))  
+# how many of the sites are heterozygotic? 0/1--> expected from diplo inheritance mode
+F0_0.0F1son_0.1 <- F0_0.0 %>%
+  dplyr::filter(grepl("0/1", son))
+# how many of the sites are homozygotic 1/1? --> impossible (mistake) 
+F0_0.0F1son_1.1 <- F0_0.0 %>%
+  dplyr::filter(grepl("1/1", son))
+###############################
+
+# (2) how does the son's site behave in alternative homo mom? 1/1
+F0_1.1F1son_0.0 <- F0_1.1 %>%
+  dplyr::filter(grepl("0/0", son))  
+F0_1.1F1son_0.1 <- F0_1.1 %>%
+  dplyr::filter(grepl("0/1", son))
+F0_1.1F1son_1.1 <- F0_1.1 %>%
+  dplyr::filter(grepl("1/1", son))
+
+# (3) how does the son's site behave in hetero mom? 0/1
+F0_0.1F1son_0.0 <- F0_0.1 %>%
+  dplyr::filter(grepl("0/0", son))  
+F0_0.1F1son_0.1 <- F0_0.1 %>%
+  dplyr::filter(grepl("0/1", son))
+F0_0.1F1son_1.1 <- F0_0.1 %>%
+  dplyr::filter(grepl("1/1", son))
+
+# now we make a table that count the sites in each option
+son <- data_frame(
+  family = str_extract(sample, "[^_]+"),
+  gt_F0 = "0/0"
+)
+
+
+
+
+count(gt_info, 'generation') 
+CrossTable(gt_info$generation, gt_info$fam, prop.t=TRUE, prop.r=TRUE, prop.c=TRUE)
+
+gt_F0 <- gt_info %>%
+  dplyr::filter(grepl("63", fam)) %>%
+  select(generation = "F0")
+
+  dplyr::filter(grepl("0/0", fnd))
+  
+ gt_F0$generation 
+  dplyr::filter(grepl("fnd", sample)) %>%
+    
+    
+# make a frequency table for F0 and F1 offspring, for each of the genotypes.
+  
+  gt_F0_F1 <- gt_info %>%
+  filter(generation %in% c("F1", "F0")) %>%
+
+CrossTable(gt_info$generation, gt_info$ prop.t=TRUE, prop.r=TRUE, prop.c=TRUE)
+  #prop.table(addmargins(xtabs(~fam + generation, data=gt_info)))
+    
+freq_F1 <- data.frame(
+  family = gt_F0_F1$fam) %>%
+  gtF0 = c("0/0","0/1","1/1") %>%
+  F1 = c("son","dat","sis") %>%
+  gtF1 = c("0/0","0/1","1/1") %>%
+  mutate()  
+)
+
+class(gt_info)
+
+#i exclude NAs as they are similar percentage across genotypes
+df <- gt %>%
+  select(c("site","family","fnd", "son","dat", "grnson", "grndat", "grndat")) %>%
+  na.omit()
+
+# plot 
+pF1_son <- ggplot(df, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_son genotype") +
+  labs(title = paste("F1_son genotype, family",df$family[1],""))
+
+
+
+
+
+x <- select(gt_info, sample, sex)
+gt_info$generation
+
+# 6/2/2022
+#continue from here --> 
+# finalize the table that i need for making the big plots
+
+class(gt_info)
+#play:
+mydf <- data.frame(A = c("498_499c_grndat_S180", "48_48_fnd_S20","502_503f_grn_S190", "534_535_3a_grnson_S144", "548_548a_son_S146","548_548a_sis_S146"), M1 = c(1:6), M2 = c(31:36), M3 = c(41:46))
+x <- mydf %>%
+  mutate(family = str_extract(A, "[^_]+")) %>%
+  mutate(sex = case_when(
+    grepl("son", A) ~ "male",
+    grepl( "dat|fnd|sis", A) ~ "female",
+    grepl( "_grn_",A) ~ "NI"
+    ))
+
+```
+
+load each family separately:
+## family 46
+one grandat
+```{r}
+vcf_46 <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/vcf_fam/46_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf_46
+
+# extract the genotype per site, for each of the samples:
+gt_46 <- extract.gt(vcf_46, element = "GT") %>% as.data.frame() %>%
+  rownames_to_column("site")
+gt_46 <- gt_46 %>%
+  mutate(family = str_extract(colnames(gt_46[2]), "[^_]+"))
+  
+# change the sample name to a general name:
+colnames(gt_46)[grepl('fnd',colnames(gt_46))] <- 'fnd'
+colnames(gt_46)[grepl('_son_',colnames(gt_46))] <- 'son'
+colnames(gt_46)[grepl('_grnson',colnames(gt_46))] <- 'grnson'
+colnames(gt_46)[grepl('_dat',colnames(gt_46))] <- 'dat'
+colnames(gt_46)[grepl('_sis',colnames(gt_46))] <- 'sis'
+colnames(gt_46)[grepl('grndat',colnames(gt_46))] <- 'grndat'
+#colnames(gt)[grepl('a_grndat',colnames(gt))] <- 'grndat_a'
+#colnames(gt)[grepl('b_grndat',colnames(gt))] <- 'grndat_b'
+
+
+#i exclude NAs as they are similar percentage across genotypes
+df_46 <- gt_46 %>%
+  select(c("site","family","fnd", "son","dat", "grnson", "grndat", "grndat")) %>% na.omit()
+
+# plot 
+pF1_son <- ggplot(df_46, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_son genotype") +
+  labs(title = paste("F1_son genotype, family",df_46$family[1],""))
+
+pF1_dat <- ggplot(df, aes(x=fnd, fill=dat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_daughter genotype") +
+  labs(title = paste("F1_Daughter genotype, family",df$family[1],""))
+
+pF2_grnson <- ggplot(df, aes(x=dat, fill=grnson)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Grandson genotype") +
+  labs(title = paste("F2_Grandson genotype, family",df$family[1],""))
+
+pF2_grndat <- ggplot(df, aes(x=dat, fill=grndat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Granddaughter genotype") +
+  labs(title = paste("F2_Granddaughter genotype, family",df$family[1],""))
+
+ggarrange(pF1_son, pF1_dat,pF2_grnson, pF2_grndat,
+          ncol = 3, nrow = 2)
+```
+## family 240
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/240_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype per site, for each of the samples:
+gt <- extract.gt(vcf, element = "GT") %>% as.data.frame() %>%
+  rownames_to_column("site") %>%
+mutate(family = str_extract(colnames(gt[2]), "[^_]+"))
+  
+# change the sample name to a general name:
+colnames(gt)[grepl('fnd',colnames(gt))] <- 'fnd'
+colnames(gt)[grepl('_son_',colnames(gt))] <- 'son'
+colnames(gt)[grepl('_grnson',colnames(gt))] <- 'grnson'
+colnames(gt)[grepl('_dat',colnames(gt))] <- 'dat'
+colnames(gt)[grepl('_sis',colnames(gt))] <- 'sis'
+#colnames(gt)[grepl('grndat',colnames(gt))] <- 'grndat'
+
+#i exclude NAs as they are similar percentage across genotypes
+df <- gt %>%
+  select(c("site","family","fnd", "son","dat", "grnson")) %>%
+  na.omit()
+
+# plot son distribution
+Pson <-ggplot(df, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("Foundres mother genotype") + 
+  ylab("Proportion of son genotype") +
+  labs(title = paste("Son genotype, family",df$family[1],""))
+
+# plot daughter distribution
+Pdat <- ggplot(df, aes(x=fnd, fill=dat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("Foundres mother genotype") + 
+  ylab("Proportion of daughter genotype") +
+  labs(title = paste("Daughter genotype, family",df$family[1],""))
+
+# do the same but this time for dat and grnson
+Pgrnson <- ggplot(df, aes(x=dat, fill=grnson)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("Daughter genotype") + 
+  ylab("Proportion of grandson genotype") +
+  labs(title = paste("Grandson genotype, family",df$family[1],""))
+
+grid.arrange(Pson, Pdat, Pgrnson, nrow = 1)
+```
+
+## family 43 
+no sister
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/vcf_fam/43_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype per site, for each of the samples:
+gt <- extract.gt(vcf, element = "GT") %>% as.data.frame() %>%
+  rownames_to_column("site")
+gt <- gt %>%
+  mutate(family = str_extract(colnames(gt[2]), "[^_]+"))
+  
+# change the sample name to a general name:
+colnames(gt)[grepl('fnd',colnames(gt))] <- 'fnd'
+colnames(gt)[grepl('_son_',colnames(gt))] <- 'son'
+colnames(gt)[grepl('_grnson',colnames(gt))] <- 'grnson'
+colnames(gt)[grepl('_dat',colnames(gt))] <- 'dat'
+#colnames(gt)[grepl('_sis',colnames(gt))] <- 'sis'
+colnames(gt)[grepl('grndat',colnames(gt))] <- 'grndat'
+
+#i exclude NAs as they are similar percentage across genotypes
+df <- gt %>%
+  select(c("site","family","fnd", "son","dat", "grnson", "grndat")) %>%
+  na.omit()
+
+# plot 
+pF1_son <- ggplot(df, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_son genotype") +
+  labs(title = paste("F1_son genotype, family",df$family[1],""))
+
+pF1_dat <- ggplot(df, aes(x=fnd, fill=dat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_daughter genotype") +
+  labs(title = paste("F1_Daughter genotype, family",df$family[1],""))
+
+pF2_grnson <- ggplot(df, aes(x=dat, fill=grnson)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Grandson genotype") +
+  labs(title = paste("F2_Grandson genotype, family",df$family[1],""))
+
+pF2_grndat <- ggplot(df, aes(x=dat, fill=grndat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Granddaughter genotype") +
+  labs(title = paste("F2_Granddaughter genotype, family",df$family[1],""))
+
+ggarrange(pF1_son, pF1_dat,pF2_grnson, pF2_grndat,
+          ncol = 2, nrow = 2)
+```
+
+## family 177 
+no sister
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/vcf_fam/177_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype per site, for each of the samples:
+gt <- extract.gt(vcf, element = "GT") %>% as.data.frame() %>%
+  rownames_to_column("site")
+gt <- gt %>%
+  mutate(family = str_extract(colnames(gt[2]), "[^_]+"))
+  
+# change the sample name to a general name:
+colnames(gt)[grepl('fnd',colnames(gt))] <- 'fnd'
+colnames(gt)[grepl('_son_',colnames(gt))] <- 'son'
+colnames(gt)[grepl('_grnson',colnames(gt))] <- 'grnson'
+colnames(gt)[grepl('_dat',colnames(gt))] <- 'dat'
+colnames(gt)[grepl('_sis',colnames(gt))] <- 'sis'
+colnames(gt)[grepl('grndat',colnames(gt))] <- 'grndat'
+
+#i exclude NAs as they are similar percentage across genotypes
+df <- gt %>%
+  select(c("site","family","fnd", "son","dat", "grnson", "grndat")) %>%
+  na.omit()
+
+# plot 
+pF1_son <- ggplot(df, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_son genotype") +
+  labs(title = paste("F1_son genotype, family",df$family[1],""))
+
+pF1_dat <- ggplot(df, aes(x=fnd, fill=dat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_daughter genotype") +
+  labs(title = paste("F1_Daughter genotype, family",df$family[1],""))
+
+pF2_grnson <- ggplot(df, aes(x=dat, fill=grnson)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Grandson genotype") +
+  labs(title = paste("F2_Grandson genotype, family",df$family[1],""))
+
+pF2_grndat <- ggplot(df, aes(x=dat, fill=grndat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Granddaughter genotype") +
+  labs(title = paste("F2_Granddaughter genotype, family",df$family[1],""))
+
+ggarrange(pF1_son, pF1_dat,pF2_grnson, pF2_grndat,
+          ncol = 2, nrow = 2)
+```
+
+## family 110
+no sister
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/vcf_fam/110_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype per site, for each of the samples:
+gt <- extract.gt(vcf, element = "GT") %>% as.data.frame() %>%
+  rownames_to_column("site")
+gt <- gt %>%
+  mutate(family = str_extract(colnames(gt[2]), "[^_]+"))
+  
+# change the sample name to a general name:
+colnames(gt)[grepl('fnd',colnames(gt))] <- 'fnd'
+colnames(gt)[grepl('_son_',colnames(gt))] <- 'son'
+colnames(gt)[grepl('_grnson',colnames(gt))] <- 'grnson'
+colnames(gt)[grepl('_dat',colnames(gt))] <- 'dat'
+colnames(gt)[grepl('grndat',colnames(gt))] <- 'grndat'
+
+#i exclude NAs as they are similar percentage across genotypes
+df <- gt %>%
+  select(c("site","family","fnd", "son","dat", "grnson", "grndat")) %>%
+  na.omit()
+
+# plot 
+pF1_son <- ggplot(df, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_son genotype") +
+  labs(title = paste("F1_son genotype, family",df$family[1],""))
+
+pF1_dat <- ggplot(df, aes(x=fnd, fill=dat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_daughter genotype") +
+  labs(title = paste("F1_Daughter genotype, family",df$family[1],""))
+
+pF2_grnson <- ggplot(df, aes(x=dat, fill=grnson)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Grandson genotype") +
+  labs(title = paste("F2_Grandson genotype, family",df$family[1],""))
+
+pF2_grndat <- ggplot(df, aes(x=dat, fill=grndat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Granddaughter genotype") +
+  labs(title = paste("F2_Granddaughter genotype, family",df$family[1],""))
+
+ggarrange(pF1_son, pF1_dat,pF2_grnson, pF2_grndat,
+          ncol = 2, nrow = 2)
+```
+
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/vcf_fam/240_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype per site, for each of the samples:
+gt <- extract.gt(vcf, element = "GT") %>% as.data.frame() %>%
+  rownames_to_column("site")
+gt <- gt %>%
+  mutate(family = str_extract(colnames(gt[2]), "[^_]+"))
+  
+# change the sample name to a general name:
+colnames(gt)[grepl('fnd',colnames(gt))] <- 'fnd'
+colnames(gt)[grepl('_son_',colnames(gt))] <- 'son'
+colnames(gt)[grepl('_grnson',colnames(gt))] <- 'grnson'
+colnames(gt)[grepl('_dat',colnames(gt))] <- 'dat'
+colnames(gt)[grepl('_sis',colnames(gt))] <- 'sis'
+colnames(gt)[grepl('a_grndat',colnames(gt))] <- 'grndat_a'
+colnames(gt)[grepl('b_grndat',colnames(gt))] <- 'grndat_b'
+
+
+#i exclude NAs as they are similar percentage across genotypes
+df <- gt %>%
+  select(c("site","family","fnd", "son","dat", "grnson", "grndat_a", "grndat_b")) %>%
+  na.omit()
+
+# plot 
+pF1_son <- ggplot(df, aes(x=fnd, fill=son)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_son genotype") +
+  labs(title = paste("F1_son genotype, family",df$family[1],""))
+
+pF1_dat <- ggplot(df, aes(x=fnd, fill=dat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_daughter genotype") +
+  labs(title = paste("F1_Daughter genotype, family",df$family[1],""))
+
+pF1_sis <- ggplot(df, aes(x=fnd, fill=sis)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F0 mother genotype") + 
+  ylab("Proportion of F1_sister genotype") +
+  labs(title = paste("F1_sister genotype, family",df$family[1],""))
+
+pF2_grnson <- ggplot(df, aes(x=dat, fill=grnson)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Grandson genotype") +
+  labs(title = paste("F2_Grandson genotype, family",df$family[1],""))
+
+pF2_grndat <- ggplot(df, aes(x=dat, fill=grndat)) +
+  geom_bar(position="fill") +
+  scale_y_continuous(labels = scales::percent) +
+  xlab("F1_Daughter genotype") + 
+  ylab("Proportion of F2_Granddaughter genotype") +
+  labs(title = paste("F2_Granddaughter genotype, family",df$family[1],""))
+
+ggarrange(pF1_son, pF1_dat, pF1_sis,pF2_grnson, pF2_grndat,
+          ncol = 3, nrow = 2)
+```
+
+if you want to extract the sites:
+```{r eval=FALSE, include=FALSE}
+# (1) extract the sites that are homozygotic 0/0 in the founders mite
+homoRef_fnd <- gt %>%
+  dplyr::filter(grepl("0/0", fnd))
+
+# (2) extract the sites that are homozygotic 1/1 in the founders mite
+homoAlt_fnd <- gt %>%
+  dplyr::filter(grepl("1/1", fnd))
+
+# (3) extract the sites that are hetero 0/1 in the founders mite
+hetero_fnd <- gt %>%
+  dplyr::filter(grepl("0/1", fnd))
+
+
+# how many of the son's sites are homozygotic as the mom (0/0)? --> expected from haplo-diplo inheritance mode
+homoRef_son_homRef_fnd <- homoRef_fnd %>%
+  dplyr::filter(grepl("0/0", son))  
+# how many of the sites are heterozygotic? 0/1--> expected from diplo inheritance mode
+hetero_son_homRef_fnd <- homoRef_fnd %>%
+  dplyr::filter(grepl("0/1", son))
+# how many of the sites are homozygotic 1/1? --> impossible (mistake) 
+homoAlt_son_homRef_fnd <- homoRef_fnd %>%
+  dplyr::filter(grepl("1/1", son))
+
+```
+
+
+
+
+didnt use:
+filtered_177 <- read.table("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/177_fam.Q40BIALLDP16HDP40mis.5Chr7.recode.vcf",
+  colClasses = c("CHR","POS", "177_178c_grn", "177_177a_son", "177_178_dat", "177_178d_grn", "177_178b_grnson", "177_177_fnd", "177_178a_grndat"),  header = TRUE)
+
+for facet:
+```{r cars}
+# library & datset
+library(ggplot2)
+head(mtcars)
+ 
+# Split by columns (default)
+ggplot( mtcars , aes(x=mpg, y=wt, color=as.factor(cyl) )) + 
+  geom_point(size=3) +  
+  facet_wrap(~cyl) +
+  theme(legend.position="none")
+# Split by row
+ggplot( mtcars , aes(x=mpg, y=wt, color=as.factor(cyl)  )) + 
+  geom_point(size=3) +  
+  facet_wrap(~cyl , dir="v")  +
+  theme(legend.position="none")
+# Add label at the bottom
+ggplot( mtcars , aes(x=mpg, y=wt, color=as.factor(cyl)  )) + 
+  geom_point(size=3) +  
+  facet_wrap(~cyl , strip.position="bottom") +
+  theme(legend.position="none")
+# Use same scales for all
+ggplot( mtcars , aes(x=mpg, y=wt, color=as.factor(cyl)  )) + 
+  geom_point(size=3) +  
+  facet_wrap(~cyl , scales="free" ) +
+  theme(legend.position="none")```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```
