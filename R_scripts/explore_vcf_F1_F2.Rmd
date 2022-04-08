@@ -29,7 +29,7 @@ library("data.table")
 library("stringr")
 library("janitor")
 library("gmodels")
-library(plyr)
+library("plyr")
 ```
 
 load five families with at least one grandson and two granddaughters: 
@@ -68,7 +68,6 @@ gt_info <- gt %>%
 #as.data.frame() %>%
 #row_to_names(row_number = 1)
 ```
-
 
 # analyse family 240 
 ```{r}
@@ -162,6 +161,7 @@ high_IC <- grnson_CI$conf.int[2]
 # maybe something like this
 #https://stackoverflow.com/questions/57342086/working-with-tidyverse-ggplot-and-broom-to-add-confidence-interval-to-a-propor
 
+# אני לא מבינה כאן כלום . אולי לא שווה לבזבז על זה עוד זמן ד
 mutate(tst = list(broom::tidy(prop.test(prop$`0/0`[1], prop$total[1], conf.level=0.95)))) %>%
   tidyr::unnest(tst)
 
@@ -179,6 +179,20 @@ family 240")
 # calculate mean for each individual. So instead of the bar plot, you do a point interval plot. It’s a way of showing uncertainty due to sampling
 # compute confidence intervals for proportions
 
+#another try
+group_by(pain_level, sex) %>% 
+  summarise(cases = n()) %>% 
+  mutate(pop = sum(cases)) %>%
+  rowwise() %>%
+  mutate(tst = list(broom::tidy(prop.test(cases, pop, conf.level=0.95)))) %>%
+  tidyr::unnest(tst) %>%
+  ggplot(aes(sex, estimate, group = pain_level)) +
+  geom_col(aes(fill = pain_level)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  facet_wrap(~ pain_level)
+
+
+################### former analysis
 #plot it
 p_son_0.0_dat_0.1 <- ggplot(count_F2, aes(fill=Gt, y=n, x=F2)) + 
     geom_bar(position="fill", stat="identity") +
