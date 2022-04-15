@@ -1,8 +1,8 @@
-#####################################################################################
-##### WORLD POPULATION GENOMICS AND DEMOGRAPHIC INFERENCES SNAKEMAKE PIPELINE  	#####
-##### Origin, spread and evolution of honey bee Varroa parasitic mites		#####
-##### Ecology & Evolution OIST, Maeva TECHER and Alexander MIKHEYEV      	#####
-#####################################################################################
+####################################################
+#####        VARROA SNAKEMAKE PIPELINE         #####
+#####   Estimating Varroa recombination rate   #####
+#####   Nurit Eliash and Alexander Mikheyev    #####
+####################################################
 
 from scripts.split_fasta_regions import split_fasta
 from snakemake.utils import R
@@ -11,10 +11,10 @@ import getpass
 localrules: getHaps, all
 
 ### SET DIRECTORY PATHS FOR REFERENCE AND OUTPUT DATA
-READDir = "/bucket/MikheyevU/Nurit/mrg_linakge_map"
-OUTDir = "/flash/MikheyevU/Nurit/linkage_map_work/mrg_linakge_map"
-REFDir = "/flash/MikheyevU/Nurit/ref2020" 
-SCRATCH  = "/flash/MikheyevU/Nurit/scratch"
+READDir = "/bucket/EconomoU/Nurit/mrg_linakge_map"
+OUTDir = "/flash/EconomoU/Nurit/linkage_map_work/mrg_linakge_map"
+REFDir = "/flash/EconomoU/Nurit/ref2020" 
+SCRATCH  = "/flash/EconomoU/Nurit/scratch"
 
 ### PATHS FOR VARROA DESTRUCTOR GENOME AND REGIONS SPLIT
 VDESRef = REFDir + "/destructor/vdes_3_refseq.fasta"
