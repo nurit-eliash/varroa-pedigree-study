@@ -89,7 +89,7 @@ rule freebayes:
         params:
                 span = lambda wildcards: REGIONS[wildcards.region],
                 bams = lambda wildcards, input: os.path.dirname(input[0]) + "/*.bam",
-                filtering = "--min-mapping-quality 8 --min-base-quality 5 --use-best-n-alleles 4"
+                filtering = "--min-alternate-count 5 --min-alternate-fraction 0.2 --min-mapping-quality 8 --min-base-quality 5 --use-best-n-alleles 4"
         shell:
                 """
 		freebayes {params.filtering} --fasta-reference {VDESRef} {params.span} {params.bams} > {output}
