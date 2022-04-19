@@ -12,14 +12,14 @@ localrules: getHaps, all
 
 ### SET DIRECTORY PATHS FOR REFERENCE AND OUTPUT DATA
 READDir = "/bucket/EconomoU/Nurit/mrg_linakge_map"
-OUTDir = "/flash/EconomoU/Nurit/linkage_map_work/mrg_linakge_map"
+OUTDir = "/flash/EconomoU/Nurit/linkage_map_work/data"
 REFDir = "/flash/EconomoU/Nurit/ref2020" 
-SCRATCH  = "/flash/EconomoU/Nurit/scratch"
+SCRATCH  = "/flash/EconomoU/Nurit/linkage_map_work/scratch"
 
 ### PATHS FOR VARROA DESTRUCTOR GENOME AND REGIONS SPLIT
 VDESRef = REFDir + "/destructor/vdes_3_refseq.fasta"
-VDESBowtieIndex = REFDir + "/destructor/vdes_3_refseq"
-VDESmtDNA = REFDir + "/destructor/mtDNA/NC_004454.fasta"
+#VDESBowtieIndex = REFDir + "/destructor/vdes_3_refseq"
+#VDESmtDNA = REFDir + "/destructor/mtDNA/NC_004454.fasta"
 
 SPLITS = range(300)
 REGIONS = split_fasta(VDESRef, len(SPLITS))  # dictionary with regions to be called, with keys in SPLITS
