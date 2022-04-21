@@ -11,10 +11,10 @@ import getpass
 localrules: getHaps, all
 
 ### SET DIRECTORY PATHS FOR REFERENCE AND OUTPUT DATA
-READDir = "/bucket/EconomoU/Nurit/mrg_linakge_map"
+READDir = "/bucket/EconomoU/Nurit/mrg_linakge_map/reads"
 OUTDir = "/flash/EconomoU/Nurit/linkage_map_work/data"
 REFDir = "/flash/EconomoU/Nurit/ref2020" 
-SCRATCH  = "/flash/EconomoU/Nurit/linkage_map_work/scratch"
+#SCRATCH  = "/flash/EconomoU/Nurit/linkage_map_work/scratch"
 
 ### PATHS FOR VARROA DESTRUCTOR GENOME AND REGIONS SPLIT
 VDESRef = REFDir + "/destructor/vdes_3_refseq.fasta"
@@ -33,19 +33,19 @@ SAMPLES, = glob_wildcards(READDir + "/{sample}_R1_001.fastq.gz")
 Q = (20, 40) # 99 and 99.99% mapping accuracy
 CHROMOSOMES = ["NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"]
 
-#############################################################
-##### TARGET PSEUDO-RULES DEFINITION                   ######
-#############################################################
+##############################################
+#####   TARGET PSEUDO-RULES DEFINITION  ######
+##############################################
 
 rule all:
-	input: 	expand(OUTDir + "/alignments/ngm/{sample}.bam.bai", sample = SAMPLES),
+	input: 	expand(OUTDir + "/alignments/ngm/{sample}.bam", sample = SAMPLES),
 		expand(OUTDir + "/meta/align_ngm/{sample}.txt", sample = SAMPLES),
-		OUTDir + "/var/ngm/snponly_freebayes.vcf"
+		OUTDir + OUTDir + "/var/ngm/filtered_vcf"
 
 
-#############################################################
-##### READS MAPPING (NGM/BOWTIE2) AND QUALITY CHECK    ######
-#############################################################
+###############################################
+#####   READS MAPPING AND QUALITY CHECK   #####
+###############################################
 
 rule nextgenmap:
 	input:
@@ -57,7 +57,8 @@ rule nextgenmap:
 		index = temp(OUTDir + "/alignments/ngm/{sample}.bam.bai")
 	shell:
                 """
-		ngm -t {threads} --qry1 {input.read1} --qry2 {input.read2} --paired -r {VDESRef} --local --very-sensitive --rg-id {wildcards.sample} --rg-sm {wildcards.sample} --rg-pl ILLUMINA --rg-lb NEXTERA --rg-cn OIST | samtools view -Su - | samtools sort - -m 20G -T {SCRATCH}/ngm/{wildcards.sample} -o - | samtools rmdup - - | variant - -m 400 --bam -o {output.alignment}
+		echo "___ngm___" 
+        ngm -t {threads} --qry1 {input.read1} --qry2 {input.read2} --paired -r {VDESRef} --local --very-sensitive --rg-id {wildcards.sample} --rg-sm {wildcards.sample} --rg-pl ILLUMINA --rg-lb NEXTERA --rg-cn OIST | samtools view -Su - | samtools sort - -m 20G -T {SCRATCH}/ngm/{wildcards.sample} -o - | samtools rmdup - - | variant - -m 400 --bam -o {output.alignment}
 		samtools index {output.alignment}	
 		"""
 
@@ -77,9 +78,9 @@ rule statsbam:
 		"""
 
 
-#############################################################
-##### VARIANT SITES CALL (SNP-only dataset)    		#####
-#############################################################
+############################################
+#####   VARIANT SITES CALL AND FILTER  #####
+############################################
 
 rule freebayes:
         input:
@@ -104,3 +105,20 @@ rule merge_vcf:
                 """
                 (grep "^#" {input[0]} ; cat {input} | grep -v "^#" ) | vcfuniq  > {output}
                 """
+                
+rule filter_vcf:
+        input:
+                vcf = OUTDir + "/var/ngm/snponly_freebayes.vcf"
+        output:
+                temp(OUTDir + "/var/ngm/filtered_vcf")
+        params:
+                span = "--chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1",
+                filters = "--max-alleles 2 --minQ 40 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2"
+        shell:
+                """
+                vcftools --vcf {input.vcf} {params.span} {params.filters} --recode --recode-INFO-all --out {output}
+                """
+                
+                
+                
+                
