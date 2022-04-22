@@ -40,7 +40,7 @@ CHROMOSOMES = ["NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_0192114
 rule all:
 	input: 	expand(OUTDir + "/alignments/ngm/{sample}.bam", sample = SAMPLES),
 		expand(OUTDir + "/meta/align_ngm/{sample}.txt", sample = SAMPLES),
-		OUTDir + OUTDir + "/var/ngm/filtered_vcf"
+		OUTDir + "/var/ngm/freebayes_filtered"
 
 
 ###############################################
@@ -110,15 +110,11 @@ rule filter_vcf:
         input:
                 vcf = OUTDir + "/var/ngm/snponly_freebayes.vcf"
         output:
-                temp(OUTDir + "/var/ngm/filtered_vcf")
+                temp(OUTDir + "/var/ngm/freebayes_filtered")
         params:
                 span = "--chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1",
                 filters = "--max-alleles 2 --minQ 40 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2"
         shell:
                 """
                 vcftools --vcf {input.vcf} {params.span} {params.filters} --recode --recode-INFO-all --out {output}
-                """
-                
-                
-                
-                
+                """                
