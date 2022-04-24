@@ -1,0 +1,120 @@
+---
+title: "malesHet_stringent"
+author: "Nurit Eliash"
+date: "4/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### load libraries
+```{r}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+```
+
+### set directory and load files
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Apr2022_stringent")
+```
+
+### Heterozygosity and inbreeding coefficient per individual
+```{r}
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
+           col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
+
+#indv = substr(ind_het$ind,1,nchar(ind_het$ind)-3)
+#ind_het <- ind_het %>%
+#  mutate(ind=indv)
+#ind_het <-sub("_S$", "", ind_het$ind) 
+
+# find all 'female' and 'male' 
+male <- grep("son",ind_het$ind)
+female <- grep("dat|fn|sis",ind_het$ind)
+
+ind_het_sex <- ind_het %>%
+  mutate(sex = ifelse(row_number() %in% female, "female", ifelse(row_number() %in% male, "male", "not-determined"))) %>%
+  mutate(hom_prop =  homo_ob/nsites) %>%
+  mutate(het_prop = (nsites-homo_ob)/nsites)
+ 
+#plot inbreeding coefficient per individual
+ggplot(ind_het_sex, aes(f, fill = sex)) + geom_histogram(color = "black") + 
+  theme_light() +
+  ggtitle("Inbreeding coefficient per individual")
+
+# plot heterozygosity proportion, in each sex
+ggplot(ind_het_sex) +
+    geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + scale_y_continuous() + 
+    theme_classic() +
+    ggtitle("Proportion of heterzygotic sites")
+
+# is there a significant difference in the proportion of heterozygotic sites between males and females?5
+test <- ind_het_sex %>%
+  filter(sex == c("female", "male"))
+
+wilcox.test(het_prop ~ sex, alternative = "two.sided", data = test)
+t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = test)
+
+# no significant different (both wilcoxone and welch-test)
+```
+
+plot heterozygosity 
+```{r}
+# plot heterozygosity proportion, in each individual, color code by sex
+ggplot(ind_het_sex, aes(x=ind, y=het_prop, color=sex)) + 
+    geom_point(size=3) +
+    theme_classic() +
+    ggtitle("Proportion of heterzygotic sites per individual") +
+    xlab("Sample") + 
+    ylab("Proportion of het zites")
+
+# shape code by family (for 6 families)
+fam = substr(ind_het_sex$ind, 1,3)
+ind_het_fam <- ind_het_sex %>%
+  mutate(family = fam) %>%
+  filter((family %in% c("63_","600","42_","596","412","133")))
+
+ind_het_fam <- ind_het_sex %>%
+  mutate(family = fam) %>%
+  filter((family %in% c("43_","177","240","110","596")))
+
+ggplot(ind_het_fam, aes(x=ind, y=het_prop, color=sex, shape=family)) + 
+    geom_point(size=6) +
+    theme_classic() +
+    ggtitle("Proportion of heterzygotic sites per individual") +
+    xlab("Sample") + 
+    ylab("Proportion of het zites") +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+### Heterozygosity per site
+--hardy
+
+Reports a p-value for each site from a Hardy-Weinberg Equilibrium test (as defined by Wigginton, Cutler and Abecasis (2005)). The resulting file (with suffix ".hwe") also contains the Observed numbers of Homozygotes and Heterozygotes and the corresponding Expected numbers under HWE.
+#### for all individuals
+```{r}
+site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+
+site_het <- site_hwe %>%
+  select(CHR, POS, "OBS(HOM1/HET/HOM2)") %>%
+  separate(col = "OBS(HOM1/HET/HOM2)", into = c("hom1", "het", "hom2"), sep = "\\/") %>%
+  mutate_at(c("hom1", "het", "hom2"), as.numeric) %>%
+  mutate(prop_het = (het/(hom1+ het+ hom2)))
+
+site_het <-  mutate(site_het, site = paste(site_het$CHR, site_het$POS)) 
+  
+ggplot(site_het, aes(prop_het)) + geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) + 
+  theme_light() +
+  ggtitle("Heterozygosity per site- all 223 individuals")+
+  xlab("Proportion of het genotype") + 
+  ylab("Number of sites")
+```
