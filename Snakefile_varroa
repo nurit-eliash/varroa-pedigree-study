@@ -39,7 +39,7 @@ CHROMOSOMES = ["NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_0192114
 
 rule all:
 	input: 	expand(OUTDir + "/alignments/ngm/{sample}.bam", sample = SAMPLES),
-		expand(OUTDir + "/meta/align_ngm/{sample}.txt", sample = SAMPLES),
+		expand(OUTDir + "/meta/{sample}.txt", sample = SAMPLES),
 		OUTDir + "/var/ngm/freebayes_filtered"
 
 
@@ -65,9 +65,9 @@ rule nextgenmap:
 
 rule statsbam:
         input:
-                alignment = OUTDir + "/alignments/{aligner}/{sample}.bam"
+                alignment = OUTDir + "/alignments/ngm/{sample}.bam"
         output:
-                temp(OUTDir + "/meta/align_{aligner}/{sample}.txt")
+                temp(OUTDir + "/meta/{sample}.txt")
         shell:
                 """
 		echo {wildcards.sample} > {output}
