@@ -29,7 +29,7 @@ setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Ap
 
 ### Heterozygosity and inbreeding coefficient per individual
 ```{r}
-ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Apr2022_stringent/stringent.het", delim = "\t",
            col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
 
 #indv = substr(ind_het$ind,1,nchar(ind_het$ind)-3)
@@ -102,7 +102,7 @@ ggplot(ind_het_fam, aes(x=ind, y=het_prop, color=sex, shape=family)) +
 Reports a p-value for each site from a Hardy-Weinberg Equilibrium test (as defined by Wigginton, Cutler and Abecasis (2005)). The resulting file (with suffix ".hwe") also contains the Observed numbers of Homozygotes and Heterozygotes and the corresponding Expected numbers under HWE.
 #### for all individuals
 ```{r}
-site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Apr2022_stringent/stringent.hwe", delim = "\t", col_names = c("CHR","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
 
 site_het <- site_hwe %>%
   select(CHR, POS, "OBS(HOM1/HET/HOM2)") %>%
