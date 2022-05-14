@@ -48,6 +48,7 @@ library("broom")
 # library("aspi") - Repeated G–tests of Goodness-of-Fit, work only for 2 variables... 
 library("DescTools") # for the Goodness-of-Fit
 library("RVAideMemoire")
+library(InfoTrad)
 ```
 
 ### Load vcf file 
@@ -91,15 +92,92 @@ colnames(gt_502)[grepl('f_grndat',colnames(gt_502))] <- 'F2_fem_2'
 colnames(gt_502)[grepl('c_grn_',colnames(gt_502))] <- 'F2_3'
 colnames(gt_502)[grepl('e_grn_',colnames(gt_502))] <- 'F2_4'
 colnames(gt_502)[grepl('d_grn_',colnames(gt_502))] <- 'F2_5'
-```
 
+# make a table of observed counts for each genotype, per F2 offspring, for 0/0x0/1 cross
+obs <- gt_502 %>% 
+  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
+  select(contains(c("F2_male" , "F2_fem"))) %>%
+  pivot_longer(everything()) %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) %>%
+  mutate(sex = case_when(
+    grepl("male", sample) ~ "male",
+    grepl("fem", sample) ~ "female"))
 
-```{r}
 # state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
 fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5,0))
 male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt))
 
+# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
+dat <- obs %>%
+  mutate(sample = as.character(sample)) %>%
+  mutate(gt = as.character(gt)) %>%
+  left_join(mendel, multi_by = "sex") %>% 
+  mutate(exp = total*prop) %>%
+  dplyr::select(c("sample","obs", "exp"))
+```
+
+#### optional - observed counts with Confidence intervals
+```{r eval=FALSE, include=FALSE}
+obs_CI <- obs %>%
+  mutate(prop = obs/total) %>%
+  mutate(se = (sqrt(prop * (1-prop)/obs))) %>% 
+  mutate(lower = prop - (se*1.96)) %>% 
+  mutate(upper = prop + (se*1.96))
+```
+
+# Replicated G-test of goodness of fit
+```{r}
+# calculate values for each sample, and join into one table
+G<-dat %>%
+  group_by(sample) %>%
+  summarize(G = GTest(as.data.frame(cur_data()))$statistic)
+df<-dat %>%
+  group_by(sample) %>%
+  summarize(df=GTest(as.data.frame(cur_data()))$parameter)
+p<-dat %>%
+  group_by(sample) %>%
+  summarize(pval = GTest(as.data.frame(cur_data()))$p.value)
+
+# total G-value --> sum up df, gvalue --> to get the **total** pvalue
+female <- left_join(G, full_join(df, p), by = "sample") %>%
+  dplyr::filter(grepl("fem", sample)) %>%
+  mutate(sex = "female") %>%
+  mutate(family = "502")
+
+# heterogeneity between replicates: 
+ dat %>% 
+    ungroup() %>%
+   dplyr::filter(grepl("fem", sample)) %>%
+   dplyr::select(c("obs", "exp")) %>%
+    GTest()
+ #   not significant, G = 1.5801, X-squared df = 5, p-value = 0.9036
+
+# pooled --> sum up the obs and exp for each genotyep. then do a gtest . the df should be= 2 
+pooled_female
+  
+ x<- obs %>%
+  mutate(sample = as.character(sample)) %>%
+  mutate(gt = as.character(gt)) %>%
+  left_join(mendel, multi_by = "sex") %>% 
+  mutate(exp = total*prop) 
+
+ ## ** 14.5.2022
+ צריך להכין טבלה לחישוב 
+ g value of pooled :
+   על מנת שנוכל לחשב את ה
+ pooled results.
+``` 
+  
+  
+from the book:  
+```{r}
 Input =("
  sample homo_ref hetro homo_alt
  'fem_1'  18  19 1    
@@ -131,79 +209,6 @@ mutate(Data,
        p.Value = apply(Data[c("homo_ref", "hetro", "homo_alt")], 1, Fun.p))
 
 Data
-
-
-
-  #dplyr::rowwise() %>%
-DescTools::GTest(obs,
-                 correct = "none")  
-
-GTest(chi_p$obs, chi_p$exp)
-
-  # total g-test. df = 8  
-  chi_p %>% 
-    ungroup() %>%
-    dplyr::select(c("obs", "exp")) %>%
-    GTest()
-  
-  # for one sample, 3 levels-> 2 df. 
-  chi_p %>% 
-    dplyr::filter(sample == "F2_fem_2") %>%
-    ungroup() %>%
-    dplyr::select(c("obs", "exp")) %>%
-    GTest()
-  
-  chi_p %>% 
-    dplyr::filter(sample == "F2_male") %>%
-    ungroup() %>%
-    dplyr::select(c("obs", "exp")) %>%
-    GTest()
-  
-  chi_p %>% 
-    dplyr::filter(sample == "F2_fem_1") %>%
-    ungroup() %>%
-    dplyr::select(c("obs", "exp")) %>%
-    GTest()
-
-
-  d <- chi_p %>%
-    dplyr::select(c("sample", "obs", "exp")) %>%
-   # pivot_longer(cols = c(obs,exp)) %>%
-    ungroup() 
-
-  #this return a list, but with the *same* g-values for all 3 groups..
-  test <- lapply(split(d, d$sample), function(i){
-  GTest(i$obs, i$exp)
-  })
-
-  #this return a list - using only the obsereved.. must be a way to use both columns...
-  tapply(X=ungroup(dplyr::select(d, c("obs", "exp"))), INDEX=d$sample, FUN=GTest)
-
-  # this return the same error- 'Error in GTest(obs, exp) : all entries of x must be nonnegative and finite'
-d %>%
-  group_by(sample) %>%
-  group_modify(GTest(obs, exp))
- 
-#same error:   
-lapply(split(d, d$sample), GTest(obs, exp))
-  
-# this does work for the function 'head':
-# return a df with the first line in each group of 'sample'     
-d %>%
-  group_by(sample) %>%
-  group_modify(~head(.x, 1))
-# return 3 lists, each with the first line in each group of 'sample'     
-d %>%
-  group_by(sample) %>%
-  group_map(~head(.x, 1))
-
-d %>%
-  group_by(sample) %>%
-  group_modify(~GTest(obs, exp))
-
-# this worked before for 'chisq.test'
-nest() %>%
-  mutate(pval = map_dbl(data, ~chisq.test(.)$p.value))
 ```
 
 
@@ -211,16 +216,7 @@ nest() %>%
 ##  Family 502, F1 male homozygot (1/1; 0/0), female hetero (0/1)
 ```{r}
 # make a table with the observed counts for F2 and CI for the proportion 
-d <- gt_502 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains(c("F2_male" , "F2_fem"))) %>%
-  pivot_longer(everything()) %>% 
-  dplyr::rename(sample = name, gt = value) %>%
-  dplyr::count(sample, gt, .drop = FALSE) %>% 
-  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-  mutate(total = as.numeric(sum(n))) %>% view()
+
 view()
 
 
@@ -237,8 +233,6 @@ exp <- obs %>%
   mutate(n = total*prop) %>%
   dplyr::rename(sample = sample.x, gt = gt.x) 
 
-#  combine the observed and the expected counts  
-cross_0.0_0.1 <- bind_rows(obs, exp)
   
 # test for independence (Chi square)
 chi_p <- full_join(obs, exp, by= c("sample", "gt")) %>%
