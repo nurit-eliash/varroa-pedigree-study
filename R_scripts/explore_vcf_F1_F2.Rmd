@@ -46,9 +46,10 @@ library("freqtables")
 library("fuzzyjoin") # to join tables based on a string in a column
 library("broom")
 # library("aspi") - Repeated G–tests of Goodness-of-Fit, work only for 2 variables... 
-library("DescTools") # for the Goodness-of-Fit
+library("DescTools") # for the Goodness-of-Fit, 3 variables
 library("RVAideMemoire")
-library(InfoTrad)
+library("InfoTrad")
+library("ggthemes")
 ```
 
 ### Load vcf file 
@@ -108,19 +109,20 @@ obs <- gt_502 %>%
   mutate(sex = case_when(
     grepl("male", sample) ~ "male",
     grepl("fem", sample) ~ "female"))
+#  mutate(type = "obs")
 
 # state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
 fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5,0))
 male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+ # mutate(type = "exp")
 
 # using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
 dat <- obs %>%
-  mutate(sample = as.character(sample)) %>%
+  #mutate(sample = as.character(sample)) %>%
   mutate(gt = as.character(gt)) %>%
-  left_join(mendel, multi_by = "sex") %>% 
-  mutate(exp = total*prop) %>%
-  dplyr::select(c("sample","obs", "exp"))
+  left_join(mendel, multi_by = c("sex")) %>% 
+  mutate(exp = total*prop)
 ```
 
 #### optional - observed counts with Confidence intervals
@@ -136,80 +138,73 @@ obs_CI <- obs %>%
 ```{r}
 # calculate values for each sample, and join into one table
 G<-dat %>%
+  dplyr::select(c("sample","obs", "exp")) %>%
   group_by(sample) %>%
   summarize(G = GTest(as.data.frame(cur_data()))$statistic)
 df<-dat %>%
+  dplyr::select(c("sample","obs", "exp")) %>%
   group_by(sample) %>%
   summarize(df=GTest(as.data.frame(cur_data()))$parameter)
 p<-dat %>%
+  dplyr::select(c("sample","obs", "exp")) %>%
   group_by(sample) %>%
   summarize(pval = GTest(as.data.frame(cur_data()))$p.value)
 
-# total G-value --> sum up df, gvalue --> to get the **total** pvalue
-female <- left_join(G, full_join(df, p), by = "sample") %>%
+# total G-value
+total_female <- left_join(G, full_join(df, p), by = "sample") %>%
   dplyr::filter(grepl("fem", sample)) %>%
-  mutate(sex = "female") %>%
-  mutate(family = "502")
-
-# heterogeneity between replicates: 
- dat %>% 
-    ungroup() %>%
-   dplyr::filter(grepl("fem", sample)) %>%
-   dplyr::select(c("obs", "exp")) %>%
-    GTest()
- #   not significant, G = 1.5801, X-squared df = 5, p-value = 0.9036
+  adorn_totals("row") %>%
+  dplyr::filter(sample =="Total")
+# G = 1.580142, df = 4
 
 # pooled --> sum up the obs and exp for each genotyep. then do a gtest . the df should be= 2 
-pooled_female
-  
- x<- obs %>%
-  mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  left_join(mendel, multi_by = "sex") %>% 
-  mutate(exp = total*prop) 
+pooled_female <- dat %>% 
+    #ungroup() %>%
+    dplyr::filter(grepl("fem", sample)) %>%
+    dplyr::select(c("sample", "gt","obs", "exp")) %>%
+    ddply("gt",numcolwise(sum)) %>%
+    dplyr::select(c("obs", "exp")) %>%
+    GTest()
+# no significance difference between observed and expected based on the pooled results
+# G = 1.5594, X-squared df = 2, p-value = 0.4585
 
- ## ** 14.5.2022
- צריך להכין טבלה לחישוב 
- g value of pooled :
-   על מנת שנוכל לחשב את ה
- pooled results.
+# calculate the heterogenity between experiments (between the 2 females), using the G values and d.f. of the pooled and total values
+# heterogeneity significance between replicates: 
+hetero_p <- pchisq((total_female$G - pooled_female$statistic),
+       df=(total_female$df - pooled_female$parameter),
+       lower.tail=FALSE)
+
+#there is no significance heterogeneity between samples
+#G = 0.0207495 , df = 2, pval = 0.9896789 
 ``` 
   
-  
-from the book:  
+# plot it
 ```{r}
-Input =("
- sample homo_ref hetro homo_alt
- 'fem_1'  18  19 1    
- 'fem_2'  51  57 0     
-")
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
 
-Data = read.table(textConnection(Input),header=TRUE)
-Fun.G = function (Q){                           # Functions
-          G.test(x=c(Q["homo_ref"], Q["hetro"], Q["homo_alt"]),           #   to calculate
-                 p=c(0.49, 0.49,0.02)                  #   individual G’s and
-                 )$statistic                    #   p-values
-               }
-
-Fun.df = function (Q){
-           G.test(x=c(Q["homo_ref"], Q["hetro"], Q["homo_alt"]),
-                  p=c(0.49, 0.49,0.02)
-                  )$parameter
-                }
-
-Fun.p = function (Q){
-          G.test(x=c(Q["homo_ref"], Q["hetro"], Q["homo_alt"]),
-                 p=c(0.49, 0.49,0.02)
-                 )$p.value
-                }
-Data =
-mutate(Data,
-       G =       apply(Data[c("homo_ref", "hetro", "homo_alt")], 1, Fun.G),
-       df =      apply(Data[c("homo_ref", "hetro", "homo_alt")], 1, Fun.df),
-       p.Value = apply(Data[c("homo_ref", "hetro", "homo_alt")], 1, Fun.p))
-
-Data
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+  
+df <- rbind(x, y)
+      
+ p <- ggplot(df, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F1 male (0/0) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample, labeller = labeller(sample = c("F2_fem_1" = "Female", "F2_fem_2" = "Female", "F2_male" = "Male"))) +
+  labs(fill = "Genotype") +
+  theme_classic()
 ```
+
 
 
 #play:
@@ -367,7 +362,8 @@ dot <- ggplot(drop_na(cross_0.0_0.1, pval), aes(y=prop, x=sample)) +
     ylim(0,0.9)
 
 df <- drop_na(cross_0.0_0.1, pval)
- bar <- ggplot(df, aes(fill=gt, y=prop, x=count)) + 
+
+bar <- ggplot(df, aes(fill=gt, y=prop, x=count)) + 
     geom_bar(position="fill", stat="identity", ) +
     xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
