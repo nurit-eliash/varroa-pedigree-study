@@ -36,64 +36,344 @@ library("ggpubr")
 library("gridExtra")
 library("grid")
 library("GGally")
-library("vcfR")
+library("vcfR") # for extracting genotype data from a vcf file
 library("data.table")
 library("stringr")
 library("janitor")
 library("gmodels")
 library("rstatix")
 library("freqtables")
-library("fuzzyjoin") # to join tables based on a string in a column
+#library("fuzzyjoin") # to join tables based on a string in a column
 library("broom")
-# library("aspi") - Repeated G–tests of Goodness-of-Fit, work only for 2 variables... 
-library("DescTools") # for the Goodness-of-Fit, 3 variables
-library("RVAideMemoire")
-library("InfoTrad")
-library("ggthemes")
+# library("aspi") # Repeated G–tests of Goodness-of-Fit, work only for 2 variables... 
+library("DescTools") # for the Goodness-of-Fit test, 3 variables; and for Breslow-Day Test for Homogeneity of the Odds Ratios
+library("vcd") # for the woolf test testign log odds for each pair
+#library("RVAideMemoire") # Repeated G–tests of Goodness-of-Fit, work only for 2 variables...
+#library("InfoTrad")
+#library("ggthemes") # for more colors in the ggplot
 ```
 
-### Load vcf file 
+### Load vcf file and extract genotypes
 ```{r}
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
 vcf
 # extract the genotype for each site in each individual
 gt <- extract.gt(vcf, element = "GT") 
 gt <- as.data.frame(t(gt)) %>%
-  rownames_to_column("sample") 
-  
-# mutate(fam = str_extract(sample, "[^_]+")) 
-#  mutate(sex = case_when(
-#    grepl("son", sample) ~ "male",
-#    grepl("dat|fnd|sis", sample) ~ "female",
-#    grepl( "_grn_",sample) ~ "ND"))
+  rownames_to_column("ID")
+#clean the ID names
+gt$ID <- sub("_[^_]+$", "", gt$ID)
 
-```
-
-1. make 2 tables:
-  - summarize F2 genotyping and info per sample, for the goodness of fit test: including the G-value, df, and p-value (2 columns for counts : "observed", and "expected")
-  - summarize the same data as above --> but for the geom_bar plot (one column for counts, and a separate column noting "observed" and "expected")
-2. subset per cross (9 levels), per sex (2 levels)
-
-# Family 502
-```{r}
-gt_502 <- gt %>%
-  dplyr::filter(grepl("502", sample))%>%
+table <-  gt %>% 
   t() %>%
   as.data.frame() %>%
-  row_to_names(row_number = 1)
+  row_to_names(row_number = 1) %>%
+  dplyr::select(contains(c("son", "dat"))) # keep only adults of F1 and F2 
+```
 
-# generalize the sample names:
-colnames(gt_502)[grepl('fnd',colnames(gt_502))] <- 'F0_fem'
-colnames(gt_502)[grepl('_son_',colnames(gt_502))] <- 'F1_male'
-colnames(gt_502)[grepl('_grnson',colnames(gt_502))] <- 'F2_male'
-colnames(gt_502)[grepl('_dat',colnames(gt_502))] <- 'F1_fem_1'
-colnames(gt_502)[grepl('_sis',colnames(gt_502))] <- 'F1_fem_2'
-colnames(gt_502)[grepl('a_grndat',colnames(gt_502))] <- 'F2_fem_1'
-colnames(gt_502)[grepl('f_grndat',colnames(gt_502))] <- 'F2_fem_2'
-colnames(gt_502)[grepl('c_grn_',colnames(gt_502))] <- 'F2_3'
-colnames(gt_502)[grepl('e_grn_',colnames(gt_502))] <- 'F2_4'
-colnames(gt_502)[grepl('d_grn_',colnames(gt_502))] <- 'F2_5'
+## F1 male (0/0) x female (0/1)
+### Prepare table with observed and expected counts, per family
+```{r}
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
 
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "male",
+    grepl("dat", sample) ~ "female"))
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs)
+
+# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
+fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5,0))
+male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+ # mutate(type = "exp")
+
+# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
+dat <- observed %>%
+  #mutate(sample = as.character(sample)) %>%
+  mutate(gt = as.character(gt)) %>%
+  left_join(mendel, multi_by = c("sex")) %>% 
+  mutate(exp = total*prop)
+```
+
+### bar plot, F1 male (0/0) x female (0/1)
+```{r}
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
+
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+  
+df_male <- rbind(x, y) %>%
+  dplyr::filter(sex == "male")
+      
+df_fem <- rbind(x, y) %>%
+  dplyr::filter(sex == "female")
+
+p_male <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F2 Males of F1 male (0/0) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") +
+  theme_classic()
+
+p_female <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F2 Females of F1 male (0/0) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") +
+  theme_classic()
+
+p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 males") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F2 Males of F1 male (0/0) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+  labs(fill = "Genotype") + theme_classic()
+
+p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 females") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F2 females of F1 male (0/0) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+  labs(fill = "Genotype") + theme_classic()
+
+grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
+```
+
+## F1 male (0/1) x female (0/1)
+### Prepare table with observed and expected counts, per family
+```{r}
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "male",
+    grepl("dat", sample) ~ "female"))
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs)
+
+# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
+fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.25, 0.5,0.25))
+male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+ # mutate(type = "exp")
+
+# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
+dat <- observed %>%
+  #mutate(sample = as.character(sample)) %>%
+  mutate(gt = as.character(gt)) %>%
+  left_join(mendel, multi_by = c("sex")) %>% 
+  mutate(exp = total*prop)
+```
+
+### bar plot, F1 male (0/1) x female (0/1)
+```{r}
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
+
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+  
+df_male <- rbind(x, y) %>%
+  dplyr::filter(sex == "male")
+pool_count_male <- left_join(aggregate(count ~ gt, filter(df_male,type=="obs"), sum), 
+                            aggregate(count ~ gt, filter(df_male,type=="exp"), sum), by ="gt") %>%
+  rename(c(count.x = "obs", count.y = "exp"))
+  
+df_fem <- rbind(x, y) %>%
+  dplyr::filter(sex == "female")
+
+pool_count_female <- left_join(aggregate(count ~ gt, filter(df_fem,type=="obs"), sum), 
+                            aggregate(count ~ gt, filter(df_fem,type=="exp"), sum), by ="gt") %>%
+  rename(c(count.x = "obs", count.y = "exp"))
+
+p_male <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F2 Males of F1 male (0/1) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_male, gt == "0/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") +
+  theme_classic()
+
+p_female <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = "F2 Females of F1 male (0/1) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_fem, gt == "0/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") +
+  theme_classic()
+
+p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity") +
+    xlab("F2 males") + 
+    ylab("Proportion of F2 genotype") +
+    labs(title = paste0("F2 Males, n sites = ", df_male %>% dplyr::filter(type == "obs") %>% summarise(sum(count)) %>% as.numeric()))  + 
+  labs(fill = "Genotype") +
+  scale_x_discrete("type", labels = c("Expected","Observed")) +
+  theme(axis.title.x = element_blank()) + 
+  theme_classic()
+
+p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F2 genotype") +
+    labs(title = paste0("F2 Females, n sites = ", df_female %>% dplyr::filter(type == "obs") %>% summarise(sum(count)) %>% as.numeric())) + 
+  labs(fill = "Genotype") +
+  scale_x_discrete("type", labels = c("Expected","Observed")) +
+  theme(axis.title.x = element_blank()) + 
+  theme_classic()
+
+grid.arrange(p_female_pooled, p_male_pooled, ncol = 2, top = textGrob("F2 genotypes of F1 male (0/1) x female (0/1) cross
+pooled families",gp=gpar(fontsize=20)))
+```
+
+
+
+
+
+## Cochran–Mantel–Haenszel Test for Repeated Tests of Independence
+### prepare the data frame 
+```{r}
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
+
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+```
+
+### C-M-H Test for females 
+```{r}
+df <- rbind(x, y) %>%
+  dplyr::filter(sex == "female") %>%
+  dplyr::select(c("sample", "gt", "type", "count"))
+
+### Specify the order of factor levels. Otherwise, R will alphabetize them
+df =
+mutate(df,
+       sample = factor(sample, levels=unique(sample)),
+       gt = factor(gt, levels=unique(gt)),
+       type = factor(type, levels=unique(type))
+       )
+aggregate(count ~ gt, df, sum)
+
+### Cross-tabulate the data
+Data.xtabs = xtabs(count ~ type + gt + sample,
+                   data=df)
+ftable(Data.xtabs)   
+
+# Cochran–Mantel–Haenszel test
+CMH_fem <- mantelhaen.test(Data.xtabs)
+
+# Woolf test for homogeneity of odds ratios across strata. If significant, C-M-H test is not appropriate
+homogen_fem <- woolf_test(Data.xtabs)             
+```
+
+### C-M-H Test for males 
+```{r}
+df <- rbind(x, y) %>%
+  dplyr::filter(sex == "male") %>%
+  dplyr::select(c("sample", "gt", "type", "count"))
+
+### Specify the order of factor levels. Otherwise, R will alphabetize them
+df =
+mutate(df,
+       sample = factor(sample, levels=unique(sample)),
+       gt = factor(gt, levels=unique(gt)),
+       type = factor(type, levels=unique(type))
+       )
+aggregate(count ~ gt, df, sum)
+
+### Cross-tabulate the data
+Data.xtabs = xtabs(count ~ type + gt + sample,
+                   data=df)
+ftable(Data.xtabs)   
+
+# Cochran–Mantel–Haenszel test
+CMH_male <-mantelhaen.test(Data.xtabs)
+
+# Woolf test for homogeneity of odds ratios across strata. If significant, C-M-H test is not appropriate
+homogen_male <- woolf_test(Data.xtabs)             
+```
+
+## Replicated G-test of goodness of fit
+### prepare table for G-test
+```{r}
 # make a table of observed counts for each genotype, per F2 offspring, for 0/0x0/1 cross
 obs <- gt_502 %>% 
   filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
@@ -123,32 +403,29 @@ dat <- obs %>%
   mutate(gt = as.character(gt)) %>%
   left_join(mendel, multi_by = c("sex")) %>% 
   mutate(exp = total*prop)
-```
 
 #### optional - observed counts with Confidence intervals
-```{r eval=FALSE, include=FALSE}
 obs_CI <- obs %>%
   mutate(prop = obs/total) %>%
   mutate(se = (sqrt(prop * (1-prop)/obs))) %>% 
   mutate(lower = prop - (se*1.96)) %>% 
   mutate(upper = prop + (se*1.96))
 ```
-
-# Replicated G-test of goodness of fit
+### run the G-test
 ```{r}
 # calculate values for each sample, and join into one table
 G<-dat %>%
   dplyr::select(c("sample","obs", "exp")) %>%
   group_by(sample) %>%
-  summarize(G = GTest(as.data.frame(cur_data()))$statistic)
+  dplyr::summarize(G = GTest(as.data.frame(cur_data()))$statistic)
 df<-dat %>%
   dplyr::select(c("sample","obs", "exp")) %>%
   group_by(sample) %>%
-  summarize(df=GTest(as.data.frame(cur_data()))$parameter)
+  dplyr::summarize(df=GTest(as.data.frame(cur_data()))$parameter)
 p<-dat %>%
   dplyr::select(c("sample","obs", "exp")) %>%
   group_by(sample) %>%
-  summarize(pval = GTest(as.data.frame(cur_data()))$p.value)
+  dplyr::summarize(pval = GTest(as.data.frame(cur_data()))$p.value)
 
 # total G-value
 total_female <- left_join(G, full_join(df, p), by = "sample") %>%
@@ -167,1551 +444,19 @@ pooled_female <- dat %>%
     GTest()
 # no significance difference between observed and expected based on the pooled results
 # G = 1.5594, X-squared df = 2, p-value = 0.4585
-
+pooled_male <- dat %>% 
+    #ungroup() %>%
+    dplyr::filter(grepl("male", sample)) %>%
+    dplyr::select(c("sample", "gt","obs", "exp")) %>%
+    ddply("gt",numcolwise(sum)) %>%
+    dplyr::select(c("obs", "exp")) %>%
+    GTest()
 # calculate the heterogenity between experiments (between the 2 females), using the G values and d.f. of the pooled and total values
 # heterogeneity significance between replicates: 
 hetero_p <- pchisq((total_female$G - pooled_female$statistic),
        df=(total_female$df - pooled_female$parameter),
        lower.tail=FALSE)
-
+hetero_p
 #there is no significance heterogeneity between samples
 #G = 0.0207495 , df = 2, pval = 0.9896789 
 ``` 
-  
-# plot it
-```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
-
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-  
-df <- rbind(x, y)
-      
- p <- ggplot(df, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample, labeller = labeller(sample = c("F2_fem_1" = "Female", "F2_fem_2" = "Female", "F2_male" = "Male"))) +
-  labs(fill = "Genotype") +
-  theme_classic()
-```
-
-
-
-#play:
-##  Family 502, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# make a table with the observed counts for F2 and CI for the proportion 
-
-view()
-
-
-
-
-exp <- obs %>%
-  dplyr::select(c(gt, sample, total)) %>%
-  mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  fuzzy_full_join(mendel, multi_by = c("sample", "gt"), match_fun = str_detect) %>%
-  mutate(count = "exp") %>%
-  drop_na() %>%
-  dplyr::select(-c(sample.y, gt.y)) %>% 
-  mutate(n = total*prop) %>%
-  dplyr::rename(sample = sample.x, gt = gt.x) 
-
-  
-# test for independence (Chi square)
-chi_p <- full_join(obs, exp, by= c("sample", "gt")) %>%
-  dplyr::select(c(sample,gt ,n.x, n.y)) %>%
-  dplyr::rename(obs = n.x, exp = n.y) %>%
-  drop_na() %>% view
- # group_by(sample) %>%
-  nest() %>%
-  mutate(pval = map_dbl(data, ~chisq.test(.)$p.value)) %>%
-  mutate(sig = case_when(pval<0.05 ~ "*")) %>%
-  mutate_at("pval", str_replace, "NaN", "null")
-
-# join the pvalues to the final table before plotting
-cross_0.0_0.1 <- left_join(cross_0.0_0.1, chi_p, by = "sample") %>% 
-  dplyr::select(-data) 
-
-# plot it
-dot <- ggplot(drop_na(cross_0.0_0.1, pval), aes(y=prop, x=sample)) + 
-    geom_point(aes(color=count, shape= gt), size = 4, position = position_dodge(width = 0.4)) +
-    geom_errorbar(aes(ymin=lower, ymax=upper, color = count), width = 0.1,position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = n, color = count),  hjust = 0, nudge_x = 0.2, check_overlap = T) + 
-    geom_text(aes(label = sig),  hjust = 0, nudge_y = 0.01, size = 10, color = "black") +
-    ylim(0,0.9)
-
-df <- drop_na(cross_0.0_0.1, pval)
- bar <- ggplot(df, aes(fill=gt, y=prop, x=count)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df, gt == "0/0"), aes(y=prop, x=count, label=total), vjust = 0) +
-    facet_wrap(~ sample, labeller = labeller(sample = c("F2_fem_1" = "Female", "F2_fem_2" = "Female", "F2_male" = "Male"))) +
-  labs(fill = "Genotype") +
-  theme_classic()
-
-grid.arrange(dot, bar, ncol = 2)
-```
-
-
-
-# Family 502
-```{r}
-gt_502 <- gt %>%
-   dplyr::filter(grepl("502", sample)) %>%
-  t() %>%
-as.data.frame() %>%
-row_to_names(row_number = 1)
-
-# change the sample name to a general name:
-colnames(gt_502)[grepl('fnd',colnames(gt_502))] <- 'F0_fem'
-colnames(gt_502)[grepl('_son_',colnames(gt_502))] <- 'F1_male'
-colnames(gt_502)[grepl('_grnson',colnames(gt_502))] <- 'F2_male'
-colnames(gt_502)[grepl('_dat',colnames(gt_502))] <- 'F1_fem_1'
-colnames(gt_502)[grepl('_sis',colnames(gt_502))] <- 'F1_fem_2'
-colnames(gt_502)[grepl('a_grndat',colnames(gt_502))] <- 'F2_fem_1'
-colnames(gt_502)[grepl('f_grndat',colnames(gt_502))] <- 'F2_fem_2'
-colnames(gt_502)[grepl('c_grn_',colnames(gt_502))] <- 'F2_3'
-colnames(gt_502)[grepl('e_grn_',colnames(gt_502))] <- 'F2_4'
-colnames(gt_502)[grepl('d_grn_',colnames(gt_502))] <- 'F2_5'
-```
-
-# Below is the code for chi square analysis per one cross
-
-##  Family 502, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# make a table with the observed counts for F2 and CI for the proportion 
-obs <- gt_502 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  mutate(name = factor(name)) %>%
-  dplyr::count(value, name, .drop = FALSE) %>% 
-  drop_na() %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(n))) %>%
-  mutate(prop = n/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/n))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>% 
-  dplyr::filter(value %in% c("0/0", "1/1", "0/1"))%>%
-  dplyr::rename(sample = name, gt = value) %>%
-  mutate(count = "obs")
-
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sample = "fem", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5,0)) 
-male_exp <- data.frame(sample = "F2_male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sample = as.character(sample))%>% mutate(gt = as.character(gt))
-
-exp <- obs %>%
-  dplyr::select(c(gt, sample, total)) %>%
-  mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  fuzzy_full_join(mendel, multi_by = c("sample", "gt"), match_fun = str_detect) %>%
-  mutate(count = "exp") %>%
-  drop_na() %>%
-  dplyr::select(-c(sample.y, gt.y)) %>% 
-  mutate(n = total*prop) %>%
-  dplyr::rename(sample = sample.x, gt = gt.x) 
-
-#  combine the observed and the expected counts  
-cross_0.0_0.1 <- bind_rows(obs, exp)
-  
-# test for independence (Chi square)
-chi_p <- full_join(obs, exp, by= c("sample", "gt")) %>%
-  dplyr::select(c(sample ,n.x, n.y)) %>%
-  dplyr::rename(obs = n.x, exp = n.y) %>%
-  drop_na() %>%
-  group_by(sample) %>%
-  nest() %>%
-  mutate(pval = map_dbl(data, ~chisq.test(.)$p.value)) %>%
-  mutate(sig = case_when(pval<0.05 ~ "*")) %>%
-  mutate_at("pval", str_replace, "NaN", "null")
-
-# join the pvalues to the final table before plotting
-cross_0.0_0.1 <- left_join(cross_0.0_0.1, chi_p, by = "sample") %>% 
-  dplyr::select(-data) 
-
-# plot it
-dot <- ggplot(drop_na(cross_0.0_0.1, pval), aes(y=prop, x=sample)) + 
-    geom_point(aes(color=count, shape= gt), size = 4, position = position_dodge(width = 0.4)) +
-    geom_errorbar(aes(ymin=lower, ymax=upper, color = count), width = 0.1,position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = n, color = count),  hjust = 0, nudge_x = 0.2, check_overlap = T) + 
-    geom_text(aes(label = sig),  hjust = 0, nudge_y = 0.01, size = 10, color = "black") +
-    ylim(0,0.9)
-
-df <- drop_na(cross_0.0_0.1, pval)
-
-bar <- ggplot(df, aes(fill=gt, y=prop, x=count)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df, gt == "0/0"), aes(y=prop, x=count, label=total), vjust = 0) +
-    facet_wrap(~ sample, labeller = labeller(sample = c("F2_fem_1" = "Female", "F2_fem_2" = "Female", "F2_male" = "Male"))) +
-  labs(fill = "Genotype") +
-  theme_classic()
-
-grid.arrange(dot, bar, ncol = 2)
-```
-
-
-
-
-
-
-
-
-
--------------
-below is the former analysis. for the 5 families.
-----------
-
-loop the following code, over all 5 families
-```{r eval=FALSE, include=FALSE}
-plot <- list
-
-#variables:
-family <- c(unique(str_extract(gt$sample , "[^_]+")))
-Gtp <- c("0/0", "0/1", "1/1")
-cross <- c(homoRef_)
-```
-
-
-# Family 240
-create data for one family
-```{r}
-gt_240 <- gt %>%
-   dplyr::filter(grepl("240", sample)) %>%
-  t() %>%
-as.data.frame() %>%
-row_to_names(row_number = 1)
-
-# change the sample name to a general name:
-colnames(gt_240)[grepl('fnd',colnames(gt_240))] <- 'F0_fem'
-colnames(gt_240)[grepl('_son_',colnames(gt_240))] <- 'F1_male'
-colnames(gt_240)[grepl('_grnson',colnames(gt_240))] <- 'F2_male'
-colnames(gt_240)[grepl('_dat',colnames(gt_240))] <- 'F1_fem_1'
-colnames(gt_240)[grepl('_sis',colnames(gt_240))] <- 'F1_fem_2'
-colnames(gt_240)[grepl('a_grndat',colnames(gt_240))] <- 'F2_fem_1'
-colnames(gt_240)[grepl('b_grndat',colnames(gt_240))] <- 'F2_fem_2'
-colnames(gt_240)[grepl('c_grn',colnames(gt_240))] <- 'F2_2'
-colnames(gt_240)[grepl('d_grn',colnames(gt_240))] <- 'F2_3'
-colnames(gt_240)[grepl('e_grn',colnames(gt_240))] <- 'F2_4'
-
-```
-
-## Family 240, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# make a table with the CI for each row. 
-cross_0.0_0.1 <- gt_240 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>% 
-  drop_na("value") %>% 
-  add_row(name = c(unique(cross_0.0_0.1$name)), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) 
-
-cross_1.1_0.1 <- gt_240 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  drop_na("value") %>%
-  add_row(name = c(unique(cross_1.1_0.1$name)), value = "0/0", freq = 0) %>% # add value '0' for genotype "1/1"
-mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) 
-
-p_0.0_0.1 <- ggplot(cross_0.0_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_1.1_0.1 <- ggplot(cross_1.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-grid.arrange(p_0.0_0.1, p_1.1_0.1, ncol = 2, top = textGrob("family 240, male homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 240, F1 male homozygot and female homozygot
-```{r}
-cross_0.0_1.1 <- gt_240 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  drop_na("value") %>%
-  add_row(name = c("F2_3", "F2_4", "F2_fem_1"), value = "0/1", freq = 0) %>% # add value '0' for genotype "0/1"
-  add_row(name = c("F2_4", "F2_fem_2"), value = "0/0", freq = 0) %>% # add value '0' for genotype "0/1"
-  add_row(name = c("F2_3", "F2_fem_2"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) 
-
-p_0.0_1.1 <- ggplot(cross_0.0_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_0.0_0.0 <- gt_240 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  drop_na("value") %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  drop_na("value")
-
-p_0.0_0.0 <-ggplot(cross_0.0_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_1.1 <- gt_240 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-    drop_na("value") %>%
-  add_row(name = c("F2_fem_1", "F2_fem_2"), value = "0/0", freq = 0) %>% # add value '0' for genotype "0/0"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_1.1_1.1 <-ggplot(cross_1.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_0.0 <- gt_240 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-    drop_na("value") %>%
-  add_row(name = c("F2_fem_1", "F2_fem_2", "F2_3", "F2_4"), value = "0/0", freq = 0) %>% # add value '0' for genotype "0/0"
-  add_row(name = c("F2_fem_1", "F2_fem_2", "F2_3", "F2_4"), value = "0/1", freq = 0) %>%
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_1.1_0.0 <-ggplot(cross_1.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.0_0.0, p_1.1_1.1, p_1.1_0.0, p_0.0_1.1, ncol = 2, nrow=2,top = textGrob("family 240, F1 male homozygot, female homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 240, F1 male heterozygot (0/1)
-```{r}
-cross_0.1_0.0 <- gt_240 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-    drop_na("value") %>%
-  add_row(name = c("F2_fem_2", "F2_male"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-cross_0.1_1.1 <- gt_240 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-    drop_na("value") %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "0/0", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-cross_0.1_0.1 <- gt_240 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-    drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-p_0.1_0.0 <- ggplot(cross_0.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/0")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_1.1 <- ggplot(cross_0.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_0.1 <- ggplot(cross_0.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.1_0.0, p_0.1_1.1, p_0.1_0.1, ncol = 3, top = textGrob("family 240, male heterozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-
-# Family 284
-create data for one family
-```{r}
-gt_284 <- gt %>%
-   dplyr::filter(grepl("284", sample)) %>%
-  t() %>%
-as.data.frame() %>%
-row_to_names(row_number = 1)
-
-# change the sample name to a general name:
-colnames(gt_284)[grepl('fnd',colnames(gt_284))] <- 'F0_fem'
-colnames(gt_284)[grepl('_son_',colnames(gt_284))] <- 'F1_male'
-colnames(gt_284)[grepl('_grnson',colnames(gt_284))] <- 'F2_male'
-colnames(gt_284)[grepl('_dat',colnames(gt_284))] <- 'F1_fem_1'
-colnames(gt_284)[grepl('_sis',colnames(gt_284))] <- 'F1_fem_2'
-colnames(gt_284)[grepl('_grndat',colnames(gt_284))] <- 'F2_fem_1'
-colnames(gt_284)[grepl('c_grn',colnames(gt_284))] <- 'F2_2'
-```
-
-## Family 284, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# make a table with the CI for each row. 
-cross_0.0_0.1 <- gt_284 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-    drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-cross_1.1_0.1 <- gt_284 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-    drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-p_0.0_0.1 <- ggplot(cross_0.0_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_1.1_0.1 <- ggplot(cross_1.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-grid.arrange(p_0.0_0.1, p_1.1_0.1, ncol = 2, top = textGrob("family 284, male homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 284, F1 male homozygot and female homozygot
-```{r}
-cross_0.0_1.1 <- gt_284 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>%   
-  drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_0.0_1.1 <- ggplot(cross_0.0_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_0.0_0.0 <- gt_284 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-    drop_na("value") %>%
-add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_0.0_0.0 <-ggplot(cross_0.0_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_1.1 <- gt_284 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-    drop_na("value") %>%
-mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-  p_1.1_1.1 <-ggplot(cross_1.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_0.0 <- gt_284 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-    drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-  p_1.1_0.0 <-ggplot(cross_1.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.0_0.0, p_1.1_1.1, p_1.1_0.0, p_0.0_1.1, ncol = 2, nrow=2,top = textGrob("family 284, F1 male homozygot, female homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 284, F1 male heterozygot (0/1)
-```{r}
-cross_0.1_0.0 <- gt_284 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-    drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-cross_0.1_1.1 <- gt_284 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  drop_na("value") %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "0/0", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-cross_0.1_0.1 <- gt_284 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-
-p_0.1_0.0 <- ggplot(cross_0.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/0")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_1.1 <- ggplot(cross_0.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_0.1 <- ggplot(cross_0.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.1_0.0, p_0.1_1.1, p_0.1_0.1, ncol = 3, top = textGrob("family 284, male heterozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-
-## former analysis --> Family 502, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# state the expected site proportion of each genotype in a perfect mandelian segregation of F2
-fem_exp <- data.frame(name = "fem", value = c("0/0", "0/1", "1/1") , exp_prop = c(0.5, 0.5,0)) 
-male_exp <- data.frame(name = "F2_male",value = c("0/0", "0/1", "1/1"),exp_prop = c(0.5, 0,0.5))
-exp <- bind_rows(fem_exp,male_exp) %>% mutate(name = as.character(name))%>% mutate(value = as.character(value))
-
-# make a table with the CI for each row. 
-cross_0.0_0.1 <- gt_502 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  mutate(name = factor(name)) %>%
-  dplyr::count(value, name, .drop = FALSE) %>% 
-  drop_na() %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(n))) %>%
-  mutate(prop = n/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/n))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>% 
-  dplyr::filter(value %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(name = as.character(name)) %>%
-  mutate(value = as.character(value)) %>%
-  fuzzy_full_join(exp, multi_by = c("name", "value"), match_fun = str_detect) %>%
-  mutate(exp_n = total*exp_prop) %>%
-  dplyr::select(-c(value.y, name.y)) %>%
-  dplyr::rename(sample = name.x, gt = value.x)
-
-# test for independence (Chi square)
-chi_p <- cross_0.0_0.1 %>%
-  drop_na() %>%
-  dplyr::select(c(sample, n ,exp_n)) %>%
-  group_by(sample) %>%
-  nest() %>%
-  mutate(pval = map_dbl(data, ~chisq.test(.)$p.value)) %>%
-  mutate(sig = case_when(pval<0.05 ~ "*"))
-
-# join the pvalues to the original table
-cross_0.0_0.1 <- left_join(cross_0.0_0.1, chi_p, by = "sample") %>% dplyr::select(-data) 
-
-# plot it
-p_0.0_0.1 <- ggplot(cross_0.0_0.1, aes(y=prop, x=sample, color=gt)) + 
-    geom_point(size = 4, position = position_dodge(width = 0.4)) +
-    geom_errorbar(aes(ymin=lower, ymax=upper),  position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "Obsereved F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = n),  hjust = 0, nudge_x = 0.15, color = "black") + 
-    geom_text(aes(label = sig),  hjust = 0, nudge_y = 0.01, size = 10, color = "black") +
-    ylim(0,1)
-
-p_0.0_0.1_exp <- ggplot(cross_0.0_0.1, aes(y=exp_prop, x=sample, color=gt)) + 
-    geom_point(size = 4, position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "Expected F2 of F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = exp_n),  hjust = 0, nudge_x = 0.15, color = "black") +
-    ylim(0,1)
-
-grid.arrange(p_0.0_0.1_exp, p_0.0_0.1, ncol = 2, top = textGrob("family 502, male homozygot",gp=gpar(fontsize=20,font=3)))
-
-
-
-
-
-### old plots:
-p_0.0_0.1 <- ggplot(cross_0.0_0.1, aes(y=prop, x=sample, color=gt)) + 
-    geom_point(size = 4, position = position_dodge(width = 0.4)) +
-    geom_errorbar(aes(ymin=lower, ymax=upper),  position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "Obsereved F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = n),  hjust = 0, nudge_x = 0.15, color = "black") + 
-    geom_text(aes(label = sig),  hjust = 0, nudge_y = 0.01, size = 10, color = "black")
-
-p_0.0_0.1_exp <- ggplot(cross_0.0_0.1, aes(y=exp_prop, x=sample, color=gt)) + 
-    geom_point(size = 4, position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "Expected F2 of F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = exp_n),  hjust = 0, nudge_x = 0.15, color = "black") 
-
-grid.arrange(p_0.0_0.1_exp, p_0.0_0.1, ncol = 2, top = textGrob("family 502, male homozygot",gp=gpar(fontsize=20,font=3)))
-######
-cross_1.1_0.1 <- gt_502 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  mutate(name = factor(name)) %>%
-  dplyr::count(value, name, .drop = FALSE) %>% 
-  drop_na() %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(n))) %>%
-  mutate(prop = n/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/n))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>% 
-  dplyr::filter(value %in% c("0/0", "1/1", "0/1"))
-
-
-
-p_1.1_0.1 <- ggplot(cross_1.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4, position = position_dodge(width = 0.4)) +
-    geom_errorbar(aes(ymin=lower, ymax=upper),  position = position_dodge(width = 0.4)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/1)")  +
-    geom_text(aes(label = n),  hjust = 0, nudge_x = 0.15, color = "black")
-
-grid.arrange(p_0.0_0.1, p_1.1_0.1, ncol = 2, top = textGrob("family 502, male homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 502, F1 male homozygot and female homozygot
-```{r}
-cross_0.0_1.1 <- gt_502 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_0.0_1.1 <- ggplot(cross_0.0_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_0.0_0.0 <- gt_502 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  drop_na("value") %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_0.0_0.0 <-ggplot(cross_0.0_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_1.1 <- gt_502 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_1.1_1.1 <-ggplot(cross_1.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_0.0 <- gt_502 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  drop_na("value") %>%
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96))
-
-p_1.1_0.0 <-ggplot(cross_1.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.0_0.0, p_1.1_1.1, p_1.1_0.0, p_0.0_1.1, ncol = 2, nrow=2,top = textGrob("family 502, F1 male homozygot, female homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 502, F1 male heterozygot (0/1)
-```{r}
-cross_0.1_0.0 <- gt_502 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-cross_0.1_1.1 <- gt_502 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "0/0", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  drop_na("value")
-
-cross_0.1_0.1 <- gt_502 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-p_0.1_0.0 <- ggplot(cross_0.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/0")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_1.1 <- ggplot(cross_0.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_0.1 <- ggplot(cross_0.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.1_0.0, p_0.1_1.1, p_0.1_0.1, ncol = 3, top = textGrob("family 502, male heterozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-
-
-# Family 498
-create data for one family
-```{r}
-gt_498 <- gt %>%
-   dplyr::filter(grepl("498", sample)) %>%
-  t() %>%
-as.data.frame() %>%
-row_to_names(row_number = 1)
-
-# change the sample name to a general name:
-colnames(gt_498)[grepl('fnd',colnames(gt_498))] <- 'F0_fem'
-colnames(gt_498)[grepl('_son_',colnames(gt_498))] <- 'F1_male'
-colnames(gt_498)[grepl('_grnson',colnames(gt_498))] <- 'F2_male'
-colnames(gt_498)[grepl('_dat',colnames(gt_498))] <- 'F1_fem_1'
-colnames(gt_498)[grepl('_sis',colnames(gt_498))] <- 'F1_fem_2'
-colnames(gt_498)[grepl('b_grndat',colnames(gt_498))] <- 'F2_fem_1'
-colnames(gt_498)[grepl('c_grndat',colnames(gt_498))] <- 'F2_fem_2'
-colnames(gt_498)[grepl('d_grn',colnames(gt_498))] <- 'F2_3'
-colnames(gt_498)[grepl('e_grn',colnames(gt_498))] <- 'F2_4'
-```
-
-## Family 498, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# make a table with the CI for each row. 
-cross_0.0_0.1 <- gt_498 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-cross_1.1_0.1 <- gt_498 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-p_0.0_0.1 <- ggplot(cross_0.0_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_1.1_0.1 <- ggplot(cross_1.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-grid.arrange(p_0.0_0.1, p_1.1_0.1, ncol = 2, top = textGrob("family 498, male homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 498, F1 male homozygot and female homozygot
-```{r}
-cross_0.0_1.1 <- gt_498 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  na.omit()
-
-p_0.0_1.1 <- ggplot(cross_0.0_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_0.0_0.0 <- gt_498 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  drop_na("value")
-
-p_0.0_0.0 <-ggplot(cross_0.0_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_1.1 <- gt_498 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  na.omit()
-p_1.1_1.1 <-ggplot(cross_1.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_0.0 <- gt_498 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  na.omit()
-p_1.1_0.0 <-ggplot(cross_1.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.0_0.0, p_1.1_1.1, p_1.1_0.0, p_0.0_1.1, ncol = 2, nrow=2,top = textGrob("family 498, F1 male homozygot, female homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 498, F1 male heterozygot (0/1)
-```{r}
-cross_0.1_0.0 <- gt_498 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-cross_0.1_1.1 <- gt_498 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "0/0", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  drop_na("value")
-
-cross_0.1_0.1 <- gt_498 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-p_0.1_0.0 <- ggplot(cross_0.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/0")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_1.1 <- ggplot(cross_0.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_0.1 <- ggplot(cross_0.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.1_0.0, p_0.1_1.1, p_0.1_0.1, ncol = 3, top = textGrob("family 498, male heterozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-
-
-# Family 476
-create data for one family
-```{r}
-gt_476 <- gt %>%
-   dplyr::filter(grepl("476", sample)) %>%
-  t() %>%
-as.data.frame() %>%
-row_to_names(row_number = 1)
-
-# change the sample name to a general name:
-colnames(gt_476)[grepl('fnd',colnames(gt_476))] <- 'F0_fem'
-colnames(gt_476)[grepl('_son_',colnames(gt_476))] <- 'F1_male'
-colnames(gt_476)[grepl('_grnson',colnames(gt_476))] <- 'F2_male'
-colnames(gt_476)[grepl('_dat',colnames(gt_476))] <- 'F1_fem_1'
-colnames(gt_476)[grepl('_sis',colnames(gt_476))] <- 'F1_fem_2'
-colnames(gt_476)[grepl('a_grndat',colnames(gt_476))] <- 'F2_fem_1'
-colnames(gt_476)[grepl('c_grndat',colnames(gt_476))] <- 'F2_fem_2'
-colnames(gt_476)[grepl('d_grndat',colnames(gt_476))] <- 'F2_fem_3'
-colnames(gt_476)[grepl('e_grn',colnames(gt_476))] <- 'F2_4'
-
-```
-
-## Family 476, F1 male homozygot (1/1; 0/0), female hetero (0/1)
-```{r}
-# make a table with the CI for each row. 
-cross_0.0_0.1 <- gt_476 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-cross_1.1_0.1 <- gt_476 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-p_0.0_0.1 <- ggplot(cross_0.0_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_1.1_0.1 <- ggplot(cross_1.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-grid.arrange(p_0.0_0.1, p_1.1_0.1, ncol = 2, top = textGrob("family 476, male homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 476, F1 male homozygot and female homozygot
-```{r}
-cross_0.0_1.1 <- gt_476 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  na.omit()
-
-p_0.0_1.1 <- ggplot(cross_0.0_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_0.0_0.0 <- gt_476 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "1/1", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  drop_na("value")
-
-p_0.0_0.0 <-ggplot(cross_0.0_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/0) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_1.1 <- gt_476 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  na.omit()
-p_1.1_1.1 <-ggplot(cross_1.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-cross_1.1_0.0 <- gt_476 %>% 
-  filter(F1_male == "1/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>%
-  pivot_longer(everything()) %>% 
-  count() %>% 
-  mutate(freq = as.numeric(freq)) %>% 
-  group_by(name) %>% 
-  mutate(total = as.numeric(sum(freq))) %>% 
-  mutate(prop = freq/total) %>% 
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>%  
-  mutate(lower = prop - (se*1.96)) %>%  
-  mutate(upper = prop + (se*1.96)) %>% 
-  na.omit()
-p_1.1_0.0 <-ggplot(cross_1.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (1/1) x female (0/0)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.0_0.0, p_1.1_1.1, p_1.1_0.0, p_0.0_1.1, ncol = 2, nrow=2,top = textGrob("family 476, F1 male homozygot, female homozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-## Family 476, F1 male heterozygot (0/1)
-```{r}
-cross_0.1_0.0 <- gt_476 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/0") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-cross_0.1_1.1 <- gt_476 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "1/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  add_row(name = c("F2_2", "F2_fem_1", "F2_male"), value = "0/0", freq = 0) %>% # add value '0' for genotype "1/1"
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  drop_na("value")
-
-cross_0.1_0.1 <- gt_476 %>% 
-  filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% 
-  select(contains("F2")) %>% 
-  pivot_longer(everything()) %>%
-  count() %>%
-  mutate(freq = as.numeric(freq)) %>%
-  group_by(name) %>%
-  mutate(total = as.numeric(sum(freq))) %>%
-  mutate(prop = freq/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/freq))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96)) %>%
-  na.omit()
-
-p_0.1_0.0 <- ggplot(cross_0.1_0.0, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/0")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_1.1 <- ggplot(cross_0.1_1.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (1/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-
-p_0.1_0.1 <- ggplot(cross_0.1_0.1, aes(y=prop, x=name, color=value)) + 
-    geom_point(size = 4) +
-    geom_errorbar(aes(ymin=lower, ymax=upper)) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F1 male (0/1) x female (0/1)")  +
-    geom_text(aes(label = freq),  hjust = 0, nudge_x = 0.15, color = "black")
-grid.arrange(p_0.1_0.0, p_0.1_1.1, p_0.1_0.1, ncol = 3, top = textGrob("family 476, male heterozygot",gp=gpar(fontsize=20,font=3)))
-```
-
-
-
-
-
-
-
-
-
-
-
-# unused codes:
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-#agneesh
-  x1 <- gt_284 %>% filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% select(F2_male,F2_3,F2_fem_1)  %>% pivot_longer(everything()) %>% count()
-  
-  # Family 284 -- bar
-gt_284 <- gt %>%
-   dplyr::filter(grepl("284", sample)) %>%
-  t() %>%
-as.data.frame() %>%
-row_to_names(row_number = 1)
-
-# change the sample name to a general name:
-colnames(gt_284)[grepl('fnd',colnames(gt_284))] <- 'F0_fem'
-colnames(gt_284)[grepl('_son_',colnames(gt_284))] <- 'F1_male'
-colnames(gt_284)[grepl('_grnson',colnames(gt_284))] <- 'F2_male'
-colnames(gt_284)[grepl('_dat',colnames(gt_284))] <- 'F1_fem_1'
-colnames(gt_284)[grepl('_sis',colnames(gt_284))] <- 'F1_fem_2'
-colnames(gt_284)[grepl('_grndat',colnames(gt_284))] <- 'F2_fem_1'
-#colnames(gt_284)[grepl('b_grndat',colnames(gt_284))] <- 'F2_fem_2'
-colnames(gt_284)[grepl('c_grn',colnames(gt_284))] <- 'F2_3'
-colnames(gt_284)[grepl('e_grn',colnames(gt_284))] <- 'F2_4'
-
-x <- gt_284 %>% filter(F1_male == "0/1" & F1_fem_1 == "0/1") %>% select(F2_male,F2_3,F2_fem_1)  %>% pivot_longer(everything()) %>% count()
-
-p_x<- ggplot(x %>% drop_na(),aes(x = as.factor(name),y = freq)) +
-  geom_col(aes(fill = value))
-
-
-y <- gt_284 %>% filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% select(F2_male,F2_3,F2_fem_1)  %>% pivot_longer(everything()) %>% count()
-
-p_y <- ggplot(y %>% drop_na(),aes(x = as.factor(name),y = freq)) +
-  geom_col(aes(fill = value))
-
-
-a <- gt_284 %>% filter(F1_male == "1/1" & F1_fem_1 == "0/1") %>% select(F2_male,F2_3,F2_fem_1)  %>% pivot_longer(everything()) %>% count()
-
-p_a <- ggplot(a %>% drop_na(),aes(x = as.factor(name),y = freq)) +
-  geom_col(aes(fill = value))
-
-grid.arrange(p_x, p_y, p_a, top = textGrob("family 284",gp=gpar(fontsize=20,font=3)))
-
-################### former plot:
-#plot it
-p_son_0.0_dat_0.1 <- ggplot(count_F2, aes(fill=Gt, y=n, x=F2)) + 
-    geom_bar(position="fill", stat="identity") +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 genotype of F1 cross: son (0/0) x daughter (0/1), 
-family 476") + 
-   geom_text(aes(label = n), position = position_fill(vjust = 0.2, reverse= F))
-
-# add additional info for each individual
-gt <- gt %>%
-  mutate(fam = str_extract(sample, "[^_]+")) %>%
-  mutate(sex = case_when(
-    grepl("son", sample) ~ "male",
-    grepl("dat|fnd|sis", sample) ~ "female",
-    grepl( "_grn_",sample) ~ "ND")) %>%
-  mutate(generation = case_when(
-    grepl("fnd", sample) ~ "F0",
-    grepl("_dat_|sis|_son_", sample) ~ "F1",
-    grepl("grn", sample) ~ "F2")) %>%
-  mutate(fam_membership = case_when(
-    grepl("fnd", sample) ~ "Foundress_mother",
-    grepl("_dat_", sample) ~ "Daughter",
-    grepl("sis", sample) ~ "Second_daughter",
-    grepl("_son_", sample) ~ "Son",
-    grepl("grnson", sample) ~ "Grandson",
-    grepl("_grndat_", sample) ~ "Granddaughter",
-    grepl("_grn_", sample) ~ "Grandson_daughter")) %>%
-  dplyr::select(sample, fam, sex, generation, fam_membership, everything())
-```
