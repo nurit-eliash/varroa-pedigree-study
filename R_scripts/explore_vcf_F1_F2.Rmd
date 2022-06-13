@@ -56,7 +56,9 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
 
 
 ## Load Variant Call Format (VCF) file.
-Extract genotypes for each site and individual
+Extract genotypes for each site and individual.  The metadata for all samples can be found in here.   
+The individual ID name nomenclature is composed of 3 parts, separated by an underscore: (*_*).  For example
+The first part is the family ID, 
 ```{r}
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
 vcf
@@ -72,7 +74,7 @@ From the 223 individuals of 30 families, we keep adult males and females in F1 a
 Eventually, we are left with 114 individuals () of 26 families, and all 35,169 biallelic sites.  
 
 ***
-For example, these are the first 6 sites (*13565-25513*) of the first chromosome (*NW_019211454.1*), in one family (*family number 240*).
+For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_019211454.1*), in one family (*family number 240*).
 ```{r}
 table <-  gt %>% 
   t() %>%
@@ -83,7 +85,7 @@ table <-  gt %>%
 table %>% select(contains(c("240_"))) %>% head()
 ```
 
-The family include:  
+The family members include:  
 
 - Brother and sister of F1 generation: adult male (*240_240a_son*) and adult females (*240_241_dat*).
 - Their offspring in the F2 generation: adult male (*240_241c_grnson*) and two adult females (*240_241a_grndat* and *240_241b_grndat*).
@@ -377,7 +379,9 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 * make a vector with all sites that are not 1/1 in F2
 
 ### (3) F1 male (0/0) x female (1/1)
-We expect no sites for this cross, since there is not paternal inheritance to the males
+We expect no sites for this cross, since there is not paternal inheritance to the males.  
+Indeed, there are only 103 sites in the F2 pooled females, and 71 for the F2 pooled males: 
+
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -496,7 +500,9 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 ```
 
 ### (4) F1 male (1/1) x female (0/0)
-We expect no sites for this cross, sinse there is not paternal inheritance to the males
+We expect no sites for this cross, since there is not paternal inheritance to the males.  
+Indeed, there are only 98 sites in the F2 pooled females, and 75 for the F2 pooled males: 
+
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -613,6 +619,18 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
   theme(axis.text.x = element_text(size=15),
         axis.title.x = element_blank()) 
 ```
+
+***
+Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analysis (5-9).  
+## List of 'False sites':
+```{r}
+# based on the former control crossing - make a vector of the false sites:
+
+
+# deduct these sites form the 'table' file
+```
+
+***
 
 ## Crossing homozygotic male, with heterozygotic female
 
