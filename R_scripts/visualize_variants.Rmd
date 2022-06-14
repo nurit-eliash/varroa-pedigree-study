@@ -138,13 +138,13 @@ color_gt = tibble(Value = as.numeric(c("0","1","2")),
 
 # compare F2 male and female, and their F1 parents for one family
 sites_gt <- all0.0_0.1 %>%
-  dplyr::select(dplyr::contains(c("site","284_284a_son"))) %>% 
+  dplyr::select(dplyr::contains(c("site","133_134a_grnson"))) %>% 
   separate(col=site, into=c("noting","Chr" ,"Start"), sep="_") %>% 
   na.omit() %>%
   mutate(Start = as.double(Start)) %>%
   mutate("End"=Start+50000) %>%
-  dplyr::select(c("Chr","Start","End","284_284a_son")) %>%
-  dplyr::rename("gt" = "284_284a_son") %>%
+  dplyr::select(c("Chr","Start","End","133_134a_grnson")) %>%
+  dplyr::rename("gt" = "133_134a_grnson") %>%
   left_join(color_gt, by = "gt") %>%
   dplyr::select(c("Chr","Start","End","Value"))
   

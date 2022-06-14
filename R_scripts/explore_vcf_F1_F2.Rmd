@@ -56,9 +56,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
 
 
 ## Load Variant Call Format (VCF) file.
-Extract genotypes for each site and individual.  The metadata for all samples can be found in here.   
-The individual ID name nomenclature is composed of 3 parts, separated by an underscore: (*_*).  For example
-The first part is the family ID, 
+Extract genotypes for each site and individual.  The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).  
 ```{r}
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
 vcf
@@ -69,9 +67,14 @@ gt <- as.data.frame(t(gt)) %>%
 #clean the ID names
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
+The individual ID name nomenclature is composed of 3 parts, separated by an underscore (*_*).  The first part is the family ID, the second is the unique name of the individual, and the the third part indicates its generation, sex, and its position in relation to the foundress mite (generation F0).  
+For example:   
+Individual ID *240_240a_son*, belong to family *240*, has a unique name of *240a* and is the *son* of the foundress mite of family 240, that is, its a male of F1 generation.  
+Individual ID *240_241b_grndat*, belong to family *240*, has a unique name of *241b* and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F@ generation (and the daughter of *240_240a_son*).
 
-From the 223 individuals of 30 families, we keep adult males and females in F1 and F2 generations.  
-Eventually, we are left with 114 individuals () of 26 families, and all 35,169 biallelic sites.  
+***
+From the 223 individuals of 30 families, we excluded non adults mites (for which its hard to determine the sex).  
+Eventually, we kept 114 individuals (adult males and females in F1 and F2 generations) of 26 families, and all 35,169 biallelic sites.  
 
 ***
 For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_019211454.1*), in one family (*family number 240*).
@@ -87,8 +90,8 @@ table %>% select(contains(c("240_"))) %>% head()
 
 The family members include:  
 
-- Brother and sister of F1 generation: adult male (*240_240a_son*) and adult females (*240_241_dat*).
-- Their offspring in the F2 generation: adult male (*240_241c_grnson*) and two adult females (*240_241a_grndat* and *240_241b_grndat*).
+- Son and daughter in F1 generation: adult male (*240_240a_son*) and adult females (*240_241_dat*). because in varroa mite reproduction is via sib-mating, these brother and sister will also mate.   
+- Their offspring are the F2 generation: adult male (*240_241c_grnson*) and two adult females (*240_241a_grndat* and *240_241b_grndat*).  
 
 Each individual, was genotyped for each site with one of the three genotypes:  
 
@@ -97,6 +100,8 @@ Each individual, was genotyped for each site with one of the three genotypes:
 *  Homozygote for the alternate allele = **1/1**
 * "NA" = site genotype not determined
 
+For more information about the mapping, variant calling and variant filtration, please see the Snakemake pipline in [here](https://github.com/nurit-eliash/varroa-linkage-map).  
+ 
 ***
 
 In the following code we viewed the F2 offspring genotype of all possible nine crosses between F1 male and females.  
