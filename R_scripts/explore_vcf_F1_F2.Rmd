@@ -18,7 +18,12 @@ output:
 }
 </style>
 
-In this study_____
+In this study we explored the mode of genetic inheritance of *Varroa destructor*, a parasitic mite of honeybees, so far known as a haplodiploid species with a arrhenotokous parthenogenesis reproductive mode. The mite shows contrasting phenomena of highly inbreeding life style (sib-mating), yet maintaining relatively high genetic variation.    
+
+The experimental setup consisted by a three-generational pedigree with sib-mating.    
+Sample size: 30 families, total of 223 individuals
+3 different colonies, from OIST apiary  
+For details of mite collection and pedigree construction, please see the original [manuscript](Update this).  
 
 ## load libraries
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
@@ -67,10 +72,11 @@ gt <- as.data.frame(t(gt)) %>%
 #clean the ID names
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
-The individual ID name nomenclature is composed of 3 parts, separated by an underscore (*_*).  The first part is the family ID, the second is the unique name of the individual, and the the third part indicates its generation, sex, and its position in relation to the foundress mite (generation F0).  
+The individual ID name nomenclature is composed of 3 parts, separated by an underscore (_).  
+The first part is the family ID, the second is the unique name of the individual, and the the third part indicates its generation, sex, and its position in relation to the foundress mite (generation F0).  
 For example:   
 Individual ID *240_240a_son*, belong to family *240*, has a unique name of *240a* and is the *son* of the foundress mite of family 240, that is, its a male of F1 generation.  
-Individual ID *240_241b_grndat*, belong to family *240*, has a unique name of *241b* and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F@ generation (and the daughter of *240_240a_son*).
+Individual ID *240_241b_grndat*, belong to family *240*, has a unique name of *241b* and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F2 generation (and the daughter of *240_240a_son*).
 
 ***
 From the 223 individuals of 30 families, we excluded non adults mites (for which its hard to determine the sex).  
@@ -83,15 +89,16 @@ table <-  gt %>%
   t() %>%
   as.data.frame() %>%
   row_to_names(row_number = 1) %>%
-  dplyr::select(contains(c("son", "dat"))) # keep only adults of F1 and F2 
+  dplyr::select(contains(c("son", "dat", "fnd"))) # keep only adults of F0, F1 and F2 
 
 table %>% select(contains(c("240_"))) %>% head()
 ```
 
 The family members include:  
 
-- Son and daughter in F1 generation: adult male (*240_240a_son*) and adult females (*240_241_dat*). because in varroa mite reproduction is via sib-mating, these brother and sister will also mate.   
-- Their offspring are the F2 generation: adult male (*240_241c_grnson*) and two adult females (*240_241a_grndat* and *240_241b_grndat*).  
+- F0 generation: foundress female mite (**240_240_fnd**).  
+- F1 generation: adult son (**240_240a_son**) and adult daughter (**240_241_dat**) of the foundress F0 mite. Because in varroa mite reproduction is via sib-mating, these brother and sister will also mate, to produce the F2 generation.   
+- F2 generation: adult grandson (**240_241c_grnson**) and two adult granddaughters (**240_241a_grndat** and **240_241b_grndat**), of the foundress F0 mite.    
 
 Each individual, was genotyped for each site with one of the three genotypes:  
 
@@ -100,7 +107,7 @@ Each individual, was genotyped for each site with one of the three genotypes:
 *  Homozygote for the alternate allele = **1/1**
 * "NA" = site genotype not determined
 
-For more information about the mapping, variant calling and variant filtration, please see the Snakemake pipline in [here](https://github.com/nurit-eliash/varroa-linkage-map).  
+For more information about the mapping, variant calling and variant filtration, please see the Snakemake pipeline in [here](https://github.com/nurit-eliash/varroa-linkage-map).  
  
 ***
 
@@ -136,6 +143,8 @@ For each crossing we have expected genotype-ratio of the F2, based on the follow
 To detect false sites
 
 ### (1) F1 male (0/0) x female (0/0)
+
+#### F2 offspring
 we expect all F2 offspring to be homozygotic (0/0) like their parents (F1)
 ```{r include=FALSE}
 # Prepare table with observed and expected counts, per family:
@@ -208,7 +217,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/1") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -220,7 +229,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/0) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/1") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
     scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -237,7 +246,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (0/0)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -251,7 +260,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Females of F1 male (0/0) x female (0/0)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -259,9 +268,121 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
         axis.title.x = element_blank()) 
 ```
 
-* make a vector with all sites that are not 0/0 in F2
+
+# רק לדוגמא
+make a list of 'false sites' from 0/0 x 0/0 cross:
+```{r}
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+list_grndat <- list()
+
+for (fam in family) {
+ 
+list_grndat[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("grndat")) %>%
+  rownames_to_column("site") 
+}
+
+#%>% dplyr::filter(across(everything(), ~ !str_detect(., "0/0")))%>% na.omit()
+  
+list_grndat$`240` %>% view()
+
+# for male F2
+list_grnson <- list()
+
+for (fam in family) {
+ 
+list_grnson[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("grnson")) %>%
+  rownames_to_column("site") 
+}
+#%>% dplyr::filter(across(everything(), ~ !str_detect(., "0/0"))) %>% na.omit()
+list_grnson$`600`
+
+# join all grandkids of 26 families together
+grnson0.0_0.0 <- reduce(list_grnson, full_join, by = "site") %>% view()
+
+grndat0.0_0.0 <- reduce(list_grndat, full_join, by = "site") %>% view()
+
+# it looks like the 'false sites' in one family, are not necessarily the false sites in other families. should i take them out?
+
+
+
+
+
+
+
+#### F0 foundress
+we expect the F0 foundress to be homozygotic (0/0), like her son
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (0/0) x female (0/0) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/0) x female (0/0)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/0) x female (0/0)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
 
 ### (2) F1 male (1/1) x female (1/1)
+
+#### F2 offspring
 we expect all F2 offspring to be homozygotic (1/1) like their parents (F1)
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -359,7 +480,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (1/1) x female (1/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -372,7 +493,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Females of F1 male (1/1) x female (1/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -381,10 +502,69 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 
 ```
 
-* make a vector with all sites that are not 1/1 in F2
+
+#### F0 foundress
+we expect the F0 foundress to be homozygotic (1/1), like her son
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (1/1) x female (1/1) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (1/1) x female (1/1)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (1/1) x female (1/1)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
 
 ### (3) F1 male (0/0) x female (1/1)
-We expect no sites for this cross, since there is not paternal inheritance to the males.  
+
+#### F2 offpsring
+We expect zero sites for this cross, since there is no paternal inheritance to the males.  
 Indeed, there are only 103 sites in the F2 pooled females, and 71 for the F2 pooled males: 
 
 ```{r}
@@ -483,7 +663,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (1/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -496,7 +676,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Females of F1 male (0/0) x female (1/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -504,8 +684,68 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
         axis.title.x = element_blank()) 
 ```
 
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (0/0) x female (1/1) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/0) x female (1/1)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/0) x female (1/1)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
 ### (4) F1 male (1/1) x female (0/0)
-We expect no sites for this cross, since there is not paternal inheritance to the males.  
+
+#### F2 offspring
+We expect zero sites for this cross, since there is no paternal inheritance to the males.  
 Indeed, there are only 98 sites in the F2 pooled females, and 75 for the F2 pooled males: 
 
 ```{r}
@@ -604,7 +844,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (1/1) x female (0/0)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -617,7 +857,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Females of F1 male (1/1) x female (0/0)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") + 
   theme_classic() +
@@ -625,8 +865,67 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
         axis.title.x = element_blank()) 
 ```
 
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (1/1) x female (0/0) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (1/1) x female (0/0)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (1/1) x female (0/0)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
 ***
-Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analysis (5-9).  
+Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analyses (5-9).  
+
 ## List of 'False sites':
 ```{r}
 # based on the former control crossing - make a vector of the false sites:
@@ -640,6 +939,9 @@ Based the 'Control crossing' results, I made a vector with all 'False sites'. Th
 ## Crossing homozygotic male, with heterozygotic female
 
 ### (5) F1 male (0/0) x female (0/1)
+
+#### F2 offspring
+We expect F2 females' sites to be evenly distributed between 0/1 and 0/0 genotypes, and F2 males to be evenly distributed between 0/0 and 1/1 (as they are hemizygote).    
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -736,7 +1038,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
   theme_classic()
@@ -747,14 +1049,78 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Females of F1 male (0/0) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
   theme_classic()
 
 ```
 
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (0/0) x female (0/1) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/0) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/0) x female (0/1)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
+***
+Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analyses (5-9).  
+
 ### (6) F1 male (1/1) x female (0/1)
+
+#### F2 offpsring
+We expect F2 females' sites to be evenly distributed between 0/1 and 1/1 genotypes, and F2 males to be evenly distributed between 0/0 and 1/1 (as they are hemizygote).    
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -851,7 +1217,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (1/1) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
   theme_classic()
@@ -862,11 +1228,73 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Females of F1 male (1/1) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "0/0"), aes(y=prop, x=type, label=total), vjust = 0) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
   theme_classic()
 ```
+
+
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (1/1) x female (0/1) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (1/1) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (1/1) x female (0/1)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
+***
+Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analyses (5-9).  
 
 
 ## Crossing heterozygotic male, with homozygotic female
@@ -880,6 +1308,8 @@ Looking at the F2 offspring of crossing heterozygotic F1 males with females, we 
 (3) Heterozygotic sites are real: Males can carry and inherit two alleles (0/1)
 
 ### (7) F1 male (0/1) x female (0/0)
+
+#### F2 offspring
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -981,7 +1411,7 @@ ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) +
     geom_bar(position="fill", stat="identity", ) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 male genotype. F1 Cross: male (0/1) x female (0/0)", fill = "Genotype:") +
-    geom_text(data = dat_male %>% filter(gt == "0/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    geom_text(data = dat_male %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
     facet_wrap(~ sample) +
     theme_classic()+ 
     theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) 
@@ -991,13 +1421,76 @@ ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) +
     geom_bar(position="fill", stat="identity", ) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 female genotype. F1 Cross: male (0/1) x female (0/0)", fill = "Genotype:") + 
-    geom_text(data = dat_fem %>% filter(gt == "0/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    geom_text(data = dat_fem %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
     facet_wrap(~ sample) +
     theme_classic()+ 
     theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) 
 ```
 
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (0/1) x female (0/0) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/1) x female (0/0)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/1) x female (0/0)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
+***
+Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analyses (5-9).  
+
 ### (8) F1 male (0/1) x female (1/1)
+
+#### F2 offspring
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -1099,7 +1592,7 @@ ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) +
     geom_bar(position="fill", stat="identity", ) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 male genotype. F1 Cross: male (0/1) x female (1/1)", fill = "Genotype:") +
-    geom_text(data = dat_male %>% filter(gt == "0/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    geom_text(data = dat_male %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
     facet_wrap(~ sample) +
     theme_classic()+ 
     theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) 
@@ -1109,13 +1602,77 @@ ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) +
     geom_bar(position="fill", stat="identity", ) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 female genotype. F1 Cross: male (0/1) x female (1/1)", fill = "Genotype:") + 
-    geom_text(data = dat_fem %>% filter(gt == "0/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    geom_text(data = dat_fem %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
     facet_wrap(~ sample) +
     theme_classic()+ 
     theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) 
 ```
 
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (0/1) x female (1/1) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/1) x female (1/1)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "0/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/1) x female (1/1)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
+***
+Based the 'Control crossing' results, I made a vector with all 'False sites'. These sites will be excluded from the following analyses (5-9).  
+
+
 ### (9) F1 male (0/1) x female (0/1)
+
+#### F2 offspring
 ```{r}
 # set the families (include only families with at least one adult F2)
 family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
@@ -1217,7 +1774,7 @@ ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) +
     geom_bar(position="fill", stat="identity", ) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 male genotype. F1 Cross: male (0/1) x female (0/1)", fill = "Genotype:") +
-    geom_text(data = dat_male %>% filter(gt == "0/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    geom_text(data = dat_male %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
     facet_wrap(~ sample) +
     theme_classic()+ 
     theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) 
@@ -1227,11 +1784,71 @@ ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) +
     geom_bar(position="fill", stat="identity", ) +
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 female genotype. F1 Cross: male (0/1) x female (0/1)", fill = "Genotype:") + 
-    geom_text(data = dat_fem %>% filter(gt == "0/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    geom_text(data = dat_fem %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
     facet_wrap(~ sample) +
     theme_classic()+ 
     theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) 
 ```
+
+#### F0 foundress
+we expect ?????...
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("fnd")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) 
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
+```
+
+```{r}
+# plot the pooled data for all F0 foundress with male (0/1) x female (1/1) offspring
+ggplot(observed, aes(fill=gt, y=prop, x = type)) + 
+    geom_bar(position="fill", stat="identity") +
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/1) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", observed %>% dplyr::filter(gt == "1/1") %>% summarise(sum(total)) %>% as.numeric())) + 
+    theme_classic() +
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) + 
+    labs(fill = "Genotype")
+  
+# plot for each individual: 
+ggplot(observed, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Observed") + 
+    ylab("Proportion of F0 genotype") +
+    labs(title = "F0 foundress of F1 male (0/1) x female (0/1)") + 
+    geom_text(data = filter(observed, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
+    facet_wrap(~ sample) +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.text.x =  element_blank(), axis.title.x = element_blank()) 
+```
+
+***
 
 ## Statistics
 We did 2 types of a-parametric tests for independence, testing the predicted counts against the observed counts:  

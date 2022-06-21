@@ -43,7 +43,8 @@ table <-  gt %>%
   dplyr::select(contains(c("son", "dat"))) # keep only adults of F1 and F2 
 ```
 
-make the list of sites in wch genotype for males and females
+## Pooled sites
+make the list of sites in each genotype for males and females
 ### (5) F1 male (0/0) x female (0/1)
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -106,10 +107,7 @@ ideogram(karyotype = karyotype, overlaid = sites)
 convertSVG("chromosome.svg", device = "png")
 ```
 
-#########
-
-# per family?
-make the list of sites in wch genotype for males and females
+## Per family
 ### (5) F1 male (0/0) x female (0/1)
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -135,16 +133,19 @@ all0.0_0.1 <- reduce(list, full_join, by = "site")
 # color discrete - different color for each genotype 
 color_gt = tibble(Value = as.numeric(c("0","1","2")),
                   gt = c("0/1","0/0","1/1"))
+```
 
+visualize the sites genotype on the chromosomes, per individual
+```{r}
 # compare F2 male and female, and their F1 parents for one family
 sites_gt <- all0.0_0.1 %>%
   dplyr::select(dplyr::contains(c("site","133_134a_grnson"))) %>% 
   separate(col=site, into=c("noting","Chr" ,"Start"), sep="_") %>% 
   na.omit() %>%
   mutate(Start = as.double(Start)) %>%
-  mutate("End"=Start+50000) %>%
+  mutate("End"=Start+10000) %>%
   dplyr::select(c("Chr","Start","End","133_134a_grnson")) %>%
-  dplyr::rename("gt" = "133_134a_grnson") %>%
+  dplyr::rename("gt" = "133_134a_grnson") %>% 
   left_join(color_gt, by = "gt") %>%
   dplyr::select(c("Chr","Start","End","Value"))
   
@@ -156,12 +157,25 @@ karyotype <- tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1"
 
 ideogram(karyotype = karyotype, overlaid = sites_gt, colorset1 = c("#49be25","#be4d25","#2596be"))
 convertSVG("chromosome.svg", device = "png")
-
-
 ```
 
 
+i want to check if the "recombinant" sites are same for different F2 males
+```{r}
+F2_134a <- all0.0_0.1 %>%
+  dplyr::select(dplyr::contains(c("site","133_134a_grnson")))
 
+F2_285a <- all0.0_0.1 %>%
+  dplyr::select(dplyr::contains(c("site","284_285a_grnson")))
+
+F2_303b <- all0.0_0.1 %>%
+  dplyr::select(dplyr::contains(c("site","302_303b_grnson")))
+
+F2_601a <- all0.0_0.1 %>%
+  dplyr::select(dplyr::contains(c("site","600_601a_grnson")))
+
+d <- full_join(F2_134a,F2_285a,by="site") %>% full_join(F2_303b,by="site") %>% full_join(F2_601a,by="site") %>%view()
+```
 
 
 
