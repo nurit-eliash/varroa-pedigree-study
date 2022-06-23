@@ -1,0 +1,96 @@
+---
+title: "slidingWindows_example"
+author: "Nurit Eliash"
+date: '2022-06-22'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+setwd("/Users/nuriteliash/Desktop/")
+library("RIdeogram") # for visualizing the variant sites on the chromosomes
+library("tidyverse")
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR") # for extracting genotype data from a vcf file
+library("data.table")
+library("stringr")
+library("janitor")
+library("PopGenome") # for computing the running mean, using the 'SlidingWindow' function
+library("readr") # to read a delimited table
+library("runner")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Sliding windows - using runner library
+```{r}
+
+```
+
+### Sliding windows - using PopGenome library
+#### example from https://evolutionarygenetics.github.io/Chapter8.html
+```{r}
+setwd("/Users/nuriteliash/Desktop/sparrow_snps")
+
+sparrows <- PopGenome::readData("/Users/nuriteliash/Desktop/sparrow_snps/", format = "VCF", include.unknown = TRUE, FAST = TRUE)
+
+#Examining the variant data
+#you can look the data we have read in using the following command:
+get.sum.data(sparrows)
+
+# supply our population data to the sparrows object
+sparrow_info <- read_delim("./sparrow_pops.txt", delim = "\t")
+
+# create a list of the individuals in each of the populations.
+populations <- split(sparrow_info$ind, sparrow_info$pop)
+
+# We can then use this to set the populations in our sparrow dataset:
+sparrows <- set.populations(sparrows, populations, diploid = T)
+
+sparrows@populations
+
+# Setting up sliding windows
+# it is often better to use a sliding-window approach - i.e. split the genome into windows of a particular size and then calculate the mean for a statistic within that window.
+
+#We know already that chromosome 8 is 49,693,984 bp long, so we can get an idea of how many sliding windows we would generate by using some R code. We’ll set our sliding window to be 100,000 bp wide - or 100 Kb. We will also set a step or jump for our window of 25,000 bp - or 25Kb.
+
+# set chromosome size
+chr8 <- 49693984
+
+# set window size and window jump
+window_size <- 100000
+window_jump <- 25000
+
+# use seq to find the start points of each window
+window_start <- seq(from = 1, to = chr8, by = window_jump)
+# add the size of the window to each start point 
+window_stop <- window_start + window_size
+
+#Some of the windows stop after the end of the chromosome, so we need to remove these.
+# no windows start before the end of chromosome 8
+sum(window_start > chr8)
+# but some window stop positions do occur past the final point
+sum(window_stop > chr8)
+
+#there are 4 windows that are beyond the end of the chromosome. To remove them, we can use the same logical operations as above, just this time within square brackets to drop those positions.
+# remove windows from the start and stop vectors
+window_start <- window_start[which(window_stop < chr8)]
+window_stop <- window_stop[which(window_stop < chr8)]
+
+chr8 - window_stop[length(window_stop)]
+
+#we will save our sliding window start/stop positions as a data.frame. We’ll also calculate the midpoint for each window.
+windows <- data.frame(start = window_start, stop = window_stop, 
+                      mid = window_start + (window_stop-window_start)/2)
+
+#Finally, we can set our sliding windows for our sparrows dataset using the PopGenome function, sliding.window.transform
+sparrows_sw <- sliding.window.transform(sparrows, width = 100000, jump = 25000, type = 2)
+
+## Calculating sliding window estimates of nucleotide diversity and differentiation
+
+```

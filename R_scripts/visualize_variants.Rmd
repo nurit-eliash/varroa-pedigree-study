@@ -5,9 +5,10 @@ date: "6/4/2022"
 output: html_document
 ---
 
+## Load libraries
 ```{r setup, include=FALSE}
 setwd("/Users/nuriteliash/Desktop/")
-library("RIdeogram")
+library("RIdeogram") # for visualizing the variant sites on the chromosomes
 library("tidyverse")
 library("plyr")
 library("dplyr")
@@ -21,6 +22,10 @@ library("vcfR") # for extracting genotype data from a vcf file
 library("data.table")
 library("stringr")
 library("janitor")
+library("PopGenome") # for computing the running mean, using the 'SlidingWindow' function
+library("readr") # to read a delimited table - remove this and the PopGwnome if i dont use it at the end
+library("runner") # to calculate running windows
+library("Rcpp") # required for the runner package
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -136,6 +141,7 @@ color_gt = tibble(Value = as.numeric(c("0","1","2")),
 ```
 
 visualize the sites genotype on the chromosomes, per individual
+Are the 'unexpected' variants, the results of recombination events?
 ```{r}
 # compare F2 male and female, and their F1 parents for one family
 sites_gt <- all0.0_0.1 %>%
@@ -159,9 +165,9 @@ ideogram(karyotype = karyotype, overlaid = sites_gt, colorset1 = c("#49be25","#b
 convertSVG("chromosome.svg", device = "png")
 ```
 
-
-i want to check if the "recombinant" sites are same for different F2 males
+another way, is to check individual site.
 ```{r}
+# i want to check if the 'unexpected' variants, possibly the results of recombination events, are located on the same sites for different F2 males
 F2_134a <- all0.0_0.1 %>%
   dplyr::select(dplyr::contains(c("site","133_134a_grnson")))
 
@@ -175,6 +181,132 @@ F2_601a <- all0.0_0.1 %>%
   dplyr::select(dplyr::contains(c("site","600_601a_grnson")))
 
 d <- full_join(F2_134a,F2_285a,by="site") %>% full_join(F2_303b,by="site") %>% full_join(F2_601a,by="site") %>%view()
+
+# the 'unexpected' variants are located on different sites in different individuals. probably NOT recombination hot spots :( 
+```
+
+
+ from the images of chromosomes, it looks like its on different positions.
+ but its hard to say, as the sites are dispersed , and there's lots of them.
+ so, im gonna calculate a 'running mean', using the Sliding window analysis.
+### Sliding windows
+#### PopGenome. based on example from https://evolutionarygenetics.github.io/Chapter8.html
+```{r}
+varroa <- PopGenome::readData("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7_VCF_file/", format = "VCF", include.unknown = TRUE, FAST = TRUE)
+
+#Examining the variant data
+#you can look the data we have read in using the following command:
+get.sum.data(varroa)
+
+# Setting up sliding windows
+
+# it is often better to use a sliding-window approach - i.e. split the genome into windows of a particular size and then calculate the mean for a statistic within that window.
+
+#We know already that chromosome NW_019211454.1 is 76,960,006 bp long, so we can get an idea of how many sliding windows we would generate by using some R code. We’ll set our sliding window to be 100,000 bp wide - or 100 Kb. We will also set a step or jump for our window of 25,000 bp - or 25Kb.
+
+# set chromosome size
+chr454.1 <- 76960006
+
+# set window size and window jump
+window_size <- 100000
+window_jump <- 25000
+
+# use seq to find the start points of each window
+window_start <- seq(from = 1, to = chr454.1, by = window_jump)
+# add the size of the window to each start point 
+window_stop <- window_start + window_size
+
+#Some of the windows stop after the end of the chromosome, so we need to remove these.
+# no windows start before the end of chromosome 8
+sum(window_start > chr454.1)
+# but some window stop positions do occur past the final point
+sum(window_stop > chr454.1)
+
+# remove windows from the start and stop vectors
+window_start <- window_start[which(window_stop < chr454.1)]
+window_stop <- window_stop[which(window_stop < chr454.1)]
+
+#we will save our sliding window start/stop positions as a data.frame. We’ll also calculate the midpoint for each window.
+windows <- data.frame(start = window_start, stop = window_stop, 
+                      mid = window_start + (window_stop-window_start)/2)
+
+#Finally, we can set our sliding windows for our sparrows dataset using the PopGenome function, sliding.window.transform
+varroa_sw <- sliding.window.transform(varroa, width = 100000, jump = 25000, type = 2)
+```
+
+#### library(runner). https://cran.r-project.org/web/packages/runner/vignettes/apply_any_r_function.html
+
+runner package provides functions applied on running windows. The most universal function is runner::runner which gives user possibility to apply any R function f on running windows. Running windows are defined for each data window size k, lag with respect to their indexes. Unlike other available R packages, runner supports any input and output type and also gives full control to manipulate window size and lag/lead.
+```{r}
+#To obtain constant sliding windows one just needs to specify k argument
+#  x = the data frame with site genotype
+#  k = window size
+#  f = function to call on a window (in here we wish to look at the mean)
+
+df <- data.frame(
+  a = 1:15,
+  b = 3 * 1:15 + rnorm(15)
+)
+
+runner(
+  x = df,
+  k = 5,
+  f = function(x) mean(x$b, data=x)
+)
+```
+
+## my data
+try with one chromosome
+chromosome NW_019211454.1 is 76,960,006 bp long, so we can get an idea of how many sliding windows we would generate by using some R code. We’ll set our sliding window to be 100,000 bp wide - or 100 Kb. We will also set a step or jump for our window of 25,000 bp - or 25Kb.
+
+```{r}
+#To obtain constant sliding windows one just needs to specify the following arguments:
+#  x = the data frame with site genotype
+#  k = window size
+#  f = function to call on a window (in here we wish to look at the mean)
+
+# compare F2 male and female, and their F1 parents for one family
+sites_gt <- all0.0_0.1 %>%
+  dplyr::select(dplyr::contains(c("site","133_134a_grnson"))) %>% 
+  separate(col=site, into=c("noting","Chr" ,"Start"), sep="_") %>% 
+  na.omit() %>%
+  mutate(Start = as.double(Start)) %>%
+  mutate("End"=Start+1) %>%
+  dplyr::select(c("Chr","Start","End","133_134a_grnson")) %>%
+  dplyr::rename("gt" = "133_134a_grnson") %>% 
+  left_join(color_gt, by = "gt") %>%
+  dplyr::select(c("Chr","Start","End","Value"))
+  
+# filter for the first chromosome (175 sites):
+sites_gt %>% dplyr::filter(Chr == "019211454.1")
+
+##### make a window data for the first chromosome ###
+# set chromosome size
+chr454.1 <- 76960006
+
+# set window size and window jump
+window_size <- 100000
+window_jump <- 25000
+
+# use seq to find the start points of each window
+window_start <- seq(from = 1, to = chr454.1, by = window_jump)
+# add the size of the window to each start point 
+window_stop <- window_start + window_size
+
+#Some of the windows stop after the end of the chromosome, so we need to remove these.
+# no windows start before the end of chromosome 8
+sum(window_start > chr454.1)
+# but some window stop positions do occur past the final point
+sum(window_stop > chr454.1)
+
+# remove windows from the start and stop vectors
+window_start <- window_start[which(window_stop < chr454.1)]
+window_stop <- window_stop[which(window_stop < chr454.1)]
+
+#we will save our sliding window start/stop positions as a data.frame. We’ll also calculate the midpoint for each window.
+windows <- data.frame(start = window_start, stop = window_stop, 
+                      mid = window_start + (window_stop-window_start)/2)
+
 ```
 
 
@@ -200,7 +332,7 @@ ideogram(karyotype = karyotype, overlaid = site_gt, colorset1 = c("#49be25","#be
 
 #ideogram(karyotype = karyotype, label = rand_sites, label_type = "marker")
 convertSVG("chromosome.svg", device = "png")
-```
+
 
 not in
 ```{r }

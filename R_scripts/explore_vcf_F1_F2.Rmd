@@ -80,7 +80,7 @@ Individual ID *240_241b_grndat*, belong to family *240*, has a unique name of *2
 
 ***
 From the 223 individuals of 30 families, we excluded non adults mites (for which its hard to determine the sex).  
-Eventually, we kept 114 individuals (adult males and females in F1 and F2 generations) of 26 families, and all 35,169 biallelic sites.  
+Eventually, we kept 144 individuals (adult males and females in F0, F1 and F2 generations) of 26 families, and all 35,169 biallelic sites.  
 
 ***
 For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_019211454.1*), in one family (*family number 240*).
@@ -88,7 +88,7 @@ For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_0192
 table <-  gt %>% 
   t() %>%
   as.data.frame() %>%
-  row_to_names(row_number = 1) %>%
+  row_to_names(row_number = 1) %>% 
   dplyr::select(contains(c("son", "dat", "fnd"))) # keep only adults of F0, F1 and F2 
 
 table %>% select(contains(c("240_"))) %>% head()
@@ -267,60 +267,6 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
   theme(axis.text.x = element_text(size=15),
         axis.title.x = element_blank()) 
 ```
-
-
-# רק לדוגמא
-make a list of 'false sites' from 0/0 x 0/0 cross:
-```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
-# define a list to put all the data frames in
-list_grndat <- list()
-
-for (fam in family) {
- 
-list_grndat[[fam]] <- table %>%
-  dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
-  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
-  dplyr::select(contains("grndat")) %>%
-  rownames_to_column("site") 
-}
-
-#%>% dplyr::filter(across(everything(), ~ !str_detect(., "0/0")))%>% na.omit()
-  
-list_grndat$`240` %>% view()
-
-# for male F2
-list_grnson <- list()
-
-for (fam in family) {
- 
-list_grnson[[fam]] <- table %>%
-  dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
-  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
-  dplyr::select(contains("grnson")) %>%
-  rownames_to_column("site") 
-}
-#%>% dplyr::filter(across(everything(), ~ !str_detect(., "0/0"))) %>% na.omit()
-list_grnson$`600`
-
-# join all grandkids of 26 families together
-grnson0.0_0.0 <- reduce(list_grnson, full_join, by = "site") %>% view()
-
-grndat0.0_0.0 <- reduce(list_grndat, full_join, by = "site") %>% view()
-
-# it looks like the 'false sites' in one family, are not necessarily the false sites in other families. should i take them out?
-
-
-
-
-
-
 
 #### F0 foundress
 we expect the F0 foundress to be homozygotic (0/0), like her son
@@ -1819,7 +1765,6 @@ obs[[fam]] <- table %>%
   mutate(total = as.numeric(sum(n))) %>%
   dplyr::rename(obs = n) 
 }
-
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% dplyr::rename(count = obs) %>% mutate(prop = (count/total)) %>% mutate(type = "Observed")
 ```
@@ -1849,6 +1794,351 @@ ggplot(observed, aes(fill=gt, y=prop, x=type)) +
 ```
 
 ***
+
+# רק לדוגמא
+for one family, 284
+```{r eval=FALSE, include=FALSE}
+son_0.0 <- table %>%
+  dplyr::select(starts_with("284")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(prop = n/total)
+  
+son_0.1 <- table %>%
+  dplyr::select(starts_with("284")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n)))%>%
+  mutate(prop = n/total)
+
+son_1.1 <- table %>%
+  dplyr::select(starts_with("284")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n)))%>%
+  mutate(prop = n/total)
+
+# plot all family members' genotype for each case 
+p_son_0.0 <- ggplot(son_0.0, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 0/0") + 
+    geom_text(data = filter(son_0.0, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+  labs(fill = "Genotype") + 
+    scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+theme_classic() 
+
+p_son_0.1 <- ggplot(son_0.1, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 0/1") + 
+    geom_text(data = filter(son_0.1, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+  labs(fill = "Genotype") + 
+    scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+theme_classic() 
+
+p_son_1.1 <- ggplot(son_1.1, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 1/1") + 
+    geom_text(data = filter(son_1.1, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+  labs(fill = "Genotype") + 
+  scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+  theme_classic() 
+
+combined <- p_son_0.0 + p_son_0.1 +p_son_1.1 & theme(legend.position = "bottom")
+combined + plot_layout(guides = "collect") + plot_annotation(
+  title = 'Genotype of family 284')
+```
+
+for one family, 338
+```{r eval=FALSE, include=FALSE}
+# for one family, 338
+
+son_0.0 <- table %>%
+  dplyr::select(starts_with("338")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(prop = n/total)
+  
+son_0.1 <- table %>%
+  dplyr::select(starts_with("338")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n)))%>%
+  mutate(prop = n/total)
+
+son_1.1 <- table %>%
+  dplyr::select(starts_with("338")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n)))%>%
+  mutate(prop = n/total)
+
+# plot all family members' genotype for each case 
+p_son_0.0 <- ggplot(son_0.0, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 0/0") + 
+    geom_text(data = filter(son_0.0, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+    scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+labs(fill = "Genotype") + 
+  theme_classic() 
+
+p_son_0.1 <- ggplot(son_0.1, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 0/1") + 
+    geom_text(data = filter(son_0.1, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+   scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+ labs(fill = "Genotype") + 
+  theme_classic() 
+
+p_son_1.1 <- ggplot(son_1.1, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 1/1") + 
+    geom_text(data = filter(son_1.1, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+   scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+ labs(fill = "Genotype") + 
+  theme_classic() 
+
+combined <- p_son_0.0 + p_son_0.1 +p_son_1.1 & theme(legend.position = "bottom")
+combined + plot_layout(guides = "collect") + plot_annotation(
+  title = 'Genotype of family 338')
+```
+
+for one family, 110
+```{r eval=FALSE, include=FALSE}
+# for one family, 110
+
+son_0.0 <- table %>%
+  dplyr::select(starts_with("110")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(prop = n/total)
+  
+son_0.1 <- table %>%
+  dplyr::select(starts_with("110")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n)))%>%
+  mutate(prop = n/total)
+
+son_1.1 <- table %>%
+  dplyr::select(starts_with("110")) %>% 
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n)))%>%
+  mutate(prop = n/total)
+
+# plot all family members' genotype for each case 
+p_son_0.0 <- ggplot(son_0.0, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 0/0") + 
+    geom_text(data = filter(son_0.0, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+    scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+labs(fill = "Genotype") + 
+  theme_classic() 
+
+p_son_0.1 <- ggplot(son_0.1, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 0/1") + 
+    geom_text(data = filter(son_0.1, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+   scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+ labs(fill = "Genotype") + 
+  theme_classic() 
+
+p_son_1.1 <- ggplot(son_1.1, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family, when F1 male is 1/1") + 
+    geom_text(data = filter(son_1.1, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+   scale_x_discrete("sample", labels = c("F0 female", "F1 male","F1 female","F2 female","F2 male")) +
+ labs(fill = "Genotype") + 
+  theme_classic() 
+
+combined <- p_son_0.0 + p_son_0.1 +p_son_1.1 & theme(legend.position = "bottom")
+combined + plot_layout(guides = "collect") + plot_annotation(
+  title = 'Genotype of family 110')
+```
+
+all genotypes for the 3 families
+```{r eval=FALSE, include=FALSE}
+fam_110 <- table %>%
+  dplyr::select(starts_with("110")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(prop = n/total)
+
+fam_284 <- table %>%
+  dplyr::select(starts_with("284")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(prop = n/total)
+
+fam_338 <- table %>%
+  dplyr::select(starts_with("338")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(prop = n/total)
+
+# plot all family members' genotype for each case 
+p_110 <- ggplot(fam_110, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family") + 
+    geom_text(data = filter(fam_110, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+  labs(fill = "Genotype") + 
+  theme_classic() 
+
+p_284 <- ggplot(fam_284, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family") + 
+    geom_text(data = filter(fam_284, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+  labs(fill = "Genotype") + 
+  theme_classic() 
+
+p_338 <- ggplot(fam_338, aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Family member") + 
+    ylab("Proportion of genotype") +
+    labs(title = "Genotype of family 338") + 
+    geom_text(data = filter(fam_338, gt == "1/1"), aes(y=prop, x=sample, label=total), vjust = 0) +
+  labs(fill = "Genotype") + 
+  theme_classic() 
+
+combined <- p_110 + p_284 +p_338 & theme(legend.position = "bottom")
+combined + plot_layout(guides = "collect") + plot_annotation(
+  title = 'Genotype of family')
+```
+
+
+
+old code for false sites
+```{r}
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+list_grndat <- list()
+
+for (fam in family) {
+ 
+list_grndat[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("grndat")) %>%
+  rownames_to_column("site") 
+}
+
+#%>% dplyr::filter(across(everything(), ~ !str_detect(., "0/0")))%>% na.omit()
+  
+list_grndat$`240` %>% view()
+
+# for male F2
+list_grnson <- list()
+
+for (fam in family) {
+ 
+list_grnson[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("grnson")) %>%
+  rownames_to_column("site") 
+}
+#%>% dplyr::filter(across(everything(), ~ !str_detect(., "0/0"))) %>% na.omit()
+list_grnson$`600`
+
+# join all grandkids of 26 families together
+grnson0.0_0.0 <- reduce(list_grnson, full_join, by = "site") %>% view()
+
+grndat0.0_0.0 <- reduce(list_grndat, full_join, by = "site") %>% view()
+
+# it looks like the 'false sites' in one family, are not necessarily the false sites in other families. should i take them out?
+
+```
 
 ## Statistics
 We did 2 types of a-parametric tests for independence, testing the predicted counts against the observed counts:  
