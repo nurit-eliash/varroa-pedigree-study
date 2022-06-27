@@ -1795,6 +1795,170 @@ ggplot(observed, aes(fill=gt, y=prop, x=type)) +
 
 ***
 
+## Statistics
+We did 2 types of a-parametric tests for independence, testing the predicted counts against the observed counts:  
+
+- Cochran–Mantel–Haenszel Test (CMH) for Repeated Tests of Independence
+- Replicated G-test of goodness of fit
+
+### Cochran–Mantel–Haenszel Test for Repeated Tests of Independence
+```{r eval=FALSE, include=FALSE}
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
+
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+```
+
+#### CMH Test for females 
+```{r eval=FALSE, include=FALSE}
+df <- rbind(x, y) %>%
+  dplyr::filter(sex == "female") %>%
+  dplyr::select(c("sample", "gt", "type", "count"))
+
+### Specify the order of factor levels. Otherwise, R will alphabetize them
+df =
+mutate(df,
+       sample = factor(sample, levels=unique(sample)),
+       gt = factor(gt, levels=unique(gt)),
+       type = factor(type, levels=unique(type))
+       )
+aggregate(count ~ gt, df, sum)
+
+### Cross-tabulate the data
+Data.xtabs = xtabs(count ~ type + gt + sample,
+                   data=df)
+ftable(Data.xtabs)   
+
+# Cochran–Mantel–Haenszel test
+CMH_fem <- mantelhaen.test(Data.xtabs)
+
+# Woolf test for homogeneity of odds ratios across strata. If significant, C-M-H test is not appropriate
+homogen_fem <- woolf_test(Data.xtabs)             
+```
+
+#### CMH Test for males 
+```{r eval=FALSE, include=FALSE}
+df <- rbind(x, y) %>%
+  dplyr::filter(sex == "male") %>%
+  dplyr::select(c("sample", "gt", "type", "count"))
+
+### Specify the order of factor levels. Otherwise, R will alphabetize them
+df =
+mutate(df,
+       sample = factor(sample, levels=unique(sample)),
+       gt = factor(gt, levels=unique(gt)),
+       type = factor(type, levels=unique(type))
+       )
+aggregate(count ~ gt, df, sum)
+
+### Cross-tabulate the data
+Data.xtabs = xtabs(count ~ type + gt + sample,
+                   data=df)
+ftable(Data.xtabs)   
+
+# Cochran–Mantel–Haenszel test
+CMH_male <-mantelhaen.test(Data.xtabs)
+
+# Woolf test for homogeneity of odds ratios across strata. If significant, C-M-H test is not appropriate
+homogen_male <- woolf_test(Data.xtabs)             
+```
+
+### Replicated G-test of goodness of fit
+```{r eval=FALSE, include=FALSE}
+# make a table of observed counts for each genotype, per F2 offspring, for 0/0x0/1 cross
+obs <- gt_502 %>% 
+  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
+  select(contains(c("F2_male" , "F2_fem"))) %>%
+  pivot_longer(everything()) %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) %>%
+  mutate(sex = case_when(
+    grepl("male", sample) ~ "male",
+    grepl("fem", sample) ~ "female"))
+#  mutate(type = "obs")
+
+# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
+fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5,0))
+male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+ # mutate(type = "exp")
+
+# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
+dat <- obs %>%
+  #mutate(sample = as.character(sample)) %>%
+  mutate(gt = as.character(gt)) %>%
+  left_join(mendel, by = c("gt", "sex")) %>% 
+  mutate(exp = total*prop)
+
+#### optional - observed counts with Confidence intervals
+obs_CI <- obs %>%
+  mutate(prop = obs/total) %>%
+  mutate(se = (sqrt(prop * (1-prop)/obs))) %>% 
+  mutate(lower = prop - (se*1.96)) %>% 
+  mutate(upper = prop + (se*1.96))
+```
+
+```{r eval=FALSE, include=FALSE}
+# calculate values for each sample, and join into one table
+G<-dat %>%
+  dplyr::select(c("sample","obs", "exp")) %>%
+  group_by(sample) %>%
+  dplyr::summarize(G = GTest(as.data.frame(cur_data()))$statistic)
+df<-dat %>%
+  dplyr::select(c("sample","obs", "exp")) %>%
+  group_by(sample) %>%
+  dplyr::summarize(df=GTest(as.data.frame(cur_data()))$parameter)
+p<-dat %>%
+  dplyr::select(c("sample","obs", "exp")) %>%
+  group_by(sample) %>%
+  dplyr::summarize(pval = GTest(as.data.frame(cur_data()))$p.value)
+
+# total G-value
+total_female <- left_join(G, full_join(df, p), by = "sample") %>%
+  dplyr::filter(grepl("fem", sample)) %>%
+  adorn_totals("row") %>%
+  dplyr::filter(sample =="Total")
+# G = 1.580142, df = 4
+
+# pooled --> sum up the obs and exp for each genotyep. then do a gtest . the df should be= 2 
+pooled_female <- dat %>% 
+    #ungroup() %>%
+    dplyr::filter(grepl("fem", sample)) %>%
+    dplyr::select(c("sample", "gt","obs", "exp")) %>%
+    ddply("gt",numcolwise(sum)) %>%
+    dplyr::select(c("obs", "exp")) %>%
+    GTest()
+# no significance difference between observed and expected based on the pooled results
+# G = 1.5594, X-squared df = 2, p-value = 0.4585
+pooled_male <- dat %>% 
+    #ungroup() %>%
+    dplyr::filter(grepl("male", sample)) %>%
+    dplyr::select(c("sample", "gt","obs", "exp")) %>%
+    ddply("gt",numcolwise(sum)) %>%
+    dplyr::select(c("obs", "exp")) %>%
+    GTest()
+# calculate the heterogenity between experiments (between the 2 females), using the G values and d.f. of the pooled and total values
+# heterogeneity significance between replicates: 
+hetero_p <- pchisq((total_female$G - pooled_female$statistic),
+       df=(total_female$df - pooled_female$parameter),
+       lower.tail=FALSE)
+hetero_p
+#there is no significance heterogeneity between samples
+#G = 0.0207495 , df = 2, pval = 0.9896789 
+``` 
+
+
 # רק לדוגמא
 for one family, 284
 ```{r eval=FALSE, include=FALSE}
@@ -2090,8 +2254,6 @@ combined + plot_layout(guides = "collect") + plot_annotation(
   title = 'Genotype of family')
 ```
 
-
-
 old code for false sites
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -2139,166 +2301,3 @@ grndat0.0_0.0 <- reduce(list_grndat, full_join, by = "site") %>% view()
 # it looks like the 'false sites' in one family, are not necessarily the false sites in other families. should i take them out?
 
 ```
-
-## Statistics
-We did 2 types of a-parametric tests for independence, testing the predicted counts against the observed counts:  
-
-- Cochran–Mantel–Haenszel Test (CMH) for Repeated Tests of Independence
-- Replicated G-test of goodness of fit
-
-### Cochran–Mantel–Haenszel Test for Repeated Tests of Independence
-```{r eval=FALSE, include=FALSE}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
-
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-```
-
-#### CMH Test for females 
-```{r eval=FALSE, include=FALSE}
-df <- rbind(x, y) %>%
-  dplyr::filter(sex == "female") %>%
-  dplyr::select(c("sample", "gt", "type", "count"))
-
-### Specify the order of factor levels. Otherwise, R will alphabetize them
-df =
-mutate(df,
-       sample = factor(sample, levels=unique(sample)),
-       gt = factor(gt, levels=unique(gt)),
-       type = factor(type, levels=unique(type))
-       )
-aggregate(count ~ gt, df, sum)
-
-### Cross-tabulate the data
-Data.xtabs = xtabs(count ~ type + gt + sample,
-                   data=df)
-ftable(Data.xtabs)   
-
-# Cochran–Mantel–Haenszel test
-CMH_fem <- mantelhaen.test(Data.xtabs)
-
-# Woolf test for homogeneity of odds ratios across strata. If significant, C-M-H test is not appropriate
-homogen_fem <- woolf_test(Data.xtabs)             
-```
-
-#### CMH Test for males 
-```{r eval=FALSE, include=FALSE}
-df <- rbind(x, y) %>%
-  dplyr::filter(sex == "male") %>%
-  dplyr::select(c("sample", "gt", "type", "count"))
-
-### Specify the order of factor levels. Otherwise, R will alphabetize them
-df =
-mutate(df,
-       sample = factor(sample, levels=unique(sample)),
-       gt = factor(gt, levels=unique(gt)),
-       type = factor(type, levels=unique(type))
-       )
-aggregate(count ~ gt, df, sum)
-
-### Cross-tabulate the data
-Data.xtabs = xtabs(count ~ type + gt + sample,
-                   data=df)
-ftable(Data.xtabs)   
-
-# Cochran–Mantel–Haenszel test
-CMH_male <-mantelhaen.test(Data.xtabs)
-
-# Woolf test for homogeneity of odds ratios across strata. If significant, C-M-H test is not appropriate
-homogen_male <- woolf_test(Data.xtabs)             
-```
-
-### Replicated G-test of goodness of fit
-```{r eval=FALSE, include=FALSE}
-# make a table of observed counts for each genotype, per F2 offspring, for 0/0x0/1 cross
-obs <- gt_502 %>% 
-  filter(F1_male == "0/0" & F1_fem_1 == "0/1") %>% 
-  select(contains(c("F2_male" , "F2_fem"))) %>%
-  pivot_longer(everything()) %>% 
-  dplyr::rename(sample = name, gt = value) %>%
-  dplyr::count(sample, gt, .drop = FALSE) %>% 
-  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
-  mutate(sex = case_when(
-    grepl("male", sample) ~ "male",
-    grepl("fem", sample) ~ "female"))
-#  mutate(type = "obs")
-
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5,0))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0,0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
-
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- obs %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  left_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
-
-#### optional - observed counts with Confidence intervals
-obs_CI <- obs %>%
-  mutate(prop = obs/total) %>%
-  mutate(se = (sqrt(prop * (1-prop)/obs))) %>% 
-  mutate(lower = prop - (se*1.96)) %>% 
-  mutate(upper = prop + (se*1.96))
-```
-
-```{r eval=FALSE, include=FALSE}
-# calculate values for each sample, and join into one table
-G<-dat %>%
-  dplyr::select(c("sample","obs", "exp")) %>%
-  group_by(sample) %>%
-  dplyr::summarize(G = GTest(as.data.frame(cur_data()))$statistic)
-df<-dat %>%
-  dplyr::select(c("sample","obs", "exp")) %>%
-  group_by(sample) %>%
-  dplyr::summarize(df=GTest(as.data.frame(cur_data()))$parameter)
-p<-dat %>%
-  dplyr::select(c("sample","obs", "exp")) %>%
-  group_by(sample) %>%
-  dplyr::summarize(pval = GTest(as.data.frame(cur_data()))$p.value)
-
-# total G-value
-total_female <- left_join(G, full_join(df, p), by = "sample") %>%
-  dplyr::filter(grepl("fem", sample)) %>%
-  adorn_totals("row") %>%
-  dplyr::filter(sample =="Total")
-# G = 1.580142, df = 4
-
-# pooled --> sum up the obs and exp for each genotyep. then do a gtest . the df should be= 2 
-pooled_female <- dat %>% 
-    #ungroup() %>%
-    dplyr::filter(grepl("fem", sample)) %>%
-    dplyr::select(c("sample", "gt","obs", "exp")) %>%
-    ddply("gt",numcolwise(sum)) %>%
-    dplyr::select(c("obs", "exp")) %>%
-    GTest()
-# no significance difference between observed and expected based on the pooled results
-# G = 1.5594, X-squared df = 2, p-value = 0.4585
-pooled_male <- dat %>% 
-    #ungroup() %>%
-    dplyr::filter(grepl("male", sample)) %>%
-    dplyr::select(c("sample", "gt","obs", "exp")) %>%
-    ddply("gt",numcolwise(sum)) %>%
-    dplyr::select(c("obs", "exp")) %>%
-    GTest()
-# calculate the heterogenity between experiments (between the 2 females), using the G values and d.f. of the pooled and total values
-# heterogeneity significance between replicates: 
-hetero_p <- pchisq((total_female$G - pooled_female$statistic),
-       df=(total_female$df - pooled_female$parameter),
-       lower.tail=FALSE)
-hetero_p
-#there is no significance heterogeneity between samples
-#G = 0.0207495 , df = 2, pval = 0.9896789 
-``` 
