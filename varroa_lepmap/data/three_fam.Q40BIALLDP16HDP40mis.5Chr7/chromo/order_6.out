@@ -1,0 +1,39 @@
+Loading file
+Warning: Different number of grandparents (2 and 1) in family 110
+Found 1 grandparents in family 110
+Warning: Different number of grandparents (2 and 1) in family 240
+Found 1 grandparents in family 240
+Warning: Different number of grandparents (2 and 1) in family 284
+Found 1 grandparents in family 284
+Number of individuals = 23
+Number of families = 3
+File loaded with 20574 SNPs
+Number of individuals = 20 excluding grandparents
+Number of families = 3
+Number of LGs = 8
+Number of markers = 13
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+Initial score = -141.87465091608414
+Iteration 1 of 1 + 2
+4424421 done
+Polishing map...
+score = -50.75599370803624
+*score = -50.75599370803624
+score = -50.75599370803624
+score = -50.75599370803624
+Iteration 2 of 1 + 2
+Polishing map...
+score = -50.75599370803624
+score = -50.75599370803624
+score = -50.75599370803624
+score = -50.75599370803624
+Final score = -50.75599370803624
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+logL = -50.75599370803624
+logL = 0.0
+logL = 0.0
+number of recombinations = 7.0 logL = -50.75599370803624
+Individual	110	110_111a_grn	recombines	2	times
+Individual	110	110_111c_grnson	recombines	1	times
+Individual	110	110_111d_grndat	recombines	2	times
+Individual	110	110_111e_grn	recombines	2	times

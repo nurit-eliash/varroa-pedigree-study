@@ -1,0 +1,234 @@
+---
+title: "lep-MAP3- varroa"
+author: "Nurit Eliash"
+date: '2022-07-05'
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+---
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+
+## Load libraries
+```{r setup, include=FALSE}
+#library("RIdeogram") # for visualizing the variant sites on the chromosomes
+library("tidyverse")
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("scales")
+library("ggpubr")
+library("gridExtra") # for arranging a few plots in one area
+#library("grid")
+#library("GGally")
+library("data.table")
+library("stringr")
+library("janitor")
+#library("readr") # to read a delimited table - remove this and the PopGwnome if i dont use it at the end
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
+```
+
+# ALL 30 FAMILIES, 100 iterations
+## (1) Recombontaions in both males and females (0.01)
+### LG 1
+```{r}
+Recom <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/order_1.mapped",  header =FALSE, sep ="\t")[,1:4]
+
+names(Recom) = c("Chr","POS","male_position", "female_position")
+
+# are all markers in LG1 locate on the same chromosome?
+ggplot(Recom, aes(x=Chr)) + 
+  geom_bar(stat = "count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+
+# YES =NW_019211454.1
+
+# what is the total size in cM?
+sizeFem <- unique(Recom$female_position) %>% sum()
+sizeMale <- unique(Recom$male_position) %>% sum()
+
+fem <- ggplot(Recom, aes(x=POS, y=female_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") + labs(title = "F2 females of F1 male (0/0) x female (0/0)", subtitle = paste0())
+         
+male <- ggplot(Recom, aes(x=POS, y=male_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+
+
+grid.arrange(fem, male, ncol = 2) +
+
+
+# weired, male and female position are the same 
+```
+
+## (2) No recombinations in males
+### LG 1
+```{r}
+noRec_males <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_1.mapped",  header =FALSE, sep ="\t")[,1:4]
+
+names(noRec_males) = c("Chr","POS","male_position", "female_position")
+
+# are all markers in LG1 locate on the same chromosome?
+ggplot(noRec_males, aes(x=Chr)) + 
+  geom_bar(stat = "count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+
+# YES= NW_019211454.1
+
+fem <- ggplot(noRec_males, aes(x=POS, y=female_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+male <- ggplot(noRec_males, aes(x=POS, y=male_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+
+grid.arrange(fem, male, ncol = 2)
+
+# what is the total size in cM?
+unique(noRec_males$female_position) %>% sum()
+unique(noRec_males$male_position) %>% sum()
+```
+
+
+
+
+
+
+
+
+
+# OLD -- THREE FAMILIES
+# (1) No recombinations in males
+## LG 1
+Load data
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
+
+noRec_males_1 <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_1.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
+```
+
+```{r}
+# are all markers in LG1 locate on the same chromosome?
+ggplot(noRec_males_1, aes(x=Chr)) + 
+  geom_bar(stat = "count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+
+# NO
+NW_019211454.1 <- noRec_male_2 %>% dplyr::filter(Chr == "NW_019211457.1") 
+  
+ggplot(NW_019211454.1, aes(x=POS, y=female_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+
+# what is the total size in cM?
+unique(noRec_males_1$female_position) %>% sum()
+```
+
+# (1) No recombinations in males
+## LG 2
+Load data
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
+
+noRec_male_2 <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_2.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
+```
+
+```{r}
+# are all markers in LG2 locate on the same chromosome?
+ggplot(noRec_male_2, aes(x=Chr)) + 
+  geom_bar(stat = "count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+
+# NO
+NW_019211457.1 <- noRec_male_2 %>% dplyr::filter(Chr == "NW_019211457.1") 
+  
+ggplot(NW_019211457.1, aes(x=POS, y=male_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+
+# what is the total size in cM?
+unique(noRec_male_2$female_position) %>% sum()
+```
+
+
+# (1) No recombinations in males
+## LG 3
+Load data
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
+
+noRec_male_3 <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_3.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
+```
+
+```{r}
+# are all markers in LG2 locate on the same chromosome?
+ggplot(noRec_male_3, aes(x=Chr)) + 
+  geom_bar(stat = "count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+
+# NO
+NW_019211456.1 <- noRec_male_3 %>% dplyr::filter(Chr == "NW_019211456.1") 
+  
+ggplot(NW_019211456.1, aes(x=POS, y=male_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+
+
+# what is the total size in cM?
+unique(noRec_male_3$female_position) %>% sum()
+
+```
+
+
+
+
+
+## LG 1
+Load data
+```{r}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
+
+noRec_fem <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_fem/order_0fem_1.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
+```
+
+```{r}
+# are all markers in LG1 locate on the same chromosome?
+ggplot(noRec_fem, aes(x=Chr)) + 
+  geom_bar(stat = "count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+
+# NO
+NW_019211454.1 <- noRec_fem %>% dplyr::filter(Chr == "NW_019211454.1") %>% view()
+  
+ggplot(NW_019211454.1, aes(x=POS, y=male_position)) + 
+    geom_point() +
+  ylab("genetic position (cM)") +
+  xlab("physical position") 
+ggplot(NW_019211454.1, aes(x=POS, y=female_position)) + 
+    geom_point()
+```
+

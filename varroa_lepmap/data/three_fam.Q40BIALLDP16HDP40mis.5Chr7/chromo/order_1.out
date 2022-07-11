@@ -1,0 +1,56 @@
+Loading file
+Warning: Different number of grandparents (2 and 1) in family 110
+Found 1 grandparents in family 110
+Warning: Different number of grandparents (2 and 1) in family 240
+Found 1 grandparents in family 240
+Warning: Different number of grandparents (2 and 1) in family 284
+Found 1 grandparents in family 284
+Number of individuals = 23
+Number of families = 3
+File loaded with 20574 SNPs
+Number of individuals = 20 excluding grandparents
+Number of families = 3
+Number of LGs = 8
+Number of markers = 367
+Setting dataScale to 0.03814713896457766 all likelihoods will be multiplied by 26.21428571428571
+Initial score = -2762.813751286361
+Iteration 1 of 1 + 2
+884884288488421 done
+Polishing map...
+score = -1649.5912643247127
+improve -1603.0524330865428 4
+*score = -1603.0524330865428
+score = -1619.2503799763358
+*score = -1595.7308082883092
+Iteration 2 of 1 + 2
+Polishing map...
+score = -1595.7308082883092
+improve -1580.5508085558968 4
+improve -1543.7641379614197 4
+*score = -1543.7641379614197
+score = -1543.7641379614197
+*score = -1540.5885722418152
+Iteration 3 of 1 + 2
+Polishing map...
+score = -1540.5885722418152
+score = -1540.5885722418152
+score = -1540.5885722418152
+score = -1540.5885722418152
+Final score = -1540.5885722418152
+Setting dataScale to 0.03814713896457766 all likelihoods will be multiplied by 26.21428571428571
+logL = -1299.243805865743
+logL = -47.54168030992116
+logL = -183.44145314767786
+number of recombinations = 21.0 logL = -1530.2269393233419
+Individual	110	110_111a_grn	recombines	3	times
+Individual	110	110_111b_grn	recombines	1	times
+Individual	110	110_111c_grnson	recombines	1	times
+Individual	110	110_111d_grndat	recombines	3	times
+Individual	110	110_111e_grn	recombines	3	times
+Individual	110	110_111f_grn	recombines	2	times
+Individual	240	240_241a_grndat	recombines	1	times
+Individual	240	240_241b_grndat	recombines	1	times
+Individual	240	240_241c_grnson	recombines	1	times
+Individual	284	284_285a_grnson	recombines	1	times
+Individual	284	284_285b_grndat	recombines	2	times
+Individual	284	284_285c_grn	recombines	2	times

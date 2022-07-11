@@ -1,0 +1,196 @@
+Loading file
+Warning: Different number of grandparents (2 and 1) in family 110
+Found 1 grandparents in family 110
+Warning: Different number of grandparents (2 and 1) in family 240
+Found 1 grandparents in family 240
+Warning: Different number of grandparents (2 and 1) in family 284
+Found 1 grandparents in family 284
+Number of individuals = 23
+Number of families = 3
+File loaded with 20574 SNPs
+Number of individuals = 20 excluding grandparents
+Number of families = 3
+Number of LGs = 8
+Number of markers = 367
+Setting dataScale to 0.03814713896457766 all likelihoods will be multiplied by 26.21428571428571
+Initial score = -2752.3238538913415
+Iteration 1 of 1 + 2
+884884288488421 done
+Polishing map...
+score = -2377.711263274766
+improve -2358.3745326986464 3
+*score = -2358.3745326986464
+score = -2329.521883090019
+*score = -2319.5987939694824
+Iteration 2 of 1 + 2
+Polishing map...
+score = -2319.5987939694824
+improve -2313.52391627989 1
+improve -2309.104018956415 1
+improve -2309.1040189564146 1
+*score = -2309.1040189564146
+score = -2309.1040189564146
+score = -2309.1040189564146
+Final score = -2309.1040189564146
+Setting dataScale to 0.03814713896457766 all likelihoods will be multiplied by 26.21428571428571
+logL = -2068.833385211875
+logL = -50.717246029525654
+logL = -186.09951007552291
+number of recombinations = 13.0 logL = -2305.6501413169235
+Individual	110	110_111a_grn	recombines	2	times
+Individual	110	110_111b_grn	recombines	1	times
+Individual	110	110_111d_grndat	recombines	1	times
+Individual	110	110_111e_grn	recombines	2	times
+Individual	110	110_111f_grn	recombines	1	times
+Individual	240	240_241a_grndat	recombines	1	times
+Individual	240	240_241b_grndat	recombines	1	times
+Individual	240	240_241c_grnson	recombines	1	times
+Individual	284	284_285a_grnson	recombines	1	times
+Individual	284	284_285b_grndat	recombines	1	times
+Individual	284	284_285c_grn	recombines	1	times
+Number of markers = 175
+Setting dataScale to 0.08 all likelihoods will be multiplied by 12.5
+Initial score = -991.2755763679743
+Iteration 1 of 1 + 2
+Polishing map...
+score = -991.2755763679743
+score = -991.2755763679743
+score = -991.2755763679743
+score = -991.2755763679743
+Final score = -991.2755763679743
+Setting dataScale to 0.08 all likelihoods will be multiplied by 12.5
+logL = -808.4343144893646
+logL = -61.41090244054794
+logL = -121.43035943806171
+number of recombinations = 0.0 logL = -991.2755763679743
+Number of markers = 227
+Setting dataScale to 0.06167400881057269 all likelihoods will be multiplied by 16.214285714285715
+Initial score = -342.52430560532946
+Iteration 1 of 1 + 2
+Polishing map...
+score = -342.52430560532946
+improve -331.5361096132545 3
+improve -327.353509972803 3
+*score = -327.353509972803
+score = -327.353509972803
+score = -327.353509972803
+Final score = -327.353509972803
+Setting dataScale to 0.06167400881057269 all likelihoods will be multiplied by 16.214285714285715
+logL = -276.9723243219775
+logL = -24.986204743385315
+logL = -25.394980907440186
+number of recombinations = 3.0 logL = -327.353509972803
+Individual	110	110_111a_grn	recombines	1	times
+Individual	110	110_111e_grn	recombines	1	times
+Individual	110	110_111f_grn	recombines	1	times
+Number of markers = 15
+Setting dataScale to 0.9333333333333333 all likelihoods will be multiplied by 1.0714285714285714
+Initial score = -145.39265942826322
+Iteration 1 of 1 + 2
+Polishing map...
+score = -145.39265942826322
+improve -79.82011394894505 2
+*score = -79.82011394894505
+score = -79.82011394894505
+*score = -68.72975902951146
+Iteration 2 of 1 + 2
+Polishing map...
+score = -68.72975902951146
+score = -68.72975902951146
+score = -68.72975902951146
+score = -68.72975902951146
+Final score = -68.72975902951146
+Setting dataScale to 0.9333333333333333 all likelihoods will be multiplied by 1.0714285714285714
+logL = -51.174301336519164
+logL = 0.0
+logL = -17.55545769299229
+number of recombinations = 8.0 logL = -68.72975902951146
+Individual	110	110_111a_grn	recombines	1	times
+Individual	110	110_111b_grn	recombines	1	times
+Individual	110	110_111c_grnson	recombines	1	times
+Individual	110	110_111d_grndat	recombines	1	times
+Individual	110	110_111e_grn	recombines	1	times
+Individual	110	110_111f_grn	recombines	1	times
+Individual	284	284_285a_grnson	recombines	1	times
+Individual	284	284_285b_grndat	recombines	1	times
+Number of markers = 18
+Setting dataScale to 0.7777777777777778 all likelihoods will be multiplied by 1.2857142857142856
+Initial score = -64.5663980789082
+Iteration 1 of 1 + 2
+Polishing map...
+score = -64.5663980789082
+improve -57.60027975608968 3
+improve -51.44403498839306 3
+improve -47.203071542283524 2
+improve -46.392268905016664 2
+improve -42.15130545890713 3
+*score = -42.15130545890713
+score = -42.15130545890713
+score = -42.15130545890713
+Final score = -42.15130545890713
+Setting dataScale to 0.7777777777777778 all likelihoods will be multiplied by 1.2857142857142856
+logL = -21.921682383598807
+logL = -2.466823786497116
+logL = -17.76279928881121
+number of recombinations = 4.0 logL = -42.15130545890713
+Individual	110	110_111d_grndat	recombines	1	times
+Individual	110	110_111e_grn	recombines	1	times
+Individual	284	284_285b_grndat	recombines	1	times
+Individual	284	284_285c_grn	recombines	1	times
+Number of markers = 14
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+Initial score = -224.93531137565128
+Iteration 1 of 1 + 2
+Polishing map...
+score = -224.93531137565128
+improve -161.56467796396439 1
+*score = -161.56467796396439
+score = -161.56467796396439
+*score = -157.38207832351293
+Iteration 2 of 1 + 2
+Polishing map...
+score = -157.38207832351293
+score = -157.38207832351293
+score = -157.38207832351293
+score = -157.38207832351293
+Final score = -157.38207832351293
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+logL = -157.38207832351293
+logL = 0.0
+logL = 0.0
+number of recombinations = 4.0 logL = -157.38207832351293
+Individual	110	110_111a_grn	recombines	1	times
+Individual	110	110_111c_grnson	recombines	1	times
+Individual	110	110_111d_grndat	recombines	1	times
+Individual	110	110_111e_grn	recombines	1	times
+Number of markers = 7
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+Initial score = -20.030117415822957
+Iteration 1 of 1 + 2
+Polishing map...
+score = -20.030117415822957
+score = -20.030117415822957
+score = -20.030117415822957
+score = -20.030117415822957
+Final score = -20.030117415822957
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+logL = 0.0
+logL = 0.0
+logL = -20.030117415822957
+number of recombinations = 1.0 logL = -20.030117415822957
+Individual	284	284_285a_grnson	recombines	1	times
+Number of markers = 5
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+Initial score = -15.449406623840332
+Iteration 1 of 1 + 2
+Polishing map...
+score = -15.449406623840332
+score = -15.449406623840332
+score = -15.449406623840332
+score = -15.449406623840332
+Final score = -15.449406623840332
+Setting dataScale to 1.0 all likelihoods will be multiplied by 1.0
+logL = 0.0
+logL = -15.449406623840332
+logL = 0.0
+number of recombinations = 0.0 logL = -15.449406623840332
