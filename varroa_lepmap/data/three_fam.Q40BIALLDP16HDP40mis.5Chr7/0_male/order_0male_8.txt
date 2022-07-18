@@ -1,8 +1,0 @@
-#java OrderMarkers2 map=map3_3_js.txt data=data_f.call useKosambi=1 numMergeIterations=1 sexAveraged=1 outputPhasedData=2 grandparentPhase=1 recombination1=0 chromosome=8 randSeed=8257697654815659587
-#*** LG = 8 likelihood = -15.4494
-#marker_number	male_position	female_position	( 0.0 )[	phased data]
-18932	0.000	0.000	( 0 )	001111010001 0 0	00111----- 0 0	010--- 0 0
-12511	0.000	0.000	( 0 )	001111010001 0 0	00111----- 0 0	010--- 0 0
-8844	0.000	0.000	( 0 )	001111010001 0 0	00111----- 0 0	010--- 0 0
-12479	0.000	0.000	( 0 )	001111010001 0 0	00111----- 0 0	010--- 0 0
-5228	0.000	0.000	( 0 )	001111010001 0 0	00111----- 0 0	010--- 0 0

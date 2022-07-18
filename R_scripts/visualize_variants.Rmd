@@ -112,6 +112,25 @@ ideogram(karyotype = karyotype, overlaid = sites)
 convertSVG("chromosome.svg", device = "png")
 ```
 
+## Physical map with LG info (from lepMAP)
+```{r}
+#load the LG data from "~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd"
+# read_delim(sites_recom)
+
+head(sites_recom) 
+# contains 258 sites, belonging to 14 LGs, located on 5 of the 7 chromosomes. 
+
+karyotype <- tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
+           Start = 0,
+             End = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147),
+           ) %>% separate(col=Chr, into=c("noting","Chr"), sep="_") %>%
+  dplyr::select(-"noting")
+
+ideogram(karyotype = karyotype, overlaid = sites_gt, colorset1 = c("#49be25","#be4d25","#2596be"))
+convertSVG("chromosome.svg", device = "png")
+
+```
+
 ## Per family
 ### (5) F1 male (0/0) x female (0/1)
 ```{r}

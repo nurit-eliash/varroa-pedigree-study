@@ -18,9 +18,16 @@ output:
 }
 </style>
 
+## Aims: 
+(1) Detect outliered markers, that their physical position on the chromosome, doesnt correlate to their genetic position, as determined by recombination rate.
+
+(2) Characterize these outliered markers (do they deviate from the rest of the markers? in maf, missingnes, hwe values)
+
+- The INPUT **'order.mapped'** files contain each marker physical and genetic position (these are the outputs of OrederMarker module followed by awk function).  
+- The OUTPUT **'out'** files contain a list of markers (Chromosome and position), that are outliered (they are found outside of the Confidence Interval area in a correlation plot).  
+
 ## Load libraries
-```{r setup, include=FALSE}
-#library("RIdeogram") # for visualizing the variant sites on the chromosomes
+```{r setup, include=FALSE, warning=FALSE}
 library("tidyverse")
 library("plyr")
 library("dplyr")
@@ -33,202 +40,711 @@ library("gridExtra") # for arranging a few plots in one area
 library("data.table")
 library("stringr")
 library("janitor")
-#library("readr") # to read a delimited table - remove this and the PopGwnome if i dont use it at the end
+library("plotly") # to identify outliers. 
+library("sp") # to identify outliers
+library("readr") # to extract numbers from a vector
+library("tidyr")
+
 knitr::opts_chunk$set(echo = TRUE)
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
 ```
 
-# ALL 30 FAMILIES, 100 iterations
-## (1) Recombontaions in both males and females (0.01)
-### LG 1
-```{r}
-Recom <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/order_1.mapped",  header =FALSE, sep ="\t")[,1:4]
+# ALL 30 FAMILIES
+## Recombontaions in both males and females (0.01)
 
-names(Recom) = c("Chr","POS","male_position", "female_position")
+OrderMarkers2 map=map4_14_js.txt data=data_f.call useKosambi=1 numMergeIterations=1 *sexAveraged=0* outputPhasedData=2 grandparentPhase=1 
 
-# are all markers in LG1 locate on the same chromosome?
-ggplot(Recom, aes(x=Chr)) + 
+are all markers belonging to one LG locate on the same chromosome? 
+```{r warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/")
+
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/", pattern = "\\mapped$")
+
+
+# make a boxplot showing the chromosome on which all LG markers are located
+out_plotChr = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+
+p_Chr <- ggplot(mapped, aes(x=Chr)) + 
   geom_bar(stat = "count") +
   theme_classic() +
   theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
 
-# YES =NW_019211454.1
-
-# what is the total size in cM?
-sizeFem <- unique(Recom$female_position) %>% sum()
-sizeMale <- unique(Recom$male_position) %>% sum()
-
-fem <- ggplot(Recom, aes(x=POS, y=female_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") + labs(title = "F2 females of F1 male (0/0) x female (0/0)", subtitle = paste0())
-         
-male <- ggplot(Recom, aes(x=POS, y=male_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
-
-
-grid.arrange(fem, male, ncol = 2) +
-
-
-# weired, male and female position are the same 
+out_plotChr[[i]] = p_Chr
+}
 ```
 
-## (2) No recombinations in males
-### LG 1
-```{r}
-noRec_males <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_1.mapped",  header =FALSE, sep ="\t")[,1:4]
+Does the markers' physical position correlates to its genetic position, as determined by recombination rate? 
+### manually picking outliers from plot
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+# make a dot plot showing the chromosome on which all LG markers are located, and manually detect the outlierd markers
 
-names(noRec_males) = c("Chr","POS","male_position", "female_position")
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/")
 
-# are all markers in LG1 locate on the same chromosome?
-ggplot(noRec_males, aes(x=Chr)) + 
-  geom_bar(stat = "count") +
-  theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/", pattern = "\\mapped$")
 
-# YES= NW_019211454.1
+# get a vector of Linkage groups, in the same order as the 'map_files' vector
+LGs = readr::parse_number(map_files)
 
-fem <- ggplot(noRec_males, aes(x=POS, y=female_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
-male <- ggplot(noRec_males, aes(x=POS, y=male_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
+out_plotSites = list()
 
-grid.arrange(fem, male, ncol = 2)
-
-# what is the total size in cM?
-unique(noRec_males$female_position) %>% sum()
-unique(noRec_males$male_position) %>% sum()
-```
-
-
-
-
-
-
-
-
-
-# OLD -- THREE FAMILIES
-# (1) No recombinations in males
-## LG 1
-Load data
-```{r}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
-
-noRec_males_1 <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_1.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
-```
-
-```{r}
-# are all markers in LG1 locate on the same chromosome?
-ggplot(noRec_males_1, aes(x=Chr)) + 
-  geom_bar(stat = "count") +
-  theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
-
-# NO
-NW_019211454.1 <- noRec_male_2 %>% dplyr::filter(Chr == "NW_019211457.1") 
+for (i in map_files) {
+  for(j in LGs) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
   
-ggplot(NW_019211454.1, aes(x=POS, y=female_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
 
-# what is the total size in cM?
-unique(noRec_males_1$female_position) %>% sum()
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM")
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth() +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("correlation between physical and genetic position (LG: ", j,", Chromosome: ", mapped[1,1], ")"), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+#ggplotly(knitr::kable(p_site))
+#print(htmltools::tagList(ggplotly(p_site)))
+#  cat(' \n \n')
+  
+out_plotSites[[i]] = p_site
+
+ }
+}
 ```
 
-# (1) No recombinations in males
-## LG 2
-Load data
-```{r}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
-
-noRec_male_2 <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_2.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
+###  {.tabset}
+#### LG1
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_1.mapped) 
+#%>%  layout(title = list(x=0.01, text = paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)))
+```
+#### LG2
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_2.mapped)
+```
+#### LG3
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_3.mapped)
+```
+#### LG4
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_4.mapped)
+```
+#### LG5
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_5.mapped)
+```
+#### LG6
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_6.mapped)
+```
+#### LG7
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_7.mapped)
+```
+#### LG8
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_8.mapped)
+```
+#### LG9
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_9.mapped)
+```
+#### LG10
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_10.mapped)
+```
+#### LG11
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_11.mapped)
 ```
 
-```{r}
-# are all markers in LG2 locate on the same chromosome?
-ggplot(noRec_male_2, aes(x=Chr)) + 
+#### LG12
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_12.mapped)
+```
+#### LG13
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_13.mapped)
+```
+#### LG14
+```{r fig.height = 4, fig.width = 10, fig.align = "center", warning=FALSE,message=FALSE}
+ggplotly(out_plotSites$order_14.mapped)
+```
+### {-}
+
+### automatic outliers based on CI 
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/")
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/", pattern = "\\mapped$")
+
+out_list = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+names(mapped) = c("Chr","POS","male_position", "female_position")
+
+### detect outlirered markers ####
+
+# detect the female outliered markers
+df_fem <- mapped%>% dplyr::select(c("POS", "female_position"))
+# we have to build the plot first so ggplot can do the calculations
+ggplot(df_fem,aes(POS,female_position)) +
+  geom_point() +
+  geom_smooth() -> gg
+
+# do the calculations
+gb <- ggplot_build(gg)
+
+# get the CI data
+p <- gb$data[[2]]
+
+# make a polygon out of it
+poly <- data.frame(
+  x=c(p$x[1],    p$x,    p$x[length(p$x)],    rev(p$x)), 
+  y=c(p$ymax[1], p$ymin, p$ymax[length(p$x)], rev(p$ymax))
+)
+
+# test for original values in said polygon and add that to orig data
+# so we can color by it
+df_fem$in_ci <- point.in.polygon(df_fem$POS, df_fem$female_position, poly$x, poly$y)
+
+# re-do the plot with the new data
+ggplot(df_fem,aes(POS,female_position)) +
+  geom_point(aes(color=factor(in_ci))) +
+  geom_smooth()
+
+# get the position of outliered markers, and add the chromosome
+out_fem = df_fem  %>% dplyr::filter(in_ci == 0) %>% dplyr::select("POS")
+
+# detect the MALE outliered markers
+df_male <- mapped%>% dplyr::select(c("POS", "male_position"))
+# we have to build the plot first so ggplot can do the calculations
+ggplot(df_male,aes(POS,male_position)) +
+  geom_point() +
+  geom_smooth() -> gg
+
+# do the calculations
+gb <- ggplot_build(gg)
+
+# get the CI data
+p <- gb$data[[2]]
+
+# make a polygon out of it
+poly <- data.frame(
+  x=c(p$x[1],    p$x,    p$x[length(p$x)],    rev(p$x)), 
+  y=c(p$ymax[1], p$ymin, p$ymax[length(p$x)], rev(p$ymax))
+)
+
+# test for original values in said polygon and add that to orig data
+# so we can color by it
+df_male$in_ci <- point.in.polygon(df_male$POS, df_male$male_position, poly$x, poly$y)
+
+# re-do the plot with the new data
+#ggplot(df_male,aes(POS,male_position)) +
+#  geom_point(aes(color=factor(in_ci))) +
+#  geom_smooth()
+
+# get the position of outliered markers
+out_male = df_male  %>% dplyr::filter(in_ci == 0) %>% dplyr::select("POS")
+
+# join the male and female outliered , and add the chromosome ID (Chr) and Linkage group (LG) number 
+out <- left_join(out_male, out_fem, by="POS") %>% mutate(Chr = mapped[1,1]) %>% as.data.frame()
+
+out_list[[i]] = out
+}
+
+#join all outliered markers in the analysis that assume recombinations in males AND in females
+out_Recom <- reduce(out_list, bind_rows)  %>% distinct() %>% as.data.frame()
+# save the output file
+#write.table(out_Recom,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/out_Recom.csv", row.names=FALSE, col.names=FALSE)
+```
+
+
+## No recombinations in males, *recombination1=0*
+OrderMarkers2 mapped=map4_14_js.txt data=data_f.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 *recombination1=0* chromosome=1 
+### automatic outliers based on CI
+```{r eval=FALSE, include=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/0_male/")
+
+map_files = list.files(path = "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/0_male/", pattern = "\\mapped$")
+
+out_list = list()
+
+for (i in map_files) {
+  mapped<- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+names(mapped) = c("Chr","POS","male_position", "female_position")
+
+### detect outlirered markers ####
+
+# detect the female outliered markers
+df_fem <- mapped%>% dplyr::select(c("POS", "female_position"))
+# we have to build the plot first so ggplot can do the calculations
+ggplot(df_fem,aes(POS,female_position)) +
+  geom_point() +
+  geom_smooth() -> gg
+
+# do the calculations
+gb <- ggplot_build(gg)
+
+# get the CI data
+p <- gb$data[[2]]
+
+# make a polygon out of it
+poly <- data.frame(
+  x=c(p$x[1],    p$x,    p$x[length(p$x)],    rev(p$x)), 
+  y=c(p$ymax[1], p$ymin, p$ymax[length(p$x)], rev(p$ymax))
+)
+
+# test for original values in said polygon and add that to orig data
+# so we can color by it
+df_fem$in_ci <- point.in.polygon(df_fem$POS, df_fem$female_position, poly$x, poly$y)
+
+# re-do the plot with the new data
+ggplot(df_fem,aes(POS,female_position)) +
+  geom_point(aes(color=factor(in_ci))) +
+  geom_smooth()
+
+# get the position of outliered markers, and add the chromosome
+out_fem = df_fem  %>% dplyr::filter(in_ci == 0) %>% dplyr::select("POS")
+
+# detect the MALE outliered markers
+df_male <- mapped%>% dplyr::select(c("POS", "male_position"))
+# we have to build the plot first so ggplot can do the calculations
+ggplot(df_male,aes(POS,male_position)) +
+  geom_point() +
+  geom_smooth() -> gg
+
+# do the calculations
+gb <- ggplot_build(gg)
+
+# get the CI data
+p <- gb$data[[2]]
+
+# make a polygon out of it
+poly <- data.frame(
+  x=c(p$x[1],    p$x,    p$x[length(p$x)],    rev(p$x)), 
+  y=c(p$ymax[1], p$ymin, p$ymax[length(p$x)], rev(p$ymax))
+)
+
+# test for original values in said polygon and add that to orig data
+# so we can color by it
+df_male$in_ci <- point.in.polygon(df_male$POS, df_male$male_position, poly$x, poly$y)
+
+# re-do the plot with the new data
+#ggplot(df_male,aes(POS,male_position)) +
+#  geom_point(aes(color=factor(in_ci))) +
+#  geom_smooth()
+
+# get the position of outliered markers
+out_male = df_male  %>% dplyr::filter(in_ci == 0) %>% dplyr::select("POS")
+
+# join the male and female outliered , and add the chromosome ID (Chr) and Linkage group (LG) number 
+out <- left_join(out_male, out_fem, by="POS") %>% mutate(Chr = mapped[1,1]) %>% as.data.frame()
+
+out_list[[i]] = out
+}
+
+#join all outliered markers in the analysis that assume recombinations in males AND in females
+out_0male <- reduce(out_list, bind_rows) %>% distinct() %>% as.data.frame()
+# save the output file
+#write.table(out_0male,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/out_0male.csv", row.names=FALSE, col.names=FALSE)
+```
+
+## No recombinations in Females, *recombination2=0*
+OrderMarkers2 map=map4_14_js.txt data=data_f.call useKosambi=1 numMergeIterations=100 sexAveraged=1 outputPhasedData=2 grandparentPhase=1 *recombination2=0* chromosome=1
+### automatic outliers based on CI 
+```{r eval=FALSE, include=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/0_fem/")
+
+map_files = list.files(path = "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/0_fem/", pattern = "\\mapped$")
+
+out_list = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+names(mapped) = c("Chr","POS","male_position", "female_position")
+
+### detect outlirered markers ####
+
+# detect the female outliered markers
+df_fem <- mapped %>% dplyr::select(c("POS", "female_position"))
+# we have to build the plot first so ggplot can do the calculations
+ggplot(df_fem,aes(POS,female_position)) +
+  geom_point() +
+  geom_smooth() -> gg
+
+# do the calculations
+gb <- ggplot_build(gg)
+
+# get the CI data
+p <- gb$data[[2]]
+
+# make a polygon out of it
+poly <- data.frame(
+  x=c(p$x[1],    p$x,    p$x[length(p$x)],    rev(p$x)), 
+  y=c(p$ymax[1], p$ymin, p$ymax[length(p$x)], rev(p$ymax))
+)
+
+# test for original values in said polygon and add that to orig data
+# so we can color by it
+df_fem$in_ci <- point.in.polygon(df_fem$POS, df_fem$female_position, poly$x, poly$y)
+
+# re-do the plot with the new data
+ggplot(df_fem,aes(POS,female_position)) +
+  geom_point(aes(color=factor(in_ci))) +
+  geom_smooth()
+
+# get the position of outliered markers, and add the chromosome
+out_fem = df_fem  %>% dplyr::filter(in_ci == 0) %>% dplyr::select("POS")
+
+# detect the MALE outliered markers
+df_male <- mapped %>% dplyr::select(c("POS", "male_position"))
+# we have to build the plot first so ggplot can do the calculations
+ggplot(df_male,aes(POS,male_position)) +
+  geom_point() +
+  geom_smooth() -> gg
+
+# do the calculations
+gb <- ggplot_build(gg)
+
+# get the CI data
+p <- gb$data[[2]]
+
+# make a polygon out of it
+poly <- data.frame(
+  x=c(p$x[1],    p$x,    p$x[length(p$x)],    rev(p$x)), 
+  y=c(p$ymax[1], p$ymin, p$ymax[length(p$x)], rev(p$ymax))
+)
+
+# test for original values in said polygon and add that to orig data
+# so we can color by it
+df_male$in_ci <- point.in.polygon(df_male$POS, df_male$male_position, poly$x, poly$y)
+
+# re-do the plot with the new data
+#ggplot(df_male,aes(POS,male_position)) +
+#  geom_point(aes(color=factor(in_ci))) +
+#  geom_smooth()
+
+# get the position of outliered markers
+out_male = df_male  %>% dplyr::filter(in_ci == 0) %>% dplyr::select("POS")
+
+# join the male and female outliered , and add the chromosome ID (Chr) and Linkage group (LG) number 
+out <- left_join(out_male, out_fem, by="POS") %>% mutate(Chr = mapped[1,1]) %>% as.data.frame()
+
+out_list[[i]] = out
+}
+
+#join all outliered markers in the analysis that assume recombinations in males AND in females
+out_0fem <- reduce(out_list, bind_rows) %>% distinct() %>% as.data.frame()
+# save the output file
+#write.table(out_0fem,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/out_0fem.csv", row.names=FALSE, col.names=FALSE)
+```
+
+```{r echo=TRUE}
+#full_join(out_Recom, out_0fem ) %>% full_join(out_0male) %>% distinct() %>% view() # 256 markers
+#bind_rows(out_Recom, out_0fem,out_0male) # 576 markers
+```
+
+## (2) Characterize the outliered markers 
+in the three analyses, the outliered markers are the same 256, in most LGs.  
+Next, I will check their:
+
+(1) allele freq
+(2) hwe
+(3) % missingness
+(4) segregate distortion
+
+ to see if it is much different from the rest of the markers. if it is, then I should remove them and re-run the linkage mapping
+ 
+### (1) allele freq
+```{r message=FALSE, warning=FALSE}
+# upload the outlierd markers, detected manually in the plots above
+out_recom_manual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/out_recom_manual.csv")
+
+#upload the variants allele frequency (created via vcftools)
+var_freq <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.frq", delim = "\t", col_names = c("Chr", "POS", "nalleles", "nchr", "a1", "a2"), skip = 1)
+
+#However, this is simply the allele frequencies. To find the minor allele frequency at each site, we need to use a bit of dplyr based code.
+# find minor allele frequency
+var_freq$maf <- var_freq %>% select(a1, a2) %>% apply(1, function(z) min(z))
+var_freq <- mutate(var_freq, site = paste(var_freq$Chr, var_freq$POS))
+
+# Here we used apply on our allele frequencies to return the lowest allele frequency at each variant. We then added these to our dataframe as the variable maf. Next we will plot the distribution.
+ggplot(var_freq, aes(maf)) + 
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
+  theme_light()
+summary(var_freq$maf)
+
+out_Recom <- left_join(out_recom_manual, var_freq, by= c("POS","Chr"))# %>% rename("Chr"="Chr.x")
+#out_0male <- left_join(out_0male, var_freq, by= c("POS","Chr"))
+#out_0fem <- left_join(out_0fem, var_freq, by= c("POS","Chr"))
+
+p <- ggplot(var_freq, aes(y=maf, x=Chr)) + geom_boxplot() + 
+  geom_point(data = out_Recom, aes(y=maf, x=Chr, text=POS),colour="red",alpha = 0.5) +  
+  #geom_jitter(data = out_0male, aes(y=maf, x=Chr, text=POS),colour="green",alpha = 0.5) +
+  #geom_jitter(data = out_0fem, aes(y=maf, x=Chr, text=POS),colour="blue",alpha = 0.5) +
+  theme_light() + theme(axis.text.x = element_text(angle = 45)) + 
+  ggtitle("Minor allele frequency per site") 
+
+ggplotly(p)
+```
+The minor allele freq is high, relative to most of the variants.  
+
+### (2) hardy-weinberg equilibrium
+```{r message=FALSE, warning=FALSE}
+# upload the outlierd markers, detected manually in the plots above
+out_recom_manual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/out_recom_manual.csv")
+
+#upload the Hardy-Weinberg Equilibrium test(created via vcftools)
+site_hwe <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.hwe", delim = "\t", col_names = c("Chr","POS", "OBS(HOM1/HET/HOM2)", "E(HOM1/HET/HOM2)", "ChiSq_HWE", "P_HWE", "P_HET_DEFICIT", "P_HET_EXCESS"), skip = 1)
+# Reports a p-value for each site from a Hardy-Weinberg Equilibrium test (as defined by Wigginton, Cutler and Abecasis (2005)). The resulting file (with suffix ".hwe") also contains the Observed numbers of Homozygotes and Heterozygotes and the corresponding Expected numbers under HWE.
+
+site_hwe <- site_hwe %>%
+  #mutate(site = paste(site_hwe$Chr, site_hwe$POS)) %>%
+  select(Chr, POS, P_HWE) %>%
+  mutate(logpv = log(P_HWE))
+
+summary(site_hwe$logpv)
+
+out_Recom <- left_join(out_recom_manual, site_hwe, by= c("POS","Chr"))
+#out_0male_join <- left_join(out_0male, site_hwe, by= c("POS","Chr"))
+#out_0fem_join <- left_join(out_0fem, site_hwe, by= c("POS","Chr"))
+
+p <- ggplot(site_hwe, aes(y=logpv, x=Chr)) + geom_boxplot() + 
+  geom_point(data = out_Recom, aes(y=logpv, x=Chr, text=POS),colour="red",alpha = 0.5) +  
+ # geom_jitter(data = out_0male_join, aes(y=logpv, x=Chr, text=POS),colour="green",alpha = 0.5) +
+#  geom_jitter(data = out_0fem_join, aes(y=logpv, x=Chr, text=POS),colour="blue",alpha = 0.5) +
+  theme_light() + theme(axis.text.x = element_text(angle = 45)) + 
+  ggtitle("LogPval for site deviation from hardy-weinberg equilibrium") 
+ggplotly(p)
+```
+
+### (3) Variant missingness
+Next up we will look at the proportion of missingness at each variant. This is a measure of how many individuals lack a genotype at a call site.
+```{r message=FALSE, warning=FALSE}
+# upload the outlierd markers, detected manually in the plots above
+out_recom_manual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/out_recom_manual.csv")
+
+#upload the site missingness (created via vcftools)
+var_miss <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lmiss", delim = "\t",
+                       col_names = c("Chr", "POS", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1) 
+
+summary(var_miss$fmiss)
+
+#plot all sites and add the outliered positions
+out_Recom <- left_join(out_recom_manual, var_miss, by= c("POS","Chr"))
+#out_0male <- left_join(out_0male, var_miss, by= c("POS","Chr"))
+#out_0fem <- left_join(out_0fem, var_miss, by= c("POS","Chr"))
+
+p <- ggplot(var_miss, aes(y=fmiss, x=Chr)) + geom_boxplot() + 
+  geom_point(data = out_Recom, aes(y=fmiss, x=Chr, text=POS),colour="red",alpha = 0.5) +  
+  #geom_jitter(data = out_0male, aes(y=fmiss, x=Chr, text=POS),colour="green",alpha = 0.5) +
+  #geom_jitter(data = out_0fem, aes(y=fmiss, x=Chr, text=POS),colour="blue",alpha = 0.5) +
+  theme_light() + theme(axis.text.x = element_text(angle = 45)) + 
+  ggtitle("% of missingness per site") 
+ggplotly(p)
+```
+the 35,000 variants are already filtered for 0.5 missingness, this is why the upper limit is 0.5.  
+its looks like the outlired markers dont have a specifically high missingness value.  
+
+### Conclusion:
+- Remove the 34 sites in the *out_recom_manual* file, from the data.call file.
+- then Re-run modules SeparateChromosomes2 > JoinSingles2All > OrderMarkers2
+- check again the mapping
+
+## are all markers belonging to one LG locate on the same chromosome?  
+15/7/2022, I can check this using any of the three data, as the the allocation of the markers to linkage groups is the same.
+```{r warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem")
+
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem", pattern = "\\mapped$")
+
+out_Chr = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4] 
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  names(mapped) = c("Chr","POS","male_position", "female_position", "LG") 
+
+out_Chr[[i]] = mapped
+
+}
+
+sites_recom <- reduce(out_Chr, bind_rows)  %>% distinct() %>% as.data.frame() 
+head(sites_recom)
+class(sites_recom$LG)
+
+# plot all linkage groups chromosome
+ggplot(sites_recom, aes(x=Chr)) + 
   geom_bar(stat = "count") +
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1)) +
+  facet_wrap("LG") +
+  ggtitle("Allocation of LGs on the different chromosomes")
 
-# NO
-NW_019211457.1 <- noRec_male_2 %>% dplyr::filter(Chr == "NW_019211457.1") 
-  
-ggplot(NW_019211457.1, aes(x=POS, y=male_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
-
-# what is the total size in cM?
-unique(noRec_male_2$female_position) %>% sum()
-```
-
-
-# (1) No recombinations in males
-## LG 3
-Load data
-```{r}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
-
-noRec_male_3 <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_male/order_0male_3.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
-```
-
-```{r}
-# are all markers in LG2 locate on the same chromosome?
-ggplot(noRec_male_3, aes(x=Chr)) + 
-  geom_bar(stat = "count") +
+ggplot(sites_recom, aes(x=Chr)) +
+  geom_bar(aes(fill = as.character(LG)))+
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1)) +
+  ggtitle("Number of markers in each LG and chromosome")
 
-# NO
-NW_019211456.1 <- noRec_male_3 %>% dplyr::filter(Chr == "NW_019211456.1") 
-  
-ggplot(NW_019211456.1, aes(x=POS, y=male_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
-
-
-# what is the total size in cM?
-unique(noRec_male_3$female_position) %>% sum()
-
+# great, each linkage group is located on one chromosome.
+# each chromosome contains a few LGs
 ```
 
+Does the markers' physical position correlates to its genetic position, as determined by recombination rate? 
+## Assuming recombintaions in males and females
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem")
 
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem", pattern = "\\mapped$")
 
+# set a list to put the plots in
+out_plotSites = list()
 
+# set a list to put the positions in, for later linkage mapping
+out_Sites = list()
 
-## LG 1
-Load data
-```{r}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap")
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
 
-noRec_fem <- read.table("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/three_fam.Q40BIALLDP16HDP40mis.5Chr7/0_fem/order_0fem_1.mapped",  header =FALSE, sep ="\t", col.names = c("Chr","POS","male_position", "female_position", " error_estimate", "phase_fam","phase_paternal","phase_maternal")) %>% dplyr::select(c("Chr","POS","male_position", "female_position")) 
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
+
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth() +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+out_plotSites[[i]] = p_site
+out_Sites[[i]] = df
+ }
+
+# plot all LGs, by sex
+grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion in both sex", gp=grid::gpar(fontsize=24)), out_plotSites$order_1.mapped,out_plotSites$order_2.mapped,
+out_plotSites$order_3.mapped,out_plotSites$order_4.mapped,
+out_plotSites$order_5.mapped, out_plotSites$order_6.mapped,
+out_plotSites$order_7.mapped, out_plotSites$order_8.mapped,
+out_plotSites$order_9.mapped,out_plotSites$order_10.mapped,
+out_plotSites$order_11.mapped,out_plotSites$order_12.mapped,
+out_plotSites$order_13.mapped,out_plotSites$order_14.mapped) 
+
+# combine all LGs
+sites_recom <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
+
+#save the markers positions 
+#write.table(sites_recom,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv", col.names=T)
 ```
 
-```{r}
-# are all markers in LG1 locate on the same chromosome?
-ggplot(noRec_fem, aes(x=Chr)) + 
-  geom_bar(stat = "count") +
-  theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust =1))
+## Assuming recombinations in *FEMALES ONLY*
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_male")
 
-# NO
-NW_019211454.1 <- noRec_fem %>% dplyr::filter(Chr == "NW_019211454.1") %>% view()
-  
-ggplot(NW_019211454.1, aes(x=POS, y=male_position)) + 
-    geom_point() +
-  ylab("genetic position (cM)") +
-  xlab("physical position") 
-ggplot(NW_019211454.1, aes(x=POS, y=female_position)) + 
-    geom_point()
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_male", pattern = "\\mapped$")
+
+# set a list to put the plots in
+out_plotSites = list()
+
+# set a list to put the positions in, for later linkage mapping
+out_Sites = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
+
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth() +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+out_plotSites[[i]] = p_site
+out_Sites[[i]] = df
+ }
+
+# plot all LGs, by sex
+grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion only in FEMALES", gp=grid::gpar(fontsize=24)), out_plotSites$order_1.mapped,out_plotSites$order_2.mapped,
+out_plotSites$order_3.mapped,out_plotSites$order_4.mapped,
+out_plotSites$order_5.mapped, out_plotSites$order_6.mapped,
+out_plotSites$order_7.mapped, out_plotSites$order_8.mapped,
+out_plotSites$order_9.mapped,out_plotSites$order_10.mapped,
+out_plotSites$order_11.mapped,out_plotSites$order_12.mapped,
+out_plotSites$order_13.mapped,out_plotSites$order_14.mapped) 
+
+# combine all LGs
+sites_0male <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
+
+#save the markers positions 
+#write.table(sites_0male,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_0male.csv", col.names=T)
 ```
 
+## Assuming recombintaions in *MALES only*
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_fem")
+
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_fem", pattern = "\\mapped$")
+
+# set a list to put the plots in
+out_plotSites = list()
+
+# set a list to put the positions in, for later linkage mapping
+out_Sites = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
+
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth() +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+out_plotSites[[i]] = p_site
+out_Sites[[i]] = df
+ }
+
+# plot all LGs, by sex
+grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion only in MALES", gp=grid::gpar(fontsize=24)), out_plotSites$order_1.mapped,out_plotSites$order_2.mapped,
+out_plotSites$order_3.mapped,out_plotSites$order_4.mapped,
+out_plotSites$order_5.mapped, out_plotSites$order_6.mapped,
+out_plotSites$order_7.mapped, out_plotSites$order_8.mapped,
+out_plotSites$order_9.mapped,out_plotSites$order_10.mapped,
+out_plotSites$order_11.mapped,out_plotSites$order_12.mapped,
+out_plotSites$order_13.mapped,out_plotSites$order_14.mapped) 
+
+# combine all LGs
+sites_0fem <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
+#save the markers positions 
+#write.table(sites_0fem,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_0fem.csv", col.names=T)
+```
