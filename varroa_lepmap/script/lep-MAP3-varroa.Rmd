@@ -560,11 +560,20 @@ its looks like the outlired markers dont have a specifically high missingness va
 - check again the mapping
 
 ## are all markers belonging to one LG locate on the same chromosome?  
-15/7/2022, I can check this using any of the three data, as the the allocation of the markers to linkage groups is the same.
-```{r warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem")
+I can check this using any of the three data, as the the allocation of the markers to linkage groups is the same.
 
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem", pattern = "\\mapped$")
+15/7/2022 14 LGs.  
+input data: /Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/  
+
+19/7/2022 35 LGs.  
+input data: /Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2  
+
+19.7.22 18 LGs, 2,036 markers (added markers using lodLimit=2 in the JoinSingles)
+input data: /Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2
+```{r warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/Recom_male_fem")
+
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/Recom_male_fem", pattern = "\\mapped$")
 
 out_Chr = list()
 
@@ -602,10 +611,10 @@ ggplot(sites_recom, aes(x=Chr)) +
 Does the markers' physical position correlates to its genetic position, as determined by recombination rate? 
 ## Assuming recombintaions in males and females
 ```{r echo=FALSE, warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem")
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/Recom_male_fem")
 
 # get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/Recom_male_fem", pattern = "\\mapped$")
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/Recom_male_fem", pattern = "\\mapped$")
 
 # set a list to put the plots in
 out_plotSites = list()
@@ -652,10 +661,10 @@ sites_recom <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
 
 ## Assuming recombinations in *FEMALES ONLY*
 ```{r echo=FALSE, warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_male")
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/0_male")
 
 # get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_male", pattern = "\\mapped$")
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/0_male", pattern = "\\mapped$")
 
 # set a list to put the plots in
 out_plotSites = list()
@@ -702,10 +711,10 @@ sites_0male <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
 
 ## Assuming recombintaions in *MALES only*
 ```{r echo=FALSE, warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_fem")
+setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/0_fem")
 
 # get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/removed_34mark/0_fem", pattern = "\\mapped$")
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/0_fem", pattern = "\\mapped$")
 
 # set a list to put the plots in
 out_plotSites = list()
