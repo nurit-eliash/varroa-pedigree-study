@@ -10,20 +10,17 @@
 # redirect to the working directory
 cd /flash/EconomoU/Nurit/lepmap/lepmap_varroa
 
-# The genetic input data consists of a pedigree describing 26 full-sib families and genotype likelihoods for each variant and individual.
+# The genetic input data consists of a pedigree describing 30 full-sib families and genotype likelihoods for each variant and individual.
 
 # (1) genotype likelihood file in a VCF format 
 # (2) pedigree file in .txt format
 
+#VCF=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf
 
-# prepare the VCF file for 3 families, and keep only SNPs by --remove indels:
-VCF=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40mis.5Chr7.Rm34Sites.recode.vcf
+# prepare (manually) the pedigree.txt file:
+#pedigree.txt
 
-# prepare the pedigree.txt file:
-# prepare manualy and save as .txt file.
-pedigree.txt
-
-# save the two files in the same directory, the working directory: /flash/EconomoU/Nurit/lepmap/lepmap_varroa
+# save the two files in the working directory: /flash/EconomoU/Nurit/lepmap/lepmap_varroa
 # redirect to the working directory
 cd /flash/EconomoU/Nurit/lepmap/lepmap_varroa/
 
@@ -32,9 +29,8 @@ cd /flash/EconomoU/Nurit/lepmap/lepmap_varroa/
 ##      * ParentCall2 *     ##
 ##############################
 # The module ParentCall2 is used to call parental genotypes and markers.
-VCF=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40mis.5Chr7.Rm34Sites.recode.vcf
 
-java -cp /home/n/nurit-eliash/lepmap/bin ParentCall2 vcfFile=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40mis.5Chr7.Rm34Sites.recode.vcf data=pedigree.txt removeNonInformative=1 > data.call
+java -cp /home/n/nurit-eliash/lepmap/bin ParentCall2 vcfFile=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf data=pedigree.txt removeNonInformative=1 > data.call
 
 ##############################
 ##      ֿ * Filtering2 *     ##
@@ -45,14 +41,20 @@ java -cp /home/n/nurit-eliash/lepmap/bin Filtering2 data=data.call dataTolerance
 ## * SeparateChromosomes2 * ##
 ##############################
 # The SeparateChromosomes2 module assigns markers into linkage groups (LGs) 
-java -cp /home/n/nurit-eliash/lepmap/bin SeparateChromosomes2 data=data_f_maf0.2.call sizeLimit=3 lodLimit=4 > map3_4.txt
+java -cp /home/n/nurit-eliash/lepmap/bin SeparateChromosomes2 data=data_f_maf0.2.call distortionLod=1 sizeLimit=3 lodLimit=4 > map3_4.txt
+
+# additional options for SeparateChromosomes2:
+
+# '(fe)maleTheta=0'    Fixed recombination fraction separately for both sex [theta]
+# this assume no recombintaion in males, the default recombintaion rate for all individuals is ‘theta=0.03’
+
 
 ##############################
 ##   * JoinSingles2All *    ##
 ##############################
 # join markers that were left over after seperating them into exsisting linkage groups
 # define lodLimit one belowe the one in SeparateChromosomes2
-java -cp /home/n/nurit-eliash/lepmap/bin JoinSingles2All map=map3_4.txt data=data_f_maf0.2.call iterate=1 lodLimit=3 > map3_4_js.txt
+java -cp /home/n/nurit-eliash/lepmap/bin JoinSingles2All map=map3_4.txt data=data_f_maf0.2.call iterate=1 lodLimit=2 > map3_4_js.txt
 
 #The size distribution of linkage groups can be obtained like this:
 cut -f 1 map4_14_js.txt|sort|uniq -c|sort -n
