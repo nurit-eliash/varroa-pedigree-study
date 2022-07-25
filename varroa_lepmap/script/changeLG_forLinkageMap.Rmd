@@ -54,12 +54,31 @@ map <- read_delim("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepma
 
 ```{r}
 # state the main LG in each chromosome:
-LGs <- data_frame(Chr = c("NW_019211454.1", "NW_019211455.1","NW_019211456.1","NW_019211457.1", "NW_019211458.1","NW_019211459.1", "NW_019211460.1"), LG = as.character(c(13,16,2,6,3,1,11)))
+LGs <- data_frame(CHR = c("NW_019211454.1", "NW_019211455.1","NW_019211456.1","NW_019211457.1", "NW_019211458.1","NW_019211459.1", "NW_019211460.1"), LG_new = as.character(c(13,16,2,6,3,1,11)))
+
+# find the single markers (that dont belong to any LG ). 
+# these are the markers with LG='0', in the map.txt file
+keep <- map %>% dplyr::filter(LG !="0") %>% dplyr::select(c("LG", "order"))
 
 # join the tables based on marker's order. and add the main LG in a new column
-left_join
-# make a data frame with two columns: marker's order (1:16986), and its LG (1-7, based on the above table)
+# keep only the markers that are linked to linkage groups, based on 'SeperateChromosome2' module
+df <- left_join(LGs, snp, by ="CHR") %>%left_join(keep, by="order") %>% na.omit() %>% dplyr::select("#java NEW_LGs JoinSingles2 map=map3_4.txt data=data_f_maf0.2.call iterate=1 lodLimit=2"=LG_new)
 
+# check the number of LGs:
+unique(df$`#java NEW_LGs JoinSingles2 map=map3_4.txt data=data_f_maf0.2.call iterate=1 lodLimit=2`)
+
+# distribution of markers in the 7 LGs, after re-asigning them based on the main LG in each chromosome
+ggplot(df, aes(`#java NEW_LGs JoinSingles2 map=map3_4.txt data=data_f_maf0.2.call iterate=1 lodLimit=2`)) +
+geom_bar(fill = "dodgerblue1", colour = "black") +
+  xlab("Chromosome, and its main LG") +
+  ylab("Number of markers")
+
+# save as text delimited file. rsync it to flash, and run the OrderMarkers module
+#write_delim(df, "/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40mis.5Chr7/maf0.2/map3_4_js2/map3_4_js2_new.txt")
+
+25/7/2022
+# now I wait for sasha's script. 
+we talked to make a pipeline that will check different parameters of the SeperateChromosome module, so we can find the onse that get the best linkage distirution.
 
 
 
