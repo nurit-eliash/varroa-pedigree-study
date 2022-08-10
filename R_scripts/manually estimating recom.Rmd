@@ -1,0 +1,70 @@
+---
+title: "estimating recombination rate"
+author: "Nurit Eliash"
+date: '2022-08-01'
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+---
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+
+## AIM: estimate recombintaion rate per one family
+
+1. pick a family with at least 2 granddaughters.  
+2. clean amy missing data.  
+3. phase the data, from F0 - to F2, for all possible markers.  
+
+
+## load libraries
+```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR") # for extracting genotype data from a vcf file
+library("data.table")
+library("stringr")
+library("janitor")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Variant Call Format (VCF) file.
+Extract genotypes for each site and individual.  The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).  
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("ID")
+#clean the ID names
+gt$ID <- sub("_[^_]+$", "", gt$ID)
+```
+
+```{r}
+# pick one family, and remove all variants with missing data.
+fam_240 <- gt %>% dplyr::filter(stringr::str_detect(ID,"240_")) %>%  select(where(~!any(is.na(.))))
+# there are 80 sites with 0 missing data, for family 240
+
+# keep grandmother informative variants (0/1)
+t = setNames(data.frame(t(fam_240[,-1])), fam_240[,1])
+
+NW_019211454.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
+
+write_delim(NW_019211454.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/NW_019211454.1.csv")
+```

@@ -29,19 +29,19 @@ cd /flash/EconomoU/Nurit/lepmap/lepmap_varroa/
 ##      * ParentCall2 *     ##
 ##############################
 # The module ParentCall2 is used to call parental genotypes and markers.
-
-java -cp /home/n/nurit-eliash/lepmap/bin ParentCall2 vcfFile=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf data=pedigree.txt removeNonInformative=1 > data.call
+java -cp /home/n/nurit-eliash/lepmap/bin ParentCall2 vcfFile=/bucket/EconomoU/Nurit/vcftools/mrg_vcf/Q40BIALLDP16HDP40maf.2mis.65Chr7.recode.vcf data=pedigree.txt removeNonInformative=1 > data.call
 
 ##############################
 ##      ֿ * Filtering2 *     ##
 ##############################
-java -cp /home/n/nurit-eliash/lepmap/bin Filtering2 data=data.call dataTolerance=0.01 removeNonInformative=1 outputHWE=1 MAFLimit=0.2  >data_f_maf0.2.call
+java -cp /home/n/nurit-eliash/lepmap/bin Filtering2 data=data.call dataTolerance=0.01 removeNonInformative=1 outputHWE=1 > data_f.call
+#MAFLimit=0.2
 
 ##############################
 ## * SeparateChromosomes2 * ##
 ##############################
 # The SeparateChromosomes2 module assigns markers into linkage groups (LGs) 
-java -cp /home/n/nurit-eliash/lepmap/bin SeparateChromosomes2 data=data_f_maf0.2.call distortionLod=1 sizeLimit=3 lodLimit=4 > map3_4.txt
+java -cp /home/n/nurit-eliash/lepmap/bin SeparateChromosomes2 data=data_f.call distortionLod=1 sizeLimit=3 lodLimit=2 > map.txt
 
 # additional options for SeparateChromosomes2:
 
@@ -54,22 +54,22 @@ java -cp /home/n/nurit-eliash/lepmap/bin SeparateChromosomes2 data=data_f_maf0.2
 ##############################
 # join markers that were left over after seperating them into exsisting linkage groups
 # define lodLimit one belowe the one in SeparateChromosomes2
-java -cp /home/n/nurit-eliash/lepmap/bin JoinSingles2All map=map3_4.txt data=data_f_maf0.2.call iterate=1 lodLimit=2 > map3_4_js.txt
+java -cp /home/n/nurit-eliash/lepmap/bin JoinSingles2All map=map.txt data=data_f.call iterate=1 lodLimit=1 > map_js.txt
 
 #The size distribution of linkage groups can be obtained like this:
-cut -f 1 map4_14_js.txt|sort|uniq -c|sort -n
+cut -f 1 map_js.txt|sort|uniq -c|sort -n
 
 ##############################
 ##     * OrderMarkers2 *    ##
 ##############################
 # orders the markers within each LG by maximizing the likelihood of the data given the order. assume recombintaions in males anf females
-java -cp /home/n/nurit-eliash/lepmap/bin OrderMarkers2 map=map3_4_js.txt data=data_f_maf0.2.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 recombination1=0.01 recombination2=0.01 > order.txt
+java -cp /home/n/nurit-eliash/lepmap/bin OrderMarkers2 map=map_js.txt data=data_f.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 recombination1=0.01 recombination2=0.01 > order.txt
 
 # Assume no recombinations in MALES
-java -cp /home/n/nurit-eliash/lepmap/bin OrderMarkers2 map=map3_4_js.txt data=data_f_maf0.2.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 recombination1=0 recombination2=0.01 > order_0male.txt
+java -cp /home/n/nurit-eliash/lepmap/bin OrderMarkers2 map=map_js.txt data=data_f.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 recombination1=0 recombination2=0.01 > order_0male.txt
 
 # Assume no recombinations in FEMALES
-java -cp /home/n/nurit-eliash/lepmap/bin OrderMarkers2 map=map3_4_js.txt data=data_f_maf0.2.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 recombination1=0.01 recombination2=0 > order_0fem.txt
+java -cp /home/n/nurit-eliash/lepmap/bin OrderMarkers2 map=map_js.txt data=data_f.call useKosambi=1 numMergeIterations=100 sexAveraged=0 outputPhasedData=2 grandparentPhase=1 recombination1=0.01 recombination2=0 > order_0fem.txt
 
 
 # additional codes to arrange the data (not modules):
