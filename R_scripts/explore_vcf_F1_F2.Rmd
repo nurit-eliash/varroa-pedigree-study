@@ -1959,7 +1959,7 @@ hetero_p
 ``` 
 
 
-# רק לדוגמא
+##### רק לדוגמא
 for one family, 284
 ```{r eval=FALSE, include=FALSE}
 son_0.0 <- table %>%

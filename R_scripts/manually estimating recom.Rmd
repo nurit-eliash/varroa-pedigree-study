@@ -21,7 +21,7 @@ output:
 ## AIM: estimate recombintaion rate per one family
 
 1. pick a family with at least 2 granddaughters.  
-2. clean amy missing data.  
+2. clean any missing data.  
 3. phase the data, from F0 - to F2, for all possible markers.  
 
 
@@ -44,7 +44,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Load Variant Call Format (VCF) file.
-Extract genotypes for each site and individual.  The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).  
+Extract genotypes for each site and individual.  The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).
 ```{r}
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
 vcf
@@ -56,9 +56,10 @@ gt <- as.data.frame(t(gt)) %>%
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
 
+### family 240
 ```{r}
 # pick one family, and remove all variants with missing data.
-fam_240 <- gt %>% dplyr::filter(stringr::str_detect(ID,"240_")) %>%  select(where(~!any(is.na(.))))
+fam_240 <- gt %>% dplyr::filter(stringr::str_starts(ID,"240_")) %>%  select(where(~!any(is.na(.))))
 # there are 80 sites with 0 missing data, for family 240
 
 # keep grandmother informative variants (0/1)
@@ -67,4 +68,38 @@ t = setNames(data.frame(t(fam_240[,-1])), fam_240[,1])
 NW_019211454.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
 
 write_delim(NW_019211454.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/NW_019211454.1.csv")
+```
+
+### family 187
+```{r}
+# pick one family, and remove all variants with missing data.
+fam_187 <- gt %>% dplyr::filter(stringr::str_starts(ID,"187_")) %>%  select(where(~!any(is.na(.))))
+# there are 80 sites with 0 missing data, for family 240
+
+# keep grandmother informative variants (0/1)
+t = setNames(data.frame(t(fam_187[,-1])), fam_187[,1])
+
+# sites in the first chromosome
+fam_187_NW_019211454.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
+
+write_delim(fam_187_NW_019211454.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211454.1.csv")
+
+# sites in the second chromosome
+fam_187_NW_019211455.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211455.1")) 
+
+write_delim(fam_187_NW_019211455.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211455.1.csv")
+
+# sites in the third chromosome
+fam_187_NW_019211456.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211456.1")) 
+
+write_delim(fam_187_NW_019211456.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211456.1.csv")
+
+# sites in the forth chromosome
+fam_187_NW_019211457.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211457.1")) 
+# only one site
+
+# sites in the fifth chromosome
+fam_187_NW_019211458.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211458.1")) 
+
+write_delim(fam_187_NW_019211458.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211458.1.csv")
 ```
