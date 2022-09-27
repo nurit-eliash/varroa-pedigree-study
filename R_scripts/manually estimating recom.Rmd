@@ -56,50 +56,351 @@ gt <- as.data.frame(t(gt)) %>%
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
 
-### family 240
+## keep only informative sites
+
+(1) pool data of all families, and filter for an informative F1 cross*. * an informative cross is where one of the F1 parents is hetero and the other is homo . there are 4 possible informative crosses: 0/1x0/0, 0/1x1/1, for males and females
+(2) filter for sites with homozygotic F0 (only for these sites, we can phase the F1 female)
+(3) phase (determine the parental origin of each allele) the F1 heterozygotic sites, based on the F0 homozygotice genotype.
+(4) phase the F2 heterozygotic sites, based on the F1 genotype.
+(5) determine the parental and recombinant F2 types, based on the F1 possible gametes from a crossover and non-crossover events. * these will be the same for each pair of sites, as all F2 have the same F1 genotypes.
+(6) count the number of parental and recombinat progeny in F2, for male and females separate. 
+(7) calculate the recombination frequency, per informative cross, with the following equation: 
+
+## example for one family, 240, on the first chromosome
 ```{r}
-# pick one family, and remove all variants with missing data.
-fam_240 <- gt %>% dplyr::filter(stringr::str_starts(ID,"240_")) %>%  select(where(~!any(is.na(.))))
-# there are 80 sites with 0 missing data, for family 240
+# pick one family, and generalize the ID 
+fam_240 <- gt %>% dplyr::filter(stringr::str_starts(ID,"240_")) 
 
-# keep grandmother informative variants (0/1)
-t = setNames(data.frame(t(fam_240[,-1])), fam_240[,1])
+#its not a good idea to generalize the names, as they become not unique when there are more then 2 grandaughters. 
+fam_240$ID <- gsub('.*fnd.*', 'F0',fam_240$ID)
+#              gsub('.*_son.*', 'F1_male',
+#              gsub('.*_dat.*', 'F1_fem', 
+#              gsub('.*_grnson.*', 'F2_male',
+#              gsub('.*grndat.*', 'F2_fem',
+#              gsub('.*grn$', 'F2_fem',
+#                    fam_240$ID)))))
 
-NW_019211454.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
+# filter for sites with: 
+# (1) homo x hetero F1 cross (0/0 x 0/1)
+# (2) homo F0 (0/0), so we can phase the hetero F1 sites, and know the expected parental and recombinant types
+fam_240_NW_019211454.1_00_01  <- setNames(data.frame(t(fam_240[,-1])), fam_240[,1]) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep only site with F1 male = 0/0, so we can phase the F2
+  #dplyr::select(contains("grn")) %>% 
+  #dplyr::select(-contains("grnson")) %>% 
+    rownames_to_column("site") %>% 
+    dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) %>%
+    dplyr::filter_at(vars(matches("F0")), all_vars(. == "0/0")) # keep only sites with F0=0/0, so we can phase the F1
 
-write_delim(NW_019211454.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/NW_019211454.1.csv")
+# there are 16 sites in the first chromosome that have cross of 0/0 x 0/1, and F0=0/0
+# so we can phase the F1 
+write_delim(fam_240_NW_019211454.1_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_240_NW_019211454.1_00_01.csv")
+
+# filter for sites with: 
+# (1) homo x hetero F1 cross (1/1 x 0/1)
+# (2) homo F0 (1/1), so we can phase the hetero F1 sites, and know the expected parental and recombinant types
+  # look at sites of the cross, and try to phase it
+fam_240_NW_019211454.1_11_01 <- setNames(data.frame(t(fam_240[,-1])), fam_240[,1]) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+  #dplyr::select(contains("grn")) %>% 
+  #dplyr::select(-contains("grnson")) %>% 
+    rownames_to_column("site") %>% 
+    dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) %>%
+    dplyr::filter_at(vars(matches("F0")), all_vars(. == "1/1"))
+
+# there are 16 sites in the first chromosome that have cross of 1/1 x 0/1, and F0=1/1
+# so we can phase the F1 
+write_delim(fam_240_NW_019211454.1_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_240_NW_019211454.1_11_01.csv")
 ```
 
-### family 187
+
+## pool all female mites for each chromosome
+## cross (0/0 x 0/1)
+in each family, filter for sites with:   
+(1) homo x hetero F1 cross (0/0 x 0/1), so we can predict the parental and recombinant F2 types  
+(2) homo F0 (0/0), so we can phase the hetero F1 sites  
+### cross (0/0 x 0/1), NW_019211454.1
 ```{r}
-# pick one family, and remove all variants with missing data.
-fam_187 <- gt %>% dplyr::filter(stringr::str_starts(ID,"187_")) %>%  select(where(~!any(is.na(.))))
-# there are 80 sites with 0 missing data, for family 240
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
+# there are 7,833 sites on the 1st chromosome
 
-# keep grandmother informative variants (0/1)
-t = setNames(data.frame(t(fam_187[,-1])), fam_187[,1])
-
-# sites in the first chromosome
-fam_187_NW_019211454.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
-
-write_delim(fam_187_NW_019211454.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211454.1.csv")
-
-# sites in the second chromosome
-fam_187_NW_019211455.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211455.1")) 
-
-write_delim(fam_187_NW_019211455.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211455.1.csv")
-
-# sites in the third chromosome
-fam_187_NW_019211456.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211456.1")) 
-
-write_delim(fam_187_NW_019211456.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211456.1.csv")
-
-# sites in the forth chromosome
-fam_187_NW_019211457.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211457.1")) 
-# only one site
-
-# sites in the fifth chromosome
-fam_187_NW_019211458.1 <- t %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211458.1")) 
-
-write_delim(fam_187_NW_019211458.1, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_187_NW_019211458.1.csv")
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211454.1 <- lapply(sites, "[", "site") %>% unlist() 
 ```
+### cross (0/0 x 0/1), NW_019211455.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211455.1")) 
+# there are 7,833 sites on the 1st chromosome
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211455.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (0/0 x 0/1), NW_019211456.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211456.1")) 
+# there are 7,833 sites on the 1st chromosome
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211456.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (0/0 x 0/1), NW_019211457.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211457.1")) 
+# there are 7,833 sites on the 1st chromosome
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211457.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (0/0 x 0/1), NW_019211458.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211458.1")) 
+# there are 7,833 sites on the 1st chromosome
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211458.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (0/0 x 0/1), NW_019211459.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211459.1")) 
+# there are 7,833 sites on the 1st chromosome
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211459.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (0/0 x 0/1), NW_019211460.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211460.1")) 
+# there are 7,833 sites on the 1st chromosome
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
+}
+#make it into a vector
+NW_019211460.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+combine all 7 chromosomes, for cross (0/0 x 0/1)
+```{r}
+InfoSites_00_01 <- c(NW_019211454.1, NW_019211455.1,NW_019211456.1, NW_019211457.1,NW_019211458.1,NW_019211459.1,NW_019211460.1) %>% unique() %>% as.data.frame()
+
+# there are 13,651 informative sites for the 0/0 x 0/1 F1 "family"  
+write_delim(InfoSites_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_00_01.tsv", col_names = FALSE)
+```
+
+## cross (1/1 x 0/1)
+### cross (1/1 x 0/1), NW_019211454.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211454.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (1/1 x 0/1), NW_019211455.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211455.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211455.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (1/1 x 0/1), NW_019211456.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211456.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211456.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (1/1 x 0/1), NW_019211457.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211457.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211457.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (1/1 x 0/1), NW_019211458.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211458.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211458.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (1/1 x 0/1), NW_019211459.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211459.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211459.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+### cross (1/1 x 0/1), NW_019211460.1
+```{r}
+# keep sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211460.1")) 
+
+families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+sites = list()
+  
+for (fam in families) {
+  sites[[fam]] <- df %>%
+    dplyr::select(starts_with(c("site",fam))) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
+    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
+}
+
+# extract the sites names in all families:
+NW_019211460.1 <- lapply(sites, "[", "site") %>% unlist() 
+```
+combine all 7 chromosomes, for cross (1/1 x 0/1)
+```{r}
+InfoSites_11_01 <- c(NW_019211454.1, NW_019211455.1,NW_019211456.1, NW_019211457.1,NW_019211458.1,NW_019211459.1,NW_019211460.1) %>% unique() %>% as.data.frame()
+
+# there are 12,158 informative sites for the 1/1 x 0/1 F1 "family"  
+write_delim(InfoSites_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_11_01.tsv", col_names = FALSE)
+```
+
+in summary, I have two "families":
