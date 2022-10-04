@@ -41,9 +41,9 @@ library("data.table")
 library("stringr")
 library("janitor")
 library("plotly") # to identify outliers. 
-library("sp") # to identify outliers
 library("readr") # to extract numbers from a vector
 library("tidyr")
+library("vcfR") # for extracting genotype data from a vcf file
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -55,9 +55,9 @@ OrderMarkers2 map=map4_14_js.txt data=data_f.call useKosambi=1 numMergeIteration
 
 are all markers belonging to one LG locate on the same chromosome? 
 ```{r warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/")
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem/")
 
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7/recom_male_fem/", pattern = "\\mapped$")
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem/", pattern = "\\mapped$")
 
 
 # make a boxplot showing the chromosome on which all LG markers are located

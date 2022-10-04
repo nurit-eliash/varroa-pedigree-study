@@ -1,0 +1,69 @@
+---
+title: "LepMap based on assembly"
+author: "Nurit Eliash"
+date: '2022-10-03'
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+---
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+
+# Aim: estimating recombintaion rate, using LepMap, based on physical position
+
+(1) make a map.txt file with the sites assigned to 7 LGs based on their physical position
+use this file as an input for the Order module.  
+
+
+the ordering doesn't have to be fantastic either at the end. We're just looking to see if we can get some sort of recombination rate estimates and a sense of which sex is showing recombination.  
+
+
+## Load libraries
+```{r setup, include=FALSE, warning=FALSE}
+library("tidyverse")
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("scales")
+library("ggpubr")
+library("gridExtra") # for arranging a few plots in one area
+#library("grid")
+#library("GGally")
+library("data.table")
+library("stringr")
+library("janitor")
+library("plotly") # to identify outliers. 
+library("sp") # to identify outliers
+library("readr") # to extract numbers from a vector
+library("tidyr")
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+
+```{r}
+snps <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.oneFam/snps.txt")
+
+CHR = snps$CHR %>% unique()
+LG = as.character(c(1:7))
+df = tibble(LG=as.character(c(1:7)), CHR)
+
+map <- left_join(snps, df, by = "CHR") %>% 
+  dplyr::select("LG") 
+
+write_delim(map, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.oneFam/map.txt")
+
+```
+
+
