@@ -45,30 +45,60 @@ knitr::opts_chunk$set(echo = TRUE)
 load data
 ```{r}
  #sites_recom= read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv") 
-# i need to find a wy to read this file correclty 
+# i need to find a wy to read this file correctly , at the moment im running this to write it:
+# ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
 
+# change the names of the columns, so it will fit for the lmv command:
+#>     group position    locus
+#> 1 2170LG3    0.000 BSSR-094
+#> 2 2170LG3    7.039   ESSR86
+#> 3 2170LG3   11.123      F3H
+#> 4 2170LG3   11.123     FLS1
+
+#"group" is the LG (1-7) + add the sex
+# "position" is the genetic position (cM on the LG)
+# "locus" is the physical position (Chr_pos)
+
+sites_recom_map <- sites_recom %>% dplyr::select(c(group=LG, position = cM, locus = POS, sex = sex))
 ```
 
 # Genetic map
 ## Markers positions, assuming recombinations in *both sexes*
 ```{r}
-head(sites_recom)
+head(sites_recom_map)
 
-## Female positions, assuming recombination in both sexes
-cM_Recom_femPOS <- sites_recom %>% dplyr::select(c("Chr","female_position","POS"))
-  names(cM_Recom_femPOS) <- c("LG","position","locus")
-  head(cM_Recom_femPOS)
-  
+## Female positions, assuming recombination in both sexes ###
+cM_Recom_femPOS <- sites_recom_map %>% filter(sex=="female_position") %>% select(-sex)
+head(cM_Recom_femPOS)
+
 outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS.pdf")
 lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, assuming recombination in both sexes",col.main = "red")
 
+# density map: denmap=TRUE
+outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS_dens.pdf")
+lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, assuming recombination in both sexes",col.main = "red", denmap=TRUE)
+
+########
 ## Male positions, assuming recombination in both sexes
-cM_Recom_malePOS <- sites_recom %>% dplyr::select(c("Chr","male_position","POS"))
-  names(cM_Recom_malePOS) <- c("LG","position","locus")
-  head(cM_Recom_malePOS)
+cM_Recom_malePOS <- sites_recom_map %>% filter(sex=="male_position") %>% select(-sex)
+head(cM_Recom_malePOS)
   
 outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS.pdf")
 lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, assuming recombination in both sexes",col.main = "blue")
+
+# density map: denmap=TRUE
+outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS_dens.pdf")
+lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, assuming recombination in both sexes",col.main = "blue", denmap=TRUE)
+
+########## 
+# plot female and male positions together
+df <- sites_recom_map %>% unite("locus", locus:sex) 
+df$locus <-  str_remove_all(df$locus,"_position")
+
+head(df)
+
+outfile = file.path("/Users/nuriteliash/Desktop", "recomb_bothSex.pdf")
+lmv.linkage.plot(mapthis = df, outfile = outfile, main="assuming recombination in both sexes",col.main = "blue")
 ```
 
 ## Markers positions, assuming recombinations in *FEMALES ONLY*

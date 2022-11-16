@@ -18,12 +18,7 @@ output:
 }
 </style>
 
-## AIM: estimate recombintaion rate per one family
-
-1. pick a family with at least 2 granddaughters.  
-2. clean any missing data.  
-3. phase the data, from F0 - to F2, for all possible markers.  
-
+## AIM: estimate recombintaion rate 
 
 ## load libraries
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
@@ -56,10 +51,16 @@ gt <- as.data.frame(t(gt)) %>%
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
 
-## keep only informative sites
-
+# Find informative sites
 (1) pool data of all families, and filter for an informative F1 cross*. * an informative cross is where one of the F1 parents is hetero and the other is homo . there are 4 possible informative crosses: 0/1x0/0, 0/1x1/1, for males and females
-(2) filter for sites with homozygotic F0 (only for these sites, we can phase the F1 female)
+(2) filter for sites with homozygotic F0 (only for these sites, we can phase the F1 female)  
+
+Then we can both:  
+*  use the informative sites as input in LepMap, assuming all grndkids belong to the same family.      
+*  use the informative sites to manually estimate the recombination rate (go to step *3*).  
+
+----------
+
 (3) phase (determine the parental origin of each allele) the F1 heterozygotic sites, based on the F0 homozygotice genotype.
 (4) phase the F2 heterozygotic sites, based on the F1 genotype.
 (5) determine the parental and recombinant F2 types, based on the F1 possible gametes from a crossover and non-crossover events. * these will be the same for each pair of sites, as all F2 have the same F1 genotypes.
@@ -94,7 +95,7 @@ fam_240_NW_019211454.1_00_01  <- setNames(data.frame(t(fam_240[,-1])), fam_240[,
 
 # there are 16 sites in the first chromosome that have cross of 0/0 x 0/1, and F0=0/0
 # so we can phase the F1 
-write_delim(fam_240_NW_019211454.1_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_240_NW_019211454.1_00_01.csv")
+#write_delim(fam_240_NW_019211454.1_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_240_NW_019211454.1_00_01.csv")
 
 # filter for sites with: 
 # (1) homo x hetero F1 cross (1/1 x 0/1)
@@ -111,24 +112,242 @@ fam_240_NW_019211454.1_11_01 <- setNames(data.frame(t(fam_240[,-1])), fam_240[,1
 
 # there are 16 sites in the first chromosome that have cross of 1/1 x 0/1, and F0=1/1
 # so we can phase the F1 
-write_delim(fam_240_NW_019211454.1_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_240_NW_019211454.1_11_01.csv")
+#write_delim(fam_240_NW_019211454.1_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/fam_240_NW_019211454.1_11_01.csv")
 ```
 
+***
+From the 223 individuals of 30 families, we excluded non adults mites (for which its hard to determine the sex).  
+Eventually, we kept 144 individuals (adult males and females in F0, F1 and F2 generations) of 26 families, and all 35,169 biallelic sites.  
 
-## pool all female mites for each chromosome
-## cross (0/0 x 0/1)
+***
+
+## for all families 
+count the sites with each genotype in each family, per chromosome  
+* the counts must be per chromosome, as recombination can occur only between sites on the same chromosome  
+```{r}
+table <- gt %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+ # dplyr::select(contains(c("son", "dat", "fnd"))) # keep only adults of F0, F1 and F2 
+
+# set chromosome variable 
+chromosomes = c("NW_019211454.1","NW_019211455.1","NW_019211456.1", "NW_019211457.1","NW_019211458.1","NW_019211459.1","NW_019211460.1")
+  
+# define a list to put all the data frames in
+chr_list <- list()
+
+# make a list with dataframes - each containing 1 chromosome
+for (chr in chromosomes) {
+  chr_list[[chr]] <- table %>%
+  rownames_to_column("site") %>%
+  dplyr::filter(stringr::str_detect(site,chr)) 
+      }
+
+# set a vector of all 30 families:
+family = str_extract(gt$ID, "[^_]+") %>% unique()
+
+# or, include only families with at least one adult F2
+#family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+#  str_extract("[^_]+")  %>%
+#  unique()
+
+# make a function to apply:
+fun <- function(df) {
+  df %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>%
+  dplyr::select(contains("grn")) %>% 
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "male",
+    grepl("dat", sample) ~ "female"))
+    }
+
+# make an empty list
+obs <- list() 
+
+# apply the function for each of the chromosome, per family 
+for (fam in family) {
+ obs[[fam]] <- lapply(chr_list, fun)
+}
+
+# bind all families together, to a final data frame containing all observed counts
+#observed <- do.call("rbind", obs)
+```
+
+visualize the sites, for one family (240), on the first chromosome (NW_019211454.1):  
+```{r}
+table %>%
+  rownames_to_column("site") %>%
+  dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) %>%
+    dplyr::select(starts_with(c("site", "240"))) %>%
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>%  
+  dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% view()
+
+```
+
+Next, calculate the recombination frequency, that is, the number of sites pairs, that are recombinant among the all possible pairs in each chromosome.  
+we do that by determining the 'recombinant' and 'parental' types of sites combinations, for males (parthenogenetically produced) and females (sexually produced) separately.   
+For the 0/0 x 0/1 cross, in both males and females F2, parental type will have the same genotype in a pair of sites, while a recombinant type will have different genotype in a pair:   
+*F2 females:*  
+* Parental types: 0/1;0/1 and 0/0;0/0  
+* Recombinant types: 0/1;0/0  
+
+*F2 males:*    
+* Parental types: 0/1;0/1 , 0/0;0/0  and 1/1;1/1
+* Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0 (depends on the type of parthenogenesis)  
+
+so all we need to do in order to count recombinations in a chromosome, is to count the pairs of same and different genotypes, and divide by the length of the chromosome.  
+
+calculations:  
+sum of unique pairs = n(n-1)/2   *n = number of genotyped sites  (example$total)
+male recombinant pairs = #0/1 sites x #0/0+1/1 sites    
+Female recombinant pairs = #0/1 sites x #0/0 sites    
+recombination frequency = recombinant pairs / sum of unique pairs
+normalized recombination freq = freq/chromosome length (bp)
+
+
+```{r}
+chr_length = tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
+             bp = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147))
+
+# calculate recombination freq for each male and female sample
+example <- as.data.frame(obs$`133`$NW_019211457.1) %>% 
+  mutate(sum_pairs = total*(total-1)/2) %>%
+  mutate(Chr = "NW_019211457.1") %>%
+  left_join(chr_length, by = "Chr") %>%
+  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+  mutate(fam = str_extract(sample, "[^_]+")) %>%
+  pivot_wider(names_from = gt, values_from = obs) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`, 
+                                  sex == "male" ~ (`0/0`+`1/1`) * `0/1`)) %>%
+  mutate(freq = recomb_pairs/sum_pairs) %>%
+  mutate(freq_cM_bp = freq/bp)
+
+# same
+example <- 
+  obs[[fam]][[chr]] %>% as.data.frame() %>% 
+  mutate(sum_pairs = total*(total-1)/2) %>%
+  mutate(Chr = chr) %>%
+  left_join(chr_length, by = "Chr") %>%
+  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+  mutate(fam = str_extract(sample, "[^_]+")) %>%
+  pivot_wider(names_from = gt, values_from = obs) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`, 
+                                  sex == "male" ~ (`0/0`+`1/1`) * `0/1`)) %>%
+  mutate(freq = recomb_pairs/sum_pairs) %>%
+  mutate(freq_cM_bp = freq/bp) %>% view()
+
+
+# make a function to loop over all families, is each chromosome
+func_recom <- function(df) {
+  df %>%
+  as.data.frame() %>%
+  mutate(sum_pairs = total*(total-1)/2) %>%
+  mutate(Chr = chr) %>%
+  left_join(chr_length, by = "Chr") %>%
+  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+  mutate(fam = str_extract(sample, "[^_]+")) %>%
+  pivot_wider(names_from = gt, values_from = obs) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`, 
+                                  sex == "male" ~ (`0/0`+`1/1`) * `0/1`)) %>%
+  mutate(freq = recomb_pairs/sum_pairs) %>%
+  mutate(freq_cM_bp = freq/bp)
+}
+
+recomb_freq <- list()
+
+# apply the function for each element in the large list (list of lists) of the chromosome, per family 
+for (chr in chromosomes) {
+  for (fam in family) {
+ recomb_freq[[chr]][[fam]] <- func_recom(obs[[fam]][[chr]]) } }
+
+# bind all element into one data frame
+obs_df <- data_frame()
+obs_dfAll <- data_frame()
+
+for (chr in chromosomes) {
+  obs_df <- bind_rows(recomb_freq [[chr]])
+  obs_dfAll <- rbind(obs_df, obs_dfAll)}
+
+# plot the median of recombination freq, per chromosome
+ggplot(obs_dfAll, aes(x=Chr, y=freq, fill=sex)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free")
+
+ggplot(obs_dfAll, aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free")
+
+# filter out families with low number of sites
+ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free")
+
+# by sex:
+p_byFamily_male <- ggplot(filter(obs_dfAll, sex == "male" & total > 10), aes(x=fam, y=freq)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free")
+
+p_byFamily_fem <- ggplot(filter(obs_dfAll, sex == "female" & total > 10), aes(x=fam, y=freq)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free") 
+
+p_byFamily_fem_freq_cM_bp <- ggplot(filter(obs_dfAll, sex == "female" & total > 10), aes(x=fam, y=freq_cM_bp)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free") 
+
+p_byFamily_male_freq_cM_bp <- ggplot(filter(obs_dfAll, sex == "male" & total > 10), aes(x=fam, y=freq_cM_bp)) + 
+    geom_boxplot() +
+    facet_wrap(~Chr, scale="free") 
+```
+
+# For ordering using LepMap
+(1) Keep:  
+- Informative sites  
+- 121 samples  
+
+(2) Change:  
+- Sample ID name (F0, F1_fem, and F1_male)  
+- site gt for the above 3 samples, as per the cross:
+*0/0 x 0/1*  
+F1_fem = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484  
+F1_male = 0/0:17:17,0:17:565:0:0:0,-5.11751,-51.1547  
+F0 = 0/0:17:17,0:17:565:0:0:0,-5.11751,-51.1547  
+
+*1/1 x 0/1*  
+F1_fem  = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484  
+F1_male = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0  
+F0 = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0  
+
+code for changing sample genotype: **/Users/nuriteliash/Documents/GitHub/slurm_files/formatVCF.sh**  
+
+## (1) Keep informative sites: 
+filter for informative sites in the original VCF file  
+### cross (0/0 x 0/1)
 in each family, filter for sites with:   
-(1) homo x hetero F1 cross (0/0 x 0/1), so we can predict the parental and recombinant F2 types  
-(2) homo F0 (0/0), so we can phase the hetero F1 sites  
-### cross (0/0 x 0/1), NW_019211454.1
+(a) homo x hetero F1 cross (0/0 x 0/1), so we can predict the parental and recombinant F2 types  
+(b) homo F0 (0/0), so we can phase the hetero F1 sites   
 ```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
-# there are 7,833 sites on the 1st chromosome
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site")
 
+# make a vector of all 30 families
 families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+
+# make an empty list
 sites = list()
-  
+
 for (fam in families) {
   sites[[fam]] <- df %>%
     dplyr::select(starts_with(c("site",fam))) %>%
@@ -136,138 +355,34 @@ for (fam in families) {
     dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
     dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
 }
-#make it into a vector
-NW_019211454.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (0/0 x 0/1), NW_019211455.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211455.1")) 
-# there are 7,833 sites on the 1st chromosome
 
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
+# make a data frame of all sites from all families
+InfoSites_00_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% select(site) %>% distinct()
+
+InfoSites_00_01 <- separate(InfoSites_00_01, site, into = c("NW","Chr","Pos"), sep = '_') 
+
+InfoSites_00_01$CHR <- paste(InfoSites_00_01$NW, InfoSites_00_01$Chr, sep = "_")
+InfoSites_00_01 <- InfoSites_00_01 %>% select(c("CHR", "Pos"))
   
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-#make it into a vector
-NW_019211455.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (0/0 x 0/1), NW_019211456.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211456.1")) 
-# there are 7,833 sites on the 1st chromosome
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-#make it into a vector
-NW_019211456.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (0/0 x 0/1), NW_019211457.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211457.1")) 
-# there are 7,833 sites on the 1st chromosome
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-#make it into a vector
-NW_019211457.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (0/0 x 0/1), NW_019211458.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211458.1")) 
-# there are 7,833 sites on the 1st chromosome
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-#make it into a vector
-NW_019211458.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (0/0 x 0/1), NW_019211459.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211459.1")) 
-# there are 7,833 sites on the 1st chromosome
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-#make it into a vector
-NW_019211459.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (0/0 x 0/1), NW_019211460.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211460.1")) 
-# there are 7,833 sites on the 1st chromosome
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-#make it into a vector
-NW_019211460.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-combine all 7 chromosomes, for cross (0/0 x 0/1)
-```{r}
-InfoSites_00_01 <- c(NW_019211454.1, NW_019211455.1,NW_019211456.1, NW_019211457.1,NW_019211458.1,NW_019211459.1,NW_019211460.1) %>% unique() %>% as.data.frame()
-
 # there are 13,651 informative sites for the 0/0 x 0/1 F1 "family"  
 write_delim(InfoSites_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_00_01.tsv", col_names = FALSE)
+
+# check manually a few IDs and sites,
+#InfoSites_00_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% distinct(site, .keep_all = TRUE)
+
+#tableInfo = InfoSites_00_01 %>% select(c(site,`57_58b_grnson`)) 
+#tableAll = df %>% select(c(site,`57_58b_grnson`))
+#left_join(tableInfo, tableAll, by = "site") %>% rename(c("57_58b_grnson.x" ="InfoSites", "57_58b_grnson.y" = "AllSites")) %>% view()
 ```
 
-## cross (1/1 x 0/1)
-### cross (1/1 x 0/1), NW_019211454.1
+### cross (1/1 x 0/1)
 ```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) 
+df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site")
 
+# make a vector of all 30 families
 families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
+
+# make an empty list
 sites = list()
   
 for (fam in families) {
@@ -278,129 +393,88 @@ for (fam in families) {
     dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
 }
 
-# extract the sites names in all families:
-NW_019211454.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (1/1 x 0/1), NW_019211455.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211455.1")) 
+# make a data frame of all sites from all families
+InfoSites_11_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% select(site) %>% distinct()
 
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
+# make a data frame of all sites from all families
+InfoSites_11_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% select(site) %>% distinct()
+InfoSites_11_01 <- separate(InfoSites_11_01, site, into = c("NW","Chr","Pos"), sep = '_') 
 
-# extract the sites names in all families:
-NW_019211455.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (1/1 x 0/1), NW_019211456.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211456.1")) 
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
-
-# extract the sites names in all families:
-NW_019211456.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (1/1 x 0/1), NW_019211457.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211457.1")) 
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
-
-# extract the sites names in all families:
-NW_019211457.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (1/1 x 0/1), NW_019211458.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211458.1")) 
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
-
-# extract the sites names in all families:
-NW_019211458.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (1/1 x 0/1), NW_019211459.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211459.1")) 
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
-
-# extract the sites names in all families:
-NW_019211459.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-### cross (1/1 x 0/1), NW_019211460.1
-```{r}
-# keep sites on the 1st chromosome
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site") %>% dplyr::filter(stringr::str_detect(site,"NW_019211460.1")) 
-
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
-
-# extract the sites names in all families:
-NW_019211460.1 <- lapply(sites, "[", "site") %>% unlist() 
-```
-combine all 7 chromosomes, for cross (1/1 x 0/1)
-```{r}
-InfoSites_11_01 <- c(NW_019211454.1, NW_019211455.1,NW_019211456.1, NW_019211457.1,NW_019211458.1,NW_019211459.1,NW_019211460.1) %>% unique() %>% as.data.frame()
+InfoSites_11_01$CHR <- paste(InfoSites_11_01$NW, InfoSites_11_01$Chr, sep = "_")
+InfoSites_11_01 <- InfoSites_11_01 %>% select(c("CHR", "Pos"))
 
 # there are 12,158 informative sites for the 1/1 x 0/1 F1 "family"  
 write_delim(InfoSites_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_11_01.tsv", col_names = FALSE)
+
+# check manually a few IDs and sites,
+#InfoSites_11_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% distinct(site, .keep_all = TRUE)
+
+#tableInfo = InfoSites_11_01 %>% select(c(site,`300_301a_grnson`)) 
+#tableAll = df %>% select(c(site,`300_301a_grnson`))
+#check <- left_join(tableInfo, tableAll, by = "site") %>% rename(c("300_301a_grnson.x" ="InfoSites", "300_301a_grnson.y" = "AllSites")) %>% na.omit("InfoSites")  
+
+#all(check$InfoSites == check$AllSites)
 ```
 
-in summary, I have two "families":
+## Next, create a map.txt file with sites' physical position  
+make a map.txt file with the sites assigned to 7 LGs based on their physical position
+use this file as an input for the Order module.  
+
+the ordering doesn't have to be fantastic either at the end. We're just looking to see if we can get some sort of recombination rate estimates and a sense of which sex is showing recombination.  
+
+### cross (0/0 x 0/1)
+```{r}
+snps <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/snps_611.txt")
+
+CHR = snps$CHR %>% unique()
+LG = as.character(c(1:7))
+LG_Chr = tibble(LG=as.character(c(1:7)), CHR)
+
+map <- left_join(snps, LG_Chr, by = "CHR") %>% 
+  dplyr::select("LG") 
+
+write_delim(map, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/map_611.txt")
+```
+
+### cross (1/1 x 0/1)
+```{r}
+snps <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/snps_202.txt")
+
+CHR = snps$CHR %>% unique()
+LG = as.character(c(1:7))
+LG_Chr = tibble(LG=as.character(c(1:7)), CHR)
+
+map <- left_join(snps, LG_Chr, by = "CHR") %>% 
+  dplyr::select("LG") 
+
+write_delim(map, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/map_202.txt")
+```
+
+# check the reduced sites
+```{r eval=FALSE, include=FALSE}
+#read again the genotype for each site and ID
+Gt <- extract.gt(vcf, element = "GT") %>% as.data.frame() %>% rownames_to_column("site")
+names(Gt)[-1] <- sub("_[^_]+$", "", names(Gt)[-1])
+
+snps <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/snps_611.txt")
+
+# extract the reduced sites for the gt file
+snps$site <- paste(snps$CHR, snps$POS, sep= "_")
+
+#join them by site
+tableInfo <- left_join(snps, InfoSites_00_01, by= "site") %>% select(-c("CHR", "POS"))
+
+#table_gt <- left_join(snps, df, by= "site")
+
+
+dat_info <- InfoSites_00_01 %>% select(c("site", "63_64_dat"))
+dat_gt <- Gt %>% select(c("site", "63_64_dat"))
+dat_join <- left_join(dat_info, dat_gt, by = "site")
+
+dat_join %>% filter(`63_64_dat.y` == "0/0")
+dat_join %>% filter(`63_64_dat.x` == "0/0")
+
+dat_join %>% filter(`63_64_dat.y` == "1/1") %>% view()
+dat_join %>% filter(`63_64_dat.x` == "1/1") %>% view()
+```
+

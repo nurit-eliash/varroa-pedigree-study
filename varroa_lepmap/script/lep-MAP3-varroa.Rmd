@@ -18,13 +18,7 @@ output:
 }
 </style>
 
-## Aims: 
-(1) Detect outliered markers, that their physical position on the chromosome, doesnt correlate to their genetic position, as determined by recombination rate.
-
-(2) Characterize these outliered markers (do they deviate from the rest of the markers? in maf, missingnes, hwe values)
-
-- The INPUT **'order.mapped'** files contain each marker physical and genetic position (these are the outputs of OrederMarker module followed by awk function).  
-- The OUTPUT **'out'** files contain a list of markers (Chromosome and position), that are outliered (they are found outside of the Confidence Interval area in a correlation plot).  
+# AIM: Check if the physical position correleates with the genetic position
 
 ## Load libraries
 ```{r setup, include=FALSE, warning=FALSE}
@@ -48,7 +42,160 @@ library("vcfR") # for extracting genotype data from a vcf file
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# ALL 30 FAMILIES
+19/10/22
+lepmap using only informative sites (0/0 x 0/1) , assuming 1 family
+/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem
+
+lepmap using only informative sites (1/1 x 0/1) , assuming 1 family
+/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/Recom_male_fem
+
+# Does the markers' physical position correlates to its genetic position, as determined by recombination rate? 
+## Assuming recombintaions in males and females
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/Recom_male_fem")
+
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/Recom_male_fem", pattern = "\\mapped$")
+
+# set a list to put the plots in
+out_plotSites = list()
+
+# set a list to put the positions in, for later linkage mapping
+out_Sites = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
+
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth(method='lm') +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+out_plotSites[[i]] = p_site
+out_Sites[[i]] = df
+ }
+
+# plot all LGs, by sex (i split into 2 plots, caus its too big)
+grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion in both sex", gp=grid::gpar(fontsize=24)), out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
+
+# combine all LGs
+sites_recom <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
+
+#save the markers positions 
+#write.table(sites_recom,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv", col.names=T)
+```
+
+## Assuming recombinations in *FEMALES ONLY*
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/0_male")
+
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/0_male", pattern = "\\mapped$")
+
+# set a list to put the plots in
+out_plotSites = list()
+
+# set a list to put the positions in, for later linkage mapping
+out_Sites = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
+
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth(method='lm') +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+out_plotSites[[i]] = p_site
+out_Sites[[i]] = df
+ }
+
+# plot all LGs, by sex
+grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion only in FEMALES", gp=grid::gpar(fontsize=24)),  out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
+
+# combine all LGs
+sites_0male <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
+
+#save the markers positions 
+#write.table(sites_0male,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_0male.csv", col.names=T)
+```
+
+## Assuming recombintaions in *MALES only*
+```{r echo=FALSE, warning=FALSE,message=FALSE}
+setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/filteredSites611/0_fem")
+
+# get a vector of the input files ('order_.mapped' files in the directory)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/filteredSites611/0_fem", pattern = "\\mapped$")
+
+# set a list to put the plots in
+out_plotSites = list()
+
+# set a list to put the positions in, for later linkage mapping
+out_Sites = list()
+
+for (i in map_files) {
+  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
+  names(mapped) = c("Chr","POS","male_position", "female_position")
+  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+
+# calculate the total genetic size per LG
+sizeFem <- unique(mapped$female_position) %>% sum()
+sizeMale <- unique(mapped$male_position) %>% sum()
+
+df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
+
+p_site <- ggplot(df, aes(x=POS, y=cM)) +
+  geom_point() +stat_cor(method = "pearson") + geom_smooth(method='lm') +
+  ylab("Genetic position (cM)") +
+  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
+facet_wrap("sex")
+
+out_plotSites[[i]] = p_site
+out_Sites[[i]] = df
+ }
+
+# plot all LGs, by sex
+grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion only in MALES", gp=grid::gpar(fontsize=24)),  out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
+
+# combine all LGs
+sites_0fem <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
+#save the markers positions 
+#write.table(sites_0fem,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_0fem.csv", col.names=T)
+```
+
+
+
+
+##################
+
+# OTHER OLD ANALYSES:
+## Aims: 
+(1) Detect outliered markers, that their physical position on the chromosome, doesnt correlate to their genetic position, as determined by recombination rate.
+
+(2) Characterize these outliered markers (do they deviate from the rest of the markers? in maf, missingnes, hwe values)
+
+- The INPUT **'order.mapped'** files contain each marker physical and genetic position (these are the outputs of OrederMarker module followed by awk function).  
+- The OUTPUT **'out'** files contain a list of markers (Chromosome and position), that are outliered (they are found outside of the Confidence Interval area in a correlation plot).  
+
+ALL 30 FAMILIES  
 ## Recombontaions in both males and females (0.01)
 
 OrderMarkers2 map=map4_14_js.txt data=data_f.call useKosambi=1 numMergeIterations=1 *sexAveraged=0* outputPhasedData=2 grandparentPhase=1 
@@ -726,134 +873,3 @@ i run the orderMarkers for the 7 LG-chromosomes.
 lepmap with reduced VCF file . filtered for 0.65 missing data
 /Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7
 
-Does the markers' physical position correlates to its genetic position, as determined by recombination rate? 
-## Assuming recombintaions in males and females
-```{r echo=FALSE, warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7/Recom_male_fem")
-
-# get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7/Recom_male_fem", pattern = "\\mapped$")
-
-# set a list to put the plots in
-out_plotSites = list()
-
-# set a list to put the positions in, for later linkage mapping
-out_Sites = list()
-
-for (i in map_files) {
-  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
-  names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
-
-# calculate the total genetic size per LG
-sizeFem <- unique(mapped$female_position) %>% sum()
-sizeMale <- unique(mapped$male_position) %>% sum()
-
-df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
-
-p_site <- ggplot(df, aes(x=POS, y=cM)) +
-  geom_point() +stat_cor(method = "pearson") + geom_smooth(method='lm') +
-  ylab("Genetic position (cM)") +
-  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
-facet_wrap("sex")
-
-out_plotSites[[i]] = p_site
-out_Sites[[i]] = df
- }
-
-# plot all LGs, by sex (i split into 2 plots, caus its too big)
-grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion in both sex", gp=grid::gpar(fontsize=24)), out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
-
-# combine all LGs
-sites_recom <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
-
-#save the markers positions 
-#write.table(sites_recom,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv", col.names=T)
-```
-
-## Assuming recombinations in *FEMALES ONLY*
-```{r echo=FALSE, warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7/0_male")
-
-# get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7/0_male", pattern = "\\mapped$")
-
-# set a list to put the plots in
-out_plotSites = list()
-
-# set a list to put the positions in, for later linkage mapping
-out_Sites = list()
-
-for (i in map_files) {
-  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
-  names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
-
-# calculate the total genetic size per LG
-sizeFem <- unique(mapped$female_position) %>% sum()
-sizeMale <- unique(mapped$male_position) %>% sum()
-
-df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
-
-p_site <- ggplot(df, aes(x=POS, y=cM)) +
-  geom_point() +stat_cor(method = "pearson") + geom_smooth(method='lm') +
-  ylab("Genetic position (cM)") +
-  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
-facet_wrap("sex")
-
-out_plotSites[[i]] = p_site
-out_Sites[[i]] = df
- }
-
-# plot all LGs, by sex
-grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion only in FEMALES", gp=grid::gpar(fontsize=24)),  out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
-
-# combine all LGs
-sites_0male <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
-
-#save the markers positions 
-#write.table(sites_0male,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_0male.csv", col.names=T)
-```
-
-## Assuming recombintaions in *MALES only*
-```{r echo=FALSE, warning=FALSE,message=FALSE}
-setwd("/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7/0_fem")
-
-# get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/linkage-map-BIGdata/lepmapBigData/Q40BIALLDP16HDP40maf.2mis.65Chr7/0_fem", pattern = "\\mapped$")
-
-# set a list to put the plots in
-out_plotSites = list()
-
-# set a list to put the positions in, for later linkage mapping
-out_Sites = list()
-
-for (i in map_files) {
-  mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
-  names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
-
-# calculate the total genetic size per LG
-sizeFem <- unique(mapped$female_position) %>% sum()
-sizeMale <- unique(mapped$male_position) %>% sum()
-
-df <- mapped %>% pivot_longer(cols = c(male_position,female_position), names_to = "sex", values_to = "cM") 
-
-p_site <- ggplot(df, aes(x=POS, y=cM)) +
-  geom_point() +stat_cor(method = "pearson") + geom_smooth(method='lm') +
-  ylab("Genetic position (cM)") +
-  xlab("Physical position") + labs(title = paste0("LG: ", mapped[1,5],", Chromosome: ", mapped[1,1]), subtitle =  paste0("total size (cM): female = ", sizeFem, "; male: ",sizeMale)) +
-facet_wrap("sex")
-
-out_plotSites[[i]] = p_site
-out_Sites[[i]] = df
- }
-
-# plot all LGs, by sex
-grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion only in MALES", gp=grid::gpar(fontsize=24)),  out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
-
-# combine all LGs
-sites_0fem <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
-#save the markers positions 
-#write.table(sites_0fem,"/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_0fem.csv", col.names=T)
-```
