@@ -79,11 +79,11 @@ Individual ID *240_240a_son*, belong to family *240*, has a unique name of *240a
 Individual ID *240_241b_grndat*, belong to family *240*, has a unique name of *241b* and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F2 generation (and the daughter of *240_240a_son*).
 
 ***
-From the 223 individuals of 30 families, we excluded non adults mites (for which its hard to determine the sex).  
+From the 223 individuals of 30 families, we excluded non adults mites (for which sex could not be determined for sure).  
 Eventually, we kept 144 individuals (adult males and females in F0, F1 and F2 generations) of 26 families, and all 35,169 biallelic sites.  
 
 ***
-For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_019211454.1*), in one family (*family number 240*).
+For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_019211454.1*), in *family number 240*.
 ```{r}
 table <-  gt %>% 
   t() %>%
