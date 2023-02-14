@@ -58,7 +58,8 @@ lepmap using only informative sites (1/1 x 0/1) , assuming 1 family
 setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem")
 
 # get a vector of the input files ('order_.mapped' files in the directory)
-map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem", pattern = "\\mapped$", full.names = TRUE)
+map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem", pattern = "\\mapped$", full.names = T)
+
 
 # set a list to put the plots in
 out_plotSites = list()
@@ -66,10 +67,10 @@ out_plotSites = list()
 # set a list to put the positions in, for later linkage mapping
 out_Sites = list()
 
-for (i in map_files) {
+for (i in map_files)  {
   mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
   names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  mapped <- dplyr::mutate(mapped, LG =  basename(i) %>%  readr::parse_number() %>% as.character())
 
 # calculate the total genetic size per LG
 sizeFem <- unique(mapped$female_position) %>% sum()
@@ -85,7 +86,7 @@ facet_wrap("sex")
 
 out_plotSites[[i]] = p_site
 out_Sites[[i]] = df
- }
+ } 
 
 # plot all LGs, by sex (i split into 2 plots, caus its too big)
 grid.arrange(top= grid::textGrob("Physical and genetic position correlation, assuming recombintaion in both sex", gp=grid::gpar(fontsize=24)), out_plotSites$order_1.mapped,out_plotSites$order_2.mapped, out_plotSites$order_3.mapped,out_plotSites$order_4.mapped, out_plotSites$order_5.mapped, out_plotSites$order_6.mapped, out_plotSites$order_7.mapped) 
@@ -113,7 +114,7 @@ out_Sites = list()
 for (i in map_files) {
   mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
   names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  mapped <- dplyr::mutate(mapped, LG =  basename(i) %>%  readr::parse_number() %>% as.character())
 
 # calculate the total genetic size per LG
 sizeFem <- unique(mapped$female_position) %>% sum()
@@ -157,7 +158,7 @@ out_Sites = list()
 for (i in map_files) {
   mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
   names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  mapped <- dplyr::mutate(mapped, LG =  basename(i) %>%  readr::parse_number() %>% as.character())
 
 # calculate the total genetic size per LG
 sizeFem <- unique(mapped$female_position) %>% sum()
@@ -202,7 +203,7 @@ out_Sites = list()
 for (i in map_files) {
   mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
   names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  mapped <- dplyr::mutate(mapped, LG =  basename(i) %>%  readr::parse_number() %>% as.character())
 
 # calculate the total genetic size per LG
 sizeFem <- unique(mapped$female_position) %>% sum()
@@ -246,7 +247,7 @@ out_Sites = list()
 for (i in map_files) {
   mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
   names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  mapped <- dplyr::mutate(mapped, LG =  basename(i) %>%  readr::parse_number() %>% as.character())
 
 # calculate the total genetic size per LG
 sizeFem <- unique(mapped$female_position) %>% sum()
@@ -290,7 +291,7 @@ out_Sites = list()
 for (i in map_files) {
   mapped <- read.table(i,  header =FALSE, sep ="\t")[,1:4]
   names(mapped) = c("Chr","POS","male_position", "female_position")
-  mapped <- dplyr::mutate(mapped, LG =  readr::parse_number(i)%>% as.character())
+  mapped <- dplyr::mutate(mapped, LG =  basename(i) %>%  readr::parse_number() %>% as.character())
 
 # calculate the total genetic size per LG
 sizeFem <- unique(mapped$female_position) %>% sum()

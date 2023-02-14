@@ -1,5 +1,5 @@
 ---
-title: "LinkageMapView"
+title: "LinkageMapView-varroa genetic maps"
 author: "Nurit Eliash"
 date: '2022-07-15'
 output:
@@ -19,7 +19,7 @@ output:
 </style>
 
 ## Load libraries
-```{r setup, include=FALSE, warning=FALSE}
+```{r libraries, include=FALSE, warning=FALSE}
 library("tidyverse")
 library("plyr")
 library("dplyr")
@@ -42,10 +42,19 @@ library("RIdeogram") # for visualizing the variant physical sites on the chromos
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-load data of the markers position, based on recombination frequency (done by Lep-MAP)
+The genetic maps are based on two different crosses: 
+ - 0/0 x 0/1
+ - 1/1 x 0/1
+ 
+the position of the markers are based on recombination frequency (done by Lep-MAP OrderMarkrs2 module)
 code in  ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
+
+## Genetic map based on 00 x 01 cross
+
+### Markers positions, assuming recombinations in *both sexes*
 ```{r}
-sites_recom = read.csv(file = "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv", header = TRUE, sep = " ")
+#load data of the markers position 
+sites_recom = read.csv(file = "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/00_01_cross/sites_recom.csv", header = TRUE, sep = " ")
 # ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
 
 # change the names of the columns, so it will fit for the lmv command:
@@ -60,48 +69,33 @@ sites_recom = read.csv(file = "/Users/nuriteliash/Documents/GitHub/varroa-linkag
 # "locus" is the physical position (Chr_pos)
 
 sites_recom_map <- sites_recom %>% dplyr::select(c(group=LG, position = cM, locus = POS, sex = sex))
-```
-
-# Genetic map
-## Markers positions, assuming recombinations in *both sexes*
-```{r}
 head(sites_recom_map)
 
 ## Female positions, assuming recombination in both sexes ###
 cM_Recom_femPOS <- sites_recom_map %>% filter(sex=="female_position") %>% select(-sex)
 head(cM_Recom_femPOS)
 
-outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS.pdf")
-lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, assuming recombination in both sexes",col.main = "red")
+#outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS.pdf")
+#lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, assuming recombination in both sexes",col.main = "red")
 
 # density map: denmap=TRUE
-outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS_dens.pdf")
-lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, assuming recombination in both sexes",col.main = "red", denmap=TRUE)
+outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS_dens_00_01.pdf")
+lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, based on 0/0 x 0/1 cross, assuming recombination in both sexes",col.main = "red", denmap=TRUE)
 
-########
 ## Male positions, assuming recombination in both sexes
 cM_Recom_malePOS <- sites_recom_map %>% filter(sex=="male_position") %>% select(-sex)
 head(cM_Recom_malePOS)
   
-outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS.pdf")
-lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, assuming recombination in both sexes",col.main = "blue")
+#outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS.pdf")
+#lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, assuming recombination in both sexes",col.main = "blue")
 
 # density map: denmap=TRUE
-outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS_dens.pdf")
-lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, assuming recombination in both sexes",col.main = "blue", denmap=TRUE)
-
-########## 
-# plot female and male positions together
-df <- sites_recom_map %>% unite("locus", locus:sex) 
-df$locus <-  str_remove_all(df$locus,"_position")
-
-head(df)
-
-outfile = file.path("/Users/nuriteliash/Desktop", "recomb_bothSex.pdf")
-lmv.linkage.plot(mapthis = df, outfile = outfile, main="assuming recombination in both sexes",col.main = "blue")
+outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS_dens_00_01.pdf")
+lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, based on 0/0 x 0/1 cross, assuming recombination in both sexes",col.main = "blue", denmap=TRUE)
 ```
 
-## Markers positions, assuming recombinations in *FEMALES ONLY*
+NOT included in the final MS
+### Markers positions, assuming recombinations in *FEMALES ONLY*
 ```{r eval=FALSE, include=FALSE}
 #load data from "~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd"
 # eard_delim(sites_0male)
@@ -124,7 +118,7 @@ outfile = file.path("/Users/nuriteliash/Desktop", "cM_0male_malePOS.pdf")
 lmv.linkage.plot(mapthis = cM_0male_malePOS, outfile = outfile, main="Male positions, assuming recombination in FEMALES only",col.main = "blue")
 ```
 
-## Markers positions, assuming recombinations in *MALES ONLY*
+### Markers positions, assuming recombinations in *MALES ONLY*
 ```{r eval=FALSE, include=FALSE}
 #load data from "~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd"
 # eard_delim(sites_0fem)
@@ -147,110 +141,48 @@ outfile = file.path("/Users/nuriteliash/Desktop", "cM_0fem_malePOS.pdf")
 lmv.linkage.plot(mapthis = cM_0fem_malePOS, outfile = outfile, main="Male positions, assuming recombination in MALES only",col.main = "blue")
 ```
 
-# color code markers
+## Genetic map based on 11 x 01 cross
+
+### Markers positions, assuming recombinations in *both sexes*
 ```{r}
-#assuming recombinations in *FEMALES ONLY*
-  head(sites_0male)
-cM_0male_femPOS <- sites_0male %>% dplyr::filter(sex == "female_position" ) %>% dplyr::select(c("Chr","POS", "cM","LG"))
+#load data of the markers position 
+sites_recom = read.csv(file = "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/11_01_cross/sites_recom.csv", header = TRUE, sep = " ")
+# ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
 
-head(cM_0male_femPOS)
+# change the names of the columns, so it will fit for the lmv command:
+#>     group position    locus
+#> 1 2170LG3    0.000 BSSR-094
+#> 2 2170LG3    7.039   ESSR86
+#> 3 2170LG3   11.123      F3H
+#> 4 2170LG3   11.123     FLS1
 
-outfile = file.path("/Users/nuriteliash/Desktop", "cM_0male_femPOS_1.pdf")
-lmv.linkage.plot(mapthis = cM_0male_femPOS, outfile = outfile, main="Female positions, assuming recombination in FEMALES only",col.main = "red")
+#"group" is the LG (1-7) + add the sex
+# "position" is the genetic position (cM on the LG)
+# "locus" is the physical position (Chr_pos)
 
-###### density map
-df <-cM_0male_femPOS %>% dplyr::select(c("Chr", "position"="cM", "locus"="POS"))
+sites_recom_map <- sites_recom %>% dplyr::select(c(group=LG, position = cM, locus = POS, sex = sex))
+head(sites_recom_map)
+
+## Female positions, assuming recombination in both sexes ###
+cM_Recom_femPOS <- sites_recom_map %>% filter(sex=="female_position") %>% select(-sex)
+head(cM_Recom_femPOS)
+
+#outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS.pdf")
+#lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, assuming recombination in both sexes",col.main = "red")
+
+# density map: denmap=TRUE
+outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_femPOS_dens_11_01.pdf")
+lmv.linkage.plot(mapthis = cM_Recom_femPOS, outfile = outfile, main="Female positions, based on 1/1 x 0/1 cross, assuming recombination in both sexes",col.main = "red", denmap=TRUE)
+
+## Male positions, assuming recombination in both sexes
+cM_Recom_malePOS <- sites_recom_map %>% filter(sex=="male_position") %>% select(-sex)
+head(cM_Recom_malePOS)
   
-sectcoldf <- lmvdencolor(df, wsize = 10, bias = 5)
+#outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS.pdf")
+#lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, assuming recombination in both sexes",col.main = "blue")
 
-## draw tickmarks at each cM from 0 to largest position of linkage groups to be drawn
-maxpos <- floor(max(df$position[df$Chr == "NW_019211454.1" | df$Chr == "NW_019211455.1"]))
-at.axis <- seq(0, maxpos)
-
-## put labels on ruler at every 10 cM
-axlab <- vector()
-      for (lab in 0:maxpos) {
-        if (!lab %% 10) {
-          axlab <- c(axlab, lab)
-        }
-        else {
-          axlab <- c(axlab, NA)
-        }
-      }
-
-outfile = file.path("/Users/nuriteliash/Desktop", "cM_0male_femPOS_den.pdf")
-lmv.linkage.plot(mapthis = df,outfile, mapthese=c("NW_019211454.1","NW_019211455.1"), denmap=TRUE, cex.axis = 1, at.axis = at.axis, labels.axis = axlab)
-
-lmv.linkage.plot(mapthis = df,outfile,  cex.axis = 1, denmap=TRUE)
-, at.axis = at.axis
+# density map: denmap=TRUE
+outfile = file.path("/Users/nuriteliash/Desktop", "cM_Recom_malePOS_dens_11_01.pdf")
+lmv.linkage.plot(mapthis = cM_Recom_malePOS, outfile = outfile, main="Male positions, based on 1/1 x 0/1 cross, assuming recombination in both sexes",col.main = "blue", denmap=TRUE)
 ```
 
-example
-```{r}
-data(oat)
-
-## draw tickmarks at each cM from 0 to largest position of linkage groups to be drawn
-maxpos <- floor(max(oat$Position[oat$Group == "Mrg01" | oat$Group == "Mrg02"]))
-at.axis <- seq(0, maxpos)
-
-## put labels on ruler at every 10 cM
-axlab <- vector()
-      for (lab in 0:maxpos) {
-        if (!lab %% 10) {
-          axlab <- c(axlab, lab)
-        }
-        else {
-          axlab <- c(axlab, NA)
-        }
-      }
-
-outfile = file.path("/Users/nuriteliash/Desktop", "oat_denmap.pdf")
-lmv.linkage.plot(oat,outfile,mapthese=c("Mrg01","Mrg02"),denmap=TRUE, cex.axis = 1, at.axis = at.axis, labels.axis = axlab)
-
-```
-
-# Physical map
-```{r}
-setwd("/Users/nuriteliash/Desktop")
-
-# make the karyotype table with chromosomes start and end position
-karyotype <- tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
-           Start = 0,
-             End = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147))
-
-#load the LG data from "~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd"
-# read_delim(sites_recom)
-
-head(sites_recom) 
-# contains 258 sites, belonging to 14 LGs, located on 5 of the 7 chromosomes. 
-
-LG = sites_recom %>% dplyr::select(c(Chr, "Start"=POS, "Value"=LG)) %>%
-  mutate(Start = as.double(Start)) %>%
-    mutate(Value = as.double(Value)) %>%
-mutate("End"=Start+3)
-head(LG) 
-
-ideogram(karyotype = karyotype, overlaid = LG, colorset1 = c("#49be25","#be4d25","#2596be"))
-convertSVG("chromosome.svg", device = "png")
-
-##########
-# make LG as different shape+color combinations
-lable = data.frame(Shape=c("circle", "box", "triangle", "circle","box" ,"triangle","circle", "box", "triangle","circle", "box", "triangle","circle", "box"), color = c("#49be25","#be4d25","#2596be", "chocolate1", "darkorchid","#be4d25","#2596be", "chocolate1", "chocolate1","darkorchid", "#49be25", "darkorchid","#be4d25","#2596be"), LG = as.character(c(1:14))) 
-
-LG_type = sites_recom %>% dplyr::select(c(Chr, "Start"=POS, "LG"=LG)) %>%
-  mutate(Start = as.double(Start)) %>%
-mutate("End"=Start+3) %>%
-  left_join(lable, by ="LG") %>%
-  dplyr::rename("Type"=LG)
-  
-
-head(LG_type, 11) 
-LG_rnd <- as.data.frame(sample_n(LG_type, 11)) 
-
-ideogram(karyotype = karyotype, label = LG_rnd, label_type = "marker")
-# Error in names(mydata2_legend) <- `*vtmp*` : 
- # 'names' attribute [11] must be the same length as the vector [10]
-# לא יודעת מה הבעייה
-convertSVG("chromosome.svg", device = "png")
-
-```
