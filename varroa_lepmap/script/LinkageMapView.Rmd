@@ -42,10 +42,10 @@ library("RIdeogram") # for visualizing the variant physical sites on the chromos
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-load data
+load data of the markers position, based on recombination frequency (done by Lep-MAP)
+code in  ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
 ```{r}
- #sites_recom= read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv") 
-# i need to find a wy to read this file correctly , at the moment im running this to write it:
+sites_recom = read.csv(file = "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/results/sites_recom.csv", header = TRUE, sep = " ")
 # ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
 
 # change the names of the columns, so it will fit for the lmv command:
@@ -102,7 +102,7 @@ lmv.linkage.plot(mapthis = df, outfile = outfile, main="assuming recombination i
 ```
 
 ## Markers positions, assuming recombinations in *FEMALES ONLY*
-```{r}
+```{r eval=FALSE, include=FALSE}
 #load data from "~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd"
 # eard_delim(sites_0male)
 head(sites_0male)
@@ -125,7 +125,7 @@ lmv.linkage.plot(mapthis = cM_0male_malePOS, outfile = outfile, main="Male posit
 ```
 
 ## Markers positions, assuming recombinations in *MALES ONLY*
-```{r}
+```{r eval=FALSE, include=FALSE}
 #load data from "~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd"
 # eard_delim(sites_0fem)
 head(sites_0fem)
