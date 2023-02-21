@@ -16,7 +16,7 @@ All mites were collected at the experimental apiary of OIST (Okinawa Institute o
 The repository contains all that is required for you to re-run the analysis.
 However, the original input fastaq files and reference genome are too large to be uploaded to the Github repository, therfore, prior to runing the pipline you need to download them to your cluster/computer. 
 1. Varroa reference genome, [GCF_002443255.1 Vdes_3.0](https://www.ncbi.nlm.nih.gov/genome/?term=txid109461%5Borgn%5D), by [Techer et al. 2000](https://www.nature.com/articles/s42003-019-0606-0).
-2. Varroa families whole-genome sequences, raw fastq reads [BioProject___](__link to the NCBI with fastq files_)
+2. Varroa families whole-genome sequences, raw fastq reads [BioProject PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/).  
 
 ### Codes
 1. Genomics analysis workflow from raw reads (fastg.gz files) down to the VCF is summarized into a Snakemake pipeline. The pipeline steps are available in the `Snakefile` file, along with parameters file `cluster.json` and launcher `snakemake.slurm`. The final VFC output is later used as input for the linkage map.

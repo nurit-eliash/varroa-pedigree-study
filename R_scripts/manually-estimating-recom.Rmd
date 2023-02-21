@@ -26,7 +26,7 @@ editor_options:
 ## AIM: Estimate varroa recombintaion rate using whole genome pedigree data
 
 The recombination frequency of *Varroa destructor*, a parasitic mite of honeybees was estimated for male and female adult mites. We used two analysis methods: manual calculation of exact recombination frequency, and computational estimation using a linkage mapping software, Lep-MAP3 (Rastas 2017). For both analyses we used as input a VCF file containing only the ‘Informative sites’. Informative sites are sites that are heterozygotic in the F1 female, and homozygotic for one allele in the F1 male, and his mother (F0 female). Only for these sites we can phase (determine the allele parental origin) the F2 generation genotypes, and follow the inheritance of specific sites through the generations (Fig __).  
-All biosamples are available in Sequence Read Archive (SRA) under the accession PRJNA794941.להוסיף לינק!
+All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
 
 ## load libraries
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
@@ -64,181 +64,18 @@ gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
 
 We used the VCF file in two methods to estimate varroa mite recombination frequency:  
-- **Lep-MAP3, a linkage mapping software (Rastas 2017).**  
+- **Lep-MAP3, a linkage mapping software (Rastas 2017).**  script available in [lep-MAP3-varroa.Rmd](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/varroa_lepmap/script/lep-MAP3-varroa.Rmd)
 - **Manual estimation of the recombination rate**   
 
-# Estimating recombination frequency using Lep-MAP3
-We followed the documentation in the Lep-MAP3 Wiki page (Rastas n.d.), with a few adjustments.  
-We ran the first two modules: **ParentCall2**, **Filtering2**, then skipped to the last module **OrderMarkers2** that produces the final map file.  
-The input and output files for each modules are as follow:   
-(1) **ParentCall2** module; options = removNonInformative; input = filtered VCF file and pedigree.txt; output =  data.call.  
-(2) **Filtering2** module; options = dataTolerance=0.0001, removeNonInformative; input = data.call; output =  data_f.call.
-(3) **OrderMarkers2** module; options = useKosambi=1 numMergeIterations=100 sexAveraged=1 outputPhasedData=2 grandparentPhase=1; input = data_f.call and map.txt files; output = order.txt and order.mapped files. 
+***
 
-In the following codes we generated two files necessary for the Lep-MAP analysis:  
-- the list of informative sites (used to filter the original VCF file), for the first module, **ParentCall2**; 
-- and the map.txt file, containing the physical position of sites, for the last module, **OrderMarkers2**.    
+Here we show how to calculate the recombination rate from a VCF file:  
 
-**Keep:**
-
--   Informative sites.  
--   121 adult mite samples.  
-
-**Change:**  
-
--   Sample ID name (F0, F1_fem, and F1_male)  
--   site genotype for the above 3 samples, as per the cross: 
-
-**For 0/0 x 0/1 cross:**  
-    F1_fem = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484  
-    F1_male = 0/0:17:17,0:17:565:0:0:0,-5.11751,-51.1547  
-    F0 = 0/0:17:17,0:17:565:0:0:0,-5.11751,-51.1547
-
-**For 1/1 x 0/1 cross:**  
-F1_fem = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484  
-F1_male = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0  
-F0 = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0 
-
-Code for changing sample genotype:
-*https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/formatVCF.sh*
-
-## (1) Keep informative sites:
-
-filter for informative sites in the original VCF file. 
-
-### cross (0/0 x 0/1) 
-in each family, filter for sites with:   
-(a) homo x hetero F1 cross (0/0 x 0/1), so we can predict the parental
-and recombinant F2 types.  
-(b) homo F0 (0/0), so we can phase the hetero F1 sites.  
-
-```{r}
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site")
-
-# make a vector of all 30 families
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-
-# make an empty list
-sites = list()
-
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "0/0")) 
-}
-
-# make a data frame of all sites from all families
-InfoSites_00_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% select(site) %>% distinct()
-
-InfoSites_00_01 <- separate(InfoSites_00_01, site, into = c("NW","Chr","Pos"), sep = '_') 
-
-InfoSites_00_01$CHR <- paste(InfoSites_00_01$NW, InfoSites_00_01$Chr, sep = "_")
-InfoSites_00_01 <- InfoSites_00_01 %>% select(c("CHR", "Pos"))
-head(InfoSites_00_01)
-```
-
-There are 13,651 informative sites for the 0/0 x 0/1 F1 "family".  
-Save the file as tsv, so it can be used in the next steps. 
-```{r eval=FALSE, include=T}
-#write_delim(InfoSites_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_00_01.tsv", col_names = FALSE)
-
-# check manually a few IDs and sites,
-#InfoSites_00_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% distinct(site, .keep_all = TRUE)
-
-#tableInfo = InfoSites_00_01 %>% select(c(site,`57_58b_grnson`)) 
-#tableAll = df %>% select(c(site,`57_58b_grnson`))
-#left_join(tableInfo, tableAll, by = "site") %>% rename(c("57_58b_grnson.x" ="InfoSites", "57_58b_grnson.y" = "AllSites")) %>% view()
-```
-
-### cross (1/1 x 0/1)
-
-```{r}
-df  <- setNames(data.frame(t(gt[,-1])), gt[,1]) %>% rownames_to_column("site")
-
-# make a vector of all 30 families
-families = stringr::str_extract(gt$ID, "[^_]+") %>% unique()
-
-# make an empty list
-sites = list()
-  
-for (fam in families) {
-  sites[[fam]] <- df %>%
-    dplyr::select(starts_with(c("site",fam))) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>% 
-    dplyr::filter_at(vars(matches("fnd")), all_vars(. == "1/1")) 
-}
-
-# make a data frame of all sites from all families
-InfoSites_11_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% select(site) %>% distinct()
-
-# make a data frame of all sites from all families
-InfoSites_11_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% select(site) %>% distinct()
-InfoSites_11_01 <- separate(InfoSites_11_01, site, into = c("NW","Chr","Pos"), sep = '_') 
-
-InfoSites_11_01$CHR <- paste(InfoSites_11_01$NW, InfoSites_11_01$Chr, sep = "_")
-InfoSites_11_01 <- InfoSites_11_01 %>% select(c("CHR", "Pos"))
-
-head(InfoSites_11_01)
-```
-There are 12,158 informative sites for the 1/1 x 0/1 F1 "family"  
-Save the file as tsv, so it can be used in the next steps. 
-```{r eval=FALSE, include=T}
-#write_delim(InfoSites_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_11_01.tsv", col_names = FALSE)
-
-# check manually a few IDs and sites,
-#InfoSites_11_01 <- reduce(sites, bind_rows) %>% as.data.frame() %>% distinct(site, .keep_all = TRUE)
-
-#tableInfo = InfoSites_11_01 %>% select(c(site,`300_301a_grnson`)) 
-#tableAll = df %>% select(c(site,`300_301a_grnson`))
-#check <- left_join(tableInfo, tableAll, by = "site") %>% rename(c("300_301a_grnson.x" ="InfoSites", "300_301a_grnson.y" = "AllSites")) %>% na.omit("InfoSites")  
-
-#all(check$InfoSites == check$AllSites)
-```
-
-## (2) Create a map.txt file with sites' physical position
-
-make a map.txt file with the sites assigned to 7 LGs based on their
-physical position use this file as an input for the Order module.
-
-the ordering doesn't have to be fantastic either at the end. We're just
-looking to see if we can get some sort of recombination rate estimates
-and a sense of which sex is showing recombination.
-
-### cross (0/0 x 0/1)
-
-```{r}
-snps <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/snps_611.txt")
-
-CHR = snps$CHR %>% unique()
-LG = as.character(c(1:7))
-LG_Chr = tibble(LG=as.character(c(1:7)), CHR)
-
-map <- left_join(snps, LG_Chr, by = "CHR") %>% 
-  dplyr::select("LG") 
-
-#write_delim(map, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/map_611.txt")
-```
-
-### cross (1/1 x 0/1)
-
-```{r}
-snps <- read_tsv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/snps_202.txt")
-
-CHR = snps$CHR %>% unique()
-LG = as.character(c(1:7))
-LG_Chr = tibble(LG=as.character(c(1:7)), CHR)
-
-map <- left_join(snps, LG_Chr, by = "CHR") %>% 
-  dplyr::select("LG") 
-
-#write_delim(map, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/map_202.txt")
-```
-
-------------------------------------------------------------------------
 # Manual estimation of the recombination rate
+
+See flowchart in Fig 1:    
+
+![](/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/recombintaion_freq_flowchart.png)
 
 Count the sites with each genotype in each family, per chromosome.  
 The counts must be per chromosome, as recombination can occur only

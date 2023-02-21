@@ -18,10 +18,13 @@ output:
 }
 </style>
 
-# AIM: Estimating recombintaion rate by constructing a linkage map for male and female varroa mites
+## AIM: Estimating recombintaion rate by constructing a linkage map for male and female varroa mites
+
+The recombination frequency of *Varroa destructor*, a parasitic mite of honeybees was estimated for male and female adult mites. We used two analysis methods: manual calculation of exact recombination frequency, and computational estimation using a linkage mapping software, Lep-MAP3 (Rastas 2017). For both analyses we used as input a VCF file containing only the ‘Informative sites’. Informative sites are sites that are heterozygotic in the F1 female, and homozygotic for one allele in the F1 male, and his mother (F0 female). Only for these sites we can phase (determine the allele parental origin) the F2 generation genotypes, and follow the inheritance of specific sites through the generations (Fig __).  
+All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/).  
 
 ## Load libraries
-```{r setup}
+```{r setup }
 library("tidyverse")
 library("plyr")
 library("dplyr")
@@ -40,7 +43,7 @@ library("tidyr")
 library("LinkageMapView") # for constructing the linkage map
 library("vcfR") # for extracting genotype data from a vcf file
 
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(include = FALSE, eval = FALSE)
 ```
 
 ## Load Variant Call Format (VCF) file.
@@ -65,7 +68,12 @@ We used the VCF file in two methods to estimate varroa mite recombination freque
 - **Manual estimation of the recombination rate**, R script can be found in the file [manually-estimating-recom.Rmd](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/R_scripts/manually-estimating-recom.Rmd)
 
 # Estimating recombination frequency using Lep-MAP3
-We followed the documentation in the [Lep-MAP3 Wiki page](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/), with a few adjustments.  
+We followed the documentation in the [Lep-MAP3 Wiki page](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/), with a few adjustments (See flowchart in Fig 1).  
+
+![](/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/lep-map flowchart.png)
+
+***
+
 We ran the first two modules: **ParentCall2**, **Filtering2**, then skipped to the last module **OrderMarkers2** that produces the final map file.  
 The input and output files for each modules are as follow:   
 (1) **ParentCall2** module; options = removNonInformative; input = filtered VCF file and pedigree.txt; output =  data.call.  
@@ -96,8 +104,7 @@ F1_fem = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484
 F1_male = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0  
 F0 = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0 
 
-Code for changing sample genotype:
-*https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/formatVCF.sh*
+Code for changing sample genotype, see this [bash script](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/formatVCF.sh)
 
 ## (1) Keep informative sites:
 
@@ -513,9 +520,6 @@ sites_0fem <-  reduce(out_Sites, bind_rows)  %>% distinct() %>% as.data.frame()
 The genetic maps are based on two different crosses: 
  - 0/0 x 0/1
  - 1/1 x 0/1
- 
-the position of the markers are based on recombination frequency (done by Lep-MAP OrderMarkrs2 module)
-code in  ~/Documents/GitHub/varroa-linkage-map/varroa_lepmap/script/lep-MAP3-varroa.Rmd
 
 ### Markers positions, assuming recombinations in *both sexes*
 ```{r}
