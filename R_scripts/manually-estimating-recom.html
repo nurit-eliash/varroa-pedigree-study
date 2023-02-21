@@ -1585,18 +1585,22 @@ body{
 font-size: 12pt;
 }
 </style>
-<div id="aim-estimate-varroa-recombintaion-rate" class="section level2">
-<h2>AIM: Estimate varroa recombintaion rate</h2>
-<p>The recombination frequency was estimated for male and female adult
-mites using two analysis methods: manual calculation of exact
+<div id="aim-estimate-varroa-recombintaion-rate-using-whole-genome-pedigree-data" class="section level2">
+<h2>AIM: Estimate varroa recombintaion rate using whole genome pedigree
+data</h2>
+<p>The recombination frequency of <em>Varroa destructor</em>, a
+parasitic mite of honeybees was estimated for male and female adult
+mites. We used two analysis methods: manual calculation of exact
 recombination frequency, and computational estimation using a linkage
 mapping software, Lep-MAP3 (Rastas 2017). For both analyses we used as
-input only ‘Informative sites’. Informative sites are sites that are
-heterozygotic in the F1 female, and homozygotic for one allele in the F1
-male, and his mother (F0 female). Only for these sites we can phase
-(determine the allele parental origin) the F2 generation genotypes, and
-follow the inheritance of specific sites through the generations (Fig
-__).</p>
+input a VCF file containing only the ‘Informative sites’. Informative
+sites are sites that are heterozygotic in the F1 female, and homozygotic
+for one allele in the F1 male, and his mother (F0 female). Only for
+these sites we can phase (determine the allele parental origin) the F2
+generation genotypes, and follow the inheritance of specific sites
+through the generations (Fig __).<br />
+All biosamples are available in Sequence Read Archive (SRA) under the
+accession PRJNA794941.להוסיף לינק!</p>
 </div>
 <div id="load-libraries" class="section level2">
 <h2>load libraries</h2>
@@ -1634,51 +1638,61 @@ gt &lt;- as.data.frame(t(gt)) %&gt;%
   rownames_to_column(&quot;ID&quot;)
 #clean the ID names
 gt$ID &lt;- sub(&quot;_[^_]+$&quot;, &quot;&quot;, gt$ID)</code></pre>
+<p>We used the VCF file in two methods to estimate varroa mite
+recombination frequency:<br />
+- <strong>Lep-MAP3, a linkage mapping software (Rastas
+2017).</strong><br />
+- <strong>Manual estimation of the recombination rate</strong></p>
 </div>
-<div id="find-informative-sites" class="section level1">
-<h1>(1) Find informative sites</h1>
-<p>Filter for informative F1 crosses. An informative cross is where one
-of the F1 parents is heterozygotic and the other is homozygotic. There
-are 4 possible informative crosses: 0/1x0/0, 0/1x1/1, for males and
-females.<br />
-Then filter among these sites for sites with homozygotic F0 (only for
-these sites, we can phase the F1 female).</p>
-<p>These sites will be used as input for:<br />
-* <strong>Lep-MAP3, a linkage mapping software (Rastas 2017).</strong>
-In which we assume all grandchild belong to the same family (stop after
-this step, step <strong>(1)</strong>, and use the csv output file to
-filter the original VCF file to be used in Lep-MAP3).<br />
-* <strong>Manual estimation of the recombination rate</strong> (continue
-to step <strong>(2)</strong>).</p>
-</div>
-<div id="for-ordering-using-lepmap" class="section level1">
-<h1>For ordering using LepMap</h1>
-<p><strong>(1) Keep:</strong></p>
+<div id="estimating-recombination-frequency-using-lep-map3" class="section level1">
+<h1>Estimating recombination frequency using Lep-MAP3</h1>
+<p>We followed the documentation in the Lep-MAP3 Wiki page (Rastas
+n.d.), with a few adjustments.<br />
+We ran the first two modules: <strong>ParentCall2</strong>,
+<strong>Filtering2</strong>, then skipped to the last module
+<strong>OrderMarkers2</strong> that produces the final map file.<br />
+The input and output files for each modules are as follow:<br />
+(1) <strong>ParentCall2</strong> module; options = removNonInformative;
+input = filtered VCF file and pedigree.txt; output = data.call.<br />
+(2) <strong>Filtering2</strong> module; options = dataTolerance=0.0001,
+removeNonInformative; input = data.call; output = data_f.call. (3)
+<strong>OrderMarkers2</strong> module; options = useKosambi=1
+numMergeIterations=100 sexAveraged=1 outputPhasedData=2
+grandparentPhase=1; input = data_f.call and map.txt files; output =
+order.txt and order.mapped files.</p>
+<p>In the following codes we generated two files necessary for the
+Lep-MAP analysis:<br />
+- the list of informative sites (used to filter the original VCF file),
+for the first module, <strong>ParentCall2</strong>; - and the map.txt
+file, containing the physical position of sites, for the last module,
+<strong>OrderMarkers2</strong>.</p>
+<p><strong>Keep:</strong></p>
 <ul>
 <li>Informative sites.<br />
 </li>
-<li>121 samples.</li>
+<li>121 adult mite samples.</li>
 </ul>
-<p><strong>(2) Change:</strong></p>
+<p><strong>Change:</strong></p>
 <ul>
 <li>Sample ID name (F0, F1_fem, and F1_male)<br />
 </li>
-<li>site gt for the above 3 samples, as per the cross:</li>
+<li>site genotype for the above 3 samples, as per the cross:</li>
 </ul>
-<p><strong>0/0 x 0/1</strong><br />
+<p><strong>For 0/0 x 0/1 cross:</strong><br />
 F1_fem = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484<br />
 F1_male = 0/0:17:17,0:17:565:0:0:0,-5.11751,-51.1547<br />
 F0 = 0/0:17:17,0:17:565:0:0:0,-5.11751,-51.1547</p>
-<p><strong>1/1 x 0/1</strong><br />
+<p><strong>For 1/1 x 0/1 cross:</strong><br />
 F1_fem = 0/1:22:10,12:10:353:12:444:-33.6837,0,-25.484<br />
 F1_male = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0<br />
 F0 = 1/1:17:0,17:0:0:17:629:-56.9466,-5.11751,0</p>
-<p>Code for changing sample genotype:
-<em>/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/formatVCF.sh</em></p>
+<p>Code for changing sample genotype: <em><a href="https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/formatVCF.sh" class="uri">https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/formatVCF.sh</a></em></p>
 <div id="keep-informative-sites" class="section level2">
 <h2>(1) Keep informative sites:</h2>
-<p>filter for informative sites in the original VCF file. ### cross (0/0
-x 0/1) in each family, filter for sites with:<br />
+<p>filter for informative sites in the original VCF file.</p>
+<div id="cross-00-x-01" class="section level3">
+<h3>cross (0/0 x 0/1)</h3>
+<p>in each family, filter for sites with:<br />
 (a) homo x hetero F1 cross (0/0 x 0/1), so we can predict the parental
 and recombinant F2 types.<br />
 (b) homo F0 (0/0), so we can phase the hetero F1 sites.</p>
@@ -1705,9 +1719,18 @@ InfoSites_00_01 &lt;- separate(InfoSites_00_01, site, into = c(&quot;NW&quot;,&q
 
 InfoSites_00_01$CHR &lt;- paste(InfoSites_00_01$NW, InfoSites_00_01$Chr, sep = &quot;_&quot;)
 InfoSites_00_01 &lt;- InfoSites_00_01 %&gt;% select(c(&quot;CHR&quot;, &quot;Pos&quot;))
-  
-# there are 13,651 informative sites for the 0/0 x 0/1 F1 &quot;family&quot;  
-#write_delim(InfoSites_00_01, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_00_01.tsv&quot;, col_names = FALSE)
+head(InfoSites_00_01)</code></pre>
+<pre><code>##              CHR    Pos
+## 1 NW_019211454.1  35412
+## 2 NW_019211454.1 129695
+## 3 NW_019211454.1 139889
+## 4 NW_019211454.1 162349
+## 5 NW_019211454.1 170557
+## 6 NW_019211454.1 179204</code></pre>
+<p>There are 13,651 informative sites for the 0/0 x 0/1 F1
+“family”.<br />
+Save the file as tsv, so it can be used in the next steps.</p>
+<pre class="r"><code>#write_delim(InfoSites_00_01, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_00_01.tsv&quot;, col_names = FALSE)
 
 # check manually a few IDs and sites,
 #InfoSites_00_01 &lt;- reduce(sites, bind_rows) %&gt;% as.data.frame() %&gt;% distinct(site, .keep_all = TRUE)
@@ -1715,6 +1738,7 @@ InfoSites_00_01 &lt;- InfoSites_00_01 %&gt;% select(c(&quot;CHR&quot;, &quot;Pos
 #tableInfo = InfoSites_00_01 %&gt;% select(c(site,`57_58b_grnson`)) 
 #tableAll = df %&gt;% select(c(site,`57_58b_grnson`))
 #left_join(tableInfo, tableAll, by = &quot;site&quot;) %&gt;% rename(c(&quot;57_58b_grnson.x&quot; =&quot;InfoSites&quot;, &quot;57_58b_grnson.y&quot; = &quot;AllSites&quot;)) %&gt;% view()</code></pre>
+</div>
 <div id="cross-11-x-01" class="section level3">
 <h3>cross (1/1 x 0/1)</h3>
 <pre class="r"><code>df  &lt;- setNames(data.frame(t(gt[,-1])), gt[,1]) %&gt;% rownames_to_column(&quot;site&quot;)
@@ -1743,10 +1767,18 @@ InfoSites_11_01 &lt;- separate(InfoSites_11_01, site, into = c(&quot;NW&quot;,&q
 InfoSites_11_01$CHR &lt;- paste(InfoSites_11_01$NW, InfoSites_11_01$Chr, sep = &quot;_&quot;)
 InfoSites_11_01 &lt;- InfoSites_11_01 %&gt;% select(c(&quot;CHR&quot;, &quot;Pos&quot;))
 
-# there are 12,158 informative sites for the 1/1 x 0/1 F1 &quot;family&quot;  
-#write_delim(InfoSites_11_01, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_11_01.tsv&quot;, col_names = FALSE)
-
-
+head(InfoSites_11_01)</code></pre>
+<pre><code>##              CHR     Pos
+## 1 NW_019211454.1 2288702
+## 2 NW_019211454.1 4981575
+## 3 NW_019211454.1 5014039
+## 4 NW_019211454.1 5023955
+## 5 NW_019211454.1 5203660
+## 6 NW_019211454.1 6009378</code></pre>
+<p>There are 12,158 informative sites for the 1/1 x 0/1 F1
+“family”<br />
+Save the file as tsv, so it can be used in the next steps.</p>
+<pre class="r"><code>#write_delim(InfoSites_11_01, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/InfoSites_11_01.tsv&quot;, col_names = FALSE)
 
 # check manually a few IDs and sites,
 #InfoSites_11_01 &lt;- reduce(sites, bind_rows) %&gt;% as.data.frame() %&gt;% distinct(site, .keep_all = TRUE)
@@ -1758,14 +1790,14 @@ InfoSites_11_01 &lt;- InfoSites_11_01 %&gt;% select(c(&quot;CHR&quot;, &quot;Pos
 #all(check$InfoSites == check$AllSites)</code></pre>
 </div>
 </div>
-<div id="next-create-a-map.txt-file-with-sites-physical-position" class="section level2">
-<h2>Next, create a map.txt file with sites’ physical position</h2>
+<div id="create-a-map.txt-file-with-sites-physical-position" class="section level2">
+<h2>(2) Create a map.txt file with sites’ physical position</h2>
 <p>make a map.txt file with the sites assigned to 7 LGs based on their
 physical position use this file as an input for the Order module.</p>
 <p>the ordering doesn’t have to be fantastic either at the end. We’re
 just looking to see if we can get some sort of recombination rate
 estimates and a sense of which sex is showing recombination.</p>
-<div id="cross-00-x-01" class="section level3">
+<div id="cross-00-x-01-1" class="section level3">
 <h3>cross (0/0 x 0/1)</h3>
 <pre class="r"><code>snps &lt;- read_tsv(&quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/snps_611.txt&quot;)</code></pre>
 <pre><code>## Rows: 611 Columns: 2
@@ -1783,7 +1815,7 @@ LG_Chr = tibble(LG=as.character(c(1:7)), CHR)
 map &lt;- left_join(snps, LG_Chr, by = &quot;CHR&quot;) %&gt;% 
   dplyr::select(&quot;LG&quot;) 
 
-write_delim(map, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/map_611.txt&quot;)</code></pre>
+#write_delim(map, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/map_611.txt&quot;)</code></pre>
 </div>
 <div id="cross-11-x-01-1" class="section level3">
 <h3>cross (1/1 x 0/1)</h3>
@@ -1803,25 +1835,23 @@ LG_Chr = tibble(LG=as.character(c(1:7)), CHR)
 map &lt;- left_join(snps, LG_Chr, by = &quot;CHR&quot;) %&gt;% 
   dplyr::select(&quot;LG&quot;) 
 
-write_delim(map, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/map_202.txt&quot;)</code></pre>
-</div>
-</div>
-</div>
-<div id="check-the-reduced-sites" class="section level1">
-<h1>check the reduced sites</h1>
-<p>לעשות את זה אחר כך : לעבוד על החלק של החישוב הידני בנפרד</p>
+#write_delim(map, &quot;/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_11_01/map_202.txt&quot;)</code></pre>
 <hr />
-<div id="for-all-families-pooled-data" class="section level2">
-<h2>For all families (pooled data)</h2>
+</div>
+</div>
+</div>
+<div id="manual-estimation-of-the-recombination-rate" class="section level1">
+<h1>Manual estimation of the recombination rate</h1>
 <p>Count the sites with each genotype in each family, per
 chromosome.<br />
 The counts must be per chromosome, as recombination can occur only
 between sites on the same chromosome.</p>
+<div id="pooled-data-cross-00-x-01" class="section level2">
+<h2>Pooled data (cross 0/0 x 0/1)</h2>
 <pre class="r"><code>table &lt;- gt %&gt;% 
   t() %&gt;%
   as.data.frame() %&gt;%
   row_to_names(row_number = 1)
- # dplyr::select(contains(c(&quot;son&quot;, &quot;dat&quot;, &quot;fnd&quot;))) # keep only adults of F0, F1 and F2 
 
 # set chromosome variable 
 chromosomes = c(&quot;NW_019211454.1&quot;,&quot;NW_019211455.1&quot;,&quot;NW_019211456.1&quot;, &quot;NW_019211457.1&quot;,&quot;NW_019211458.1&quot;,&quot;NW_019211459.1&quot;,&quot;NW_019211460.1&quot;)
@@ -1853,8 +1883,10 @@ fun &lt;- function(df) {
   dplyr::filter_at(vars(matches(&quot;_fnd&quot;)), all_vars(. == &quot;0/0&quot;)) %&gt;%
   dplyr::select(contains(&quot;grn&quot;)) %&gt;% 
   tidyr::pivot_longer(everything())  %&gt;% 
+  #replace_na(list(value=&quot;1/1&quot;)) %&gt;%
   dplyr::rename(sample = name, gt = value) %&gt;%
-  dplyr::count(sample, gt, .drop = FALSE) %&gt;% 
+  tidyr::complete(sample, gt, fill = list(obs = 0)) %&gt;%
+  dplyr::count(sample, gt, .drop = FALSE) %&gt;%
   dplyr::filter(gt %in% c(&quot;0/0&quot;, &quot;1/1&quot;, &quot;0/1&quot;)) %&gt;%
   mutate(n = as.numeric(n)) %&gt;%
   group_by(sample) %&gt;%
@@ -1880,10 +1912,18 @@ for (fam in family) {
 <pre class="r"><code>table %&gt;%
   rownames_to_column(&quot;site&quot;) %&gt;%
   dplyr::filter(stringr::str_detect(site,&quot;NW_019211454.1&quot;)) %&gt;%
-    dplyr::select(starts_with(c(&quot;site&quot;, &quot;240&quot;))) %&gt;%
+    dplyr::select(starts_with(c(&quot;site&quot;, &quot;110&quot;))) %&gt;%
     dplyr::filter_at(vars(matches(&quot;_son&quot;)), all_vars(. == &quot;0/0&quot;)) %&gt;%
     dplyr::filter_at(vars(matches(&quot;_dat&quot;)), all_vars(. == &quot;0/1&quot;)) %&gt;%  
-  dplyr::filter_at(vars(matches(&quot;_fnd&quot;)), all_vars(. == &quot;0/0&quot;)) %&gt;% view()</code></pre>
+  dplyr::filter_at(vars(matches(&quot;_fnd&quot;)), all_vars(. == &quot;0/0&quot;))</code></pre>
+<pre><code>##                      site 110_111_dat 110_111c_grnson 110_111a_grn 110_111b_grn
+## 1 NW_019211454.1_41033969         0/1             0/0         &lt;NA&gt;          0/0
+## 2 NW_019211454.1_69404882         0/1            &lt;NA&gt;          0/1         &lt;NA&gt;
+##   110_111e_grn 110_110_fnd 110_111d_grndat 110_110a_son 110_111f_grn
+## 1          0/0         0/0             0/0          0/0          0/0
+## 2         &lt;NA&gt;         0/0             0/1          0/0         &lt;NA&gt;</code></pre>
+<div id="estimate-recombintaion-frequency" class="section level3">
+<h3>Estimate recombintaion frequency</h3>
 <p>Next, calculate the recombination frequency, that is, the number of
 sites pairs, that are recombinant among the all possible pairs in each
 chromosome.<br />
@@ -1893,29 +1933,130 @@ sites combinations, for males (parthenogenetically produced) and females
 For the 0/0 x 0/1 cross, in both males and females F2, parental type
 will have the same genotype in a pair of sites, while a recombinant type
 will have different genotype in a pair:<br />
-<strong>F2 females:</strong>. * Parental types: 0/1;0/1 and
-0/0;0/0<br />
-* Recombinant types: 0/1;0/0</p>
-<p><strong>F2 males:</strong>. * Parental types: 0/1;0/1 , 0/0;0/0 and
-1/1;1/1 * Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0 (depends on
-the type of parthenogenesis)</p>
+<strong>F2 females:</strong><br />
+- Parental types: 0/1;0/1 and 0/0;0/0<br />
+- Recombinant types: 0/1;0/0</p>
+<p><strong>F2 males:</strong><br />
+- Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1<br />
+- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0 (depends on the type
+of parthenogenesis)</p>
 <p>so all we need to do in order to count recombination events in a
 chromosome, is to count the pairs of <strong>same</strong> and
 <strong>different</strong> genotypes, and divide by the length of the
-chromosome.</p>
-<ul>
-<li>Calculations:<br />
-<strong>Sum of unique pairs</strong> = <em>n(n-1)/2 x n</em> = number of
-genotyped sites (example$total).<br />
-<strong>Male recombinant pairs</strong> = <em>count of 0/1 sites x count
-of 0/0+1/1 sites</em>.<br />
-<strong>Female recombinant pairs</strong> = <em>count of 0/1 sites x
+chromosome in bp.</p>
+<p>Calculations:<br />
+- <strong>Sum of unique pairs</strong> = <em>n(n-1)/2 x n</em> = number
+of genotyped sites (example$total).<br />
+- <strong>Male recombinant pairs</strong> = <em>count of 0/1 sites x
+count of 0/0+1/1 sites</em>.<br />
+- <strong>Female recombinant pairs</strong> = <em>count of 0/1 sites x
 count of 0/0 sites</em>.<br />
-<strong>Recombination frequency</strong> = <em>recombinant pairs / sum
+- <strong>Recombination frequency</strong> = <em>recombinant pairs / sum
 of unique pairs</em>.<br />
-<strong>Normalized recombination freq</strong> = <em>freq/chromosome
-length (bp)</em>.</li>
-</ul>
+- <strong>Normalized recombination freq</strong> = <em>freq/chromosome
+length (bp)</em></p>
+</div>
+</div>
+<div id="pooled-data-cross-11-x-01" class="section level2">
+<h2>Pooled data (cross 1/1 x 0/1)</h2>
+<p>Count the sites with each genotype in each family, per
+chromosome.<br />
+The counts must be per chromosome, as recombination can occur only
+between sites on the same chromosome.</p>
+<pre class="r"><code>table &lt;- gt %&gt;% 
+  t() %&gt;%
+  as.data.frame() %&gt;%
+  row_to_names(row_number = 1)
+
+# set chromosome variable 
+chromosomes = c(&quot;NW_019211454.1&quot;,&quot;NW_019211455.1&quot;,&quot;NW_019211456.1&quot;, &quot;NW_019211457.1&quot;,&quot;NW_019211458.1&quot;,&quot;NW_019211459.1&quot;,&quot;NW_019211460.1&quot;)
+  
+# define a list to put all the data frames in
+chr_list &lt;- list()
+
+# make a list with dataframes - each containing 1 chromosome
+for (chr in chromosomes) {
+  chr_list[[chr]] &lt;- table %&gt;%
+  rownames_to_column(&quot;site&quot;) %&gt;%
+  dplyr::filter(stringr::str_detect(site,chr)) 
+      }
+
+# set a vector of all 30 families:
+family = str_extract(gt$ID, &quot;[^_]+&quot;) %&gt;% unique()
+
+# or, include only families with at least one adult F2
+#family = grep(&quot;grndat|grnson&quot;,gt$ID, value=TRUE) %&gt;%
+#  str_extract(&quot;[^_]+&quot;)  %&gt;%
+#  unique()
+
+
+# make a function to apply:
+fun &lt;- function(df) {
+  df %&gt;%
+  dplyr::select(starts_with(fam)) %&gt;%
+  dplyr::filter_at(vars(matches(&quot;_son&quot;)), all_vars(. == &quot;1/1&quot;)) %&gt;%
+  dplyr::filter_at(vars(matches(&quot;_dat&quot;)), all_vars(. == &quot;0/1&quot;)) %&gt;% 
+  dplyr::filter_at(vars(matches(&quot;_fnd&quot;)), all_vars(. == &quot;1/1&quot;)) %&gt;%
+  dplyr::select(contains(&quot;grn&quot;)) %&gt;% 
+  tidyr::pivot_longer(everything())  %&gt;% 
+  #replace_na(list(value=&quot;1/1&quot;)) %&gt;%
+  dplyr::rename(sample = name, gt = value) %&gt;%
+  tidyr::complete(sample, gt, fill = list(obs = 0)) %&gt;%
+  dplyr::count(sample, gt, .drop = FALSE) %&gt;%
+  dplyr::filter(gt %in% c(&quot;0/0&quot;, &quot;1/1&quot;, &quot;0/1&quot;)) %&gt;%
+  mutate(n = as.numeric(n)) %&gt;%
+  group_by(sample) %&gt;%
+  mutate(total = as.numeric(sum(n))) %&gt;%
+  dplyr::rename(obs = n) %&gt;%
+  mutate(sex = case_when(
+    grepl(&quot;son&quot;, sample) ~ &quot;male&quot;,
+    grepl(&quot;dat&quot;, sample) ~ &quot;female&quot;))
+    }
+
+# make an empty list
+obs &lt;- list() 
+
+# apply the function for each of the chromosome, per family 
+for (fam in family) {
+ obs[[fam]] &lt;- lapply(chr_list, fun)
+}
+
+# bind all families together, to a final data frame containing all observed counts
+#observed &lt;- do.call(&quot;rbind&quot;, obs)</code></pre>
+<div id="estimate-recombintaion-frequency-1" class="section level3">
+<h3>Estimate recombintaion frequency</h3>
+<p>Next, calculate the recombination frequency, that is, the number of
+sites pairs, that are recombinant among the all possible pairs in each
+chromosome.<br />
+we do that by determining the ‘recombinant’ and ‘parental’ types of
+sites combinations, for males (parthenogenetically produced) and females
+(sexually produced) separately.<br />
+For the 0/0 x 0/1 cross, in both males and females F2, parental type
+will have the same genotype in a pair of sites, while a recombinant type
+will have different genotype in a pair:<br />
+<strong>F2 females:</strong><br />
+- Parental types: 0/1;0/1 and 0/0;0/0<br />
+- Recombinant types: 0/1;0/0</p>
+<p><strong>F2 males:</strong><br />
+- Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1<br />
+- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0 (depends on the type
+of parthenogenesis)</p>
+<p>so all we need to do in order to count recombination events in a
+chromosome, is to count the pairs of <strong>same</strong> and
+<strong>different</strong> genotypes, and divide by the length of the
+chromosome in bp.</p>
+<p>Calculations:<br />
+- <strong>Sum of unique pairs</strong> = <em>n(n-1)/2 x n</em> = number
+of genotyped sites (example$total).<br />
+- <strong>Male recombinant pairs</strong> = <em>count of 0/1 sites x
+count of 0/0+1/1 sites</em>.<br />
+- <strong>Female recombinant pairs</strong> = <em>count of 0/1 sites x
+count of 0/0 sites</em>.<br />
+- <strong>Recombination frequency</strong> = <em>recombinant pairs / sum
+of unique pairs</em>.<br />
+- <strong>Normalized recombination freq</strong> = <em>freq/chromosome
+length (bp)</em></p>
+</div>
 </div>
 </div>
 

@@ -60,7 +60,6 @@ setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data
 # get a vector of the input files ('order_.mapped' files in the directory)
 map_files = list.files(path ="/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/data/Q40BIALLDP16HDP40mis.5Chr7.infoSites/Q40BIALLDP16HDP40mis.5Chr7.Sites_00_01/Recom_male_fem", pattern = "\\mapped$", full.names = T)
 
-
 # set a list to put the plots in
 out_plotSites = list()
 
