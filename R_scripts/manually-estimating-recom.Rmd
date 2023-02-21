@@ -29,7 +29,6 @@ The recombination frequency of *Varroa destructor*, a parasitic mite of honeybee
 All biosamples are available in Sequence Read Archive (SRA) under the accession PRJNA794941.להוסיף לינק!
 
 ## load libraries
-
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library("tidyverse")
 library("plyr")
