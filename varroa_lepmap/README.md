@@ -14,6 +14,7 @@ The recombination frequency of Varroa was estimated for male and female adult mi
 
 We followed the documentation in the [Lep-MAP3 Wiki page](https://sourceforge.net/p/lep-map3/wiki/LM3%20Home/), with a few adjustments: ![](lep-map-flowchart.png)
 
+***
 
 All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/). 
 
