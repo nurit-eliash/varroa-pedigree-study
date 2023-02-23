@@ -14,6 +14,7 @@ output:
 editor_options: 
   markdown: 
     wrap: 72
+  chunk_output_type: console
 ---
 
 ```{=html}
@@ -232,9 +233,8 @@ for (chr in chromosomes) {
   mutate(freq_cM_bp = freq/bp)
    
 head(obs_dfAll)
- 
-# plot the median of recombination freq, per chromosome
-# filter out families with low number of sites
+
+# plot the median of recombination freq, per chromosome, filter out families with low number of sites
 ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
     geom_boxplot() +
     facet_wrap(~Chr, scale="free") +

@@ -11,6 +11,8 @@ output:
     toc_float:
       collapsed: yes
       df_print: paged
+editor_options: 
+  chunk_output_type: console
 ---
 <style type="text/css">
   body{
@@ -108,6 +110,8 @@ p_bee_ind <- ggplot(ind_het_bee, aes(x=ind, y=het_prop, color=sex)) +
 
 plot varroa and honeybee plots:
 ```{r}
-grid.arrange(top= grid::textGrob("Proportion of heterozygotic sites in males and females", gp=grid::gpar(fontsize=20)), p_bee, p_var, nrow = 1)
+#grid.arrange(top= grid::textGrob("Proportion of heterozygotic sites in males and females", gp=grid::gpar(fontsize=20)), p_bee, p_var, nrow = 1)
+
+grid.arrange(p_bee, p_var, nrow = 1)
 ```
 
