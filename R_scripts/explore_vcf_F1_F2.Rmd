@@ -58,7 +58,7 @@ library("patchwork") # for gathering the plots
 #library("InfoTrad")
 #library("ggthemes") # for more colors in the ggplot
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
-                     fig.width = 8,
+                     fig.width = 10,
                       fig.asp = 0.6,
                       out.width = "100%")
 #fig.width = 6,fig.asp = 0.8,out.width = "100%"
@@ -239,7 +239,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -251,7 +251,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
@@ -268,7 +268,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 # and females:
 ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
@@ -282,7 +282,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ### (2) F1 male (1/1) x female (1/1)
@@ -372,7 +372,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -384,7 +384,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
@@ -399,7 +399,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -412,7 +412,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 ```
 
@@ -504,7 +504,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -516,7 +516,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
@@ -531,7 +531,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -544,7 +544,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ### (4) F1 male (1/1) x female (0/0)
@@ -635,7 +635,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -647,7 +647,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
@@ -662,7 +662,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -675,7 +675,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
   labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ------------------------------------------------------------------------
@@ -767,8 +767,9 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -779,8 +780,9 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
@@ -793,7 +795,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -804,7 +806,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ### (6) F1 male (1/1) x female (0/1)
@@ -893,8 +895,9 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -905,8 +908,9 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
@@ -919,7 +923,7 @@ ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
 ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
@@ -930,18 +934,13 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ## Crossing heterozygotic male, with homozygotic female
 
 The former crosses of heterozygotic females (5 and 6) show that F2 males can be heterozygotic and carry two alleles, like their mother.\
 **But are these sites real? and if they are, can they be transmitted to their daughters?**\
-Looking at the F2 offspring of crossing heterozygotic F1 males with females, we tested 3 possible predictions:
-
-(1) Heterozygotic sites are false: they are actually hemizygotic (0)
-(2) Heterozygotic sites are false: they are actually hemizygotic (1)
-(3) Heterozygotic sites are real: Males can carry and inherit two alleles (0/1)
 
 ### (7) F1 male (0/1) x female (0/0)
 
@@ -986,89 +985,88 @@ together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = c
     replace(is.na(.), 0) %>%
     mutate(total = as.numeric(sum(obs)))
 
-# state the expected site proportion of each genotype and sex under the different hypothesis:
-# Heterozygotic sites are real:Males can carry and inherit two alleles
-fem_sitesReal <- data.frame(type = "sitesReal", sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5, 0))
-
-# Heterozygotic sites are false:Males can carry and inherit only one allele
-# the heterozygotic sites are actually (0)
-fem_sitesFalse_0 <- data.frame(type = "sitesFalse_0",sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(1,0,0))
-# the heterozygotic sites are actually (1)
-fem_sitesFalse_1 <- data.frame(type = "sitesFalse_1", sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,1,0))
-
-# males F2 genotype is expected to stay the same , as it is produced from unfertilized egg, hence have no paternal inheritance
-male_sitesReal <- data.frame(type = "sitesReal",sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(1,0,0))
-male_sitesFalse_0 <- data.frame(type = "sitesFalse_0",sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(1,0,0))
-male_sitesFalse_1 <- data.frame(type = "sitesFalse_1", sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(1,0,0))
-
-expected_prop <- bind_rows(fem_sitesReal,fem_sitesFalse_0,fem_sitesFalse_1,male_sitesReal,male_sitesFalse_0,male_sitesFalse_1) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
+fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5,0.5,0))
+male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(1,0,0))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
  # mutate(type = "exp")
 
 # using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-expected <- observed %>%
+dat <- together %>%
+  #mutate(sample = as.character(sample)) %>%
   mutate(gt = as.character(gt)) %>%
-  full_join(expected_prop, by = c("gt", "sex")) %>% 
-  mutate(count = total*prop)
-
-x <- observed %>%
-  dplyr::select(c("sample","sex","gt","total", "obs")) %>%
-  mutate(type = "Observed") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-
-dat <-  bind_rows(x, expected) %>% 
-  dplyr::select(-obs)
+  right_join(mendel, by = c("gt", "sex")) %>% 
+  mutate(exp = total*prop)
 ```
 
 ```{r}
-# subset for males and females, and reorder the "types" levels:
-dat_fem <- dat %>% dplyr::filter(sex == "female")
-level_order_fem <- factor(dat_fem$type, level = c("sitesFalse_0", "sitesFalse_1", "sitesReal", "Observed"))
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
 
-dat_male <- dat %>% dplyr::filter(sex == "male")
-level_order_male <- factor(dat_male$type, level = c("sitesFalse_0", "sitesFalse_1", "sitesReal", "Observed"))
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+  
+df_male <- rbind(x, y) %>%
+  dplyr::filter(sex == "male")
+      
+df_fem <- rbind(x, y) %>%
+  dplyr::filter(sex == "female")
 
-p_male_pooled <- ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) + 
-    geom_bar(position="fill", stat="identity", width = 0.8) +
+p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = paste0("F2 Male, pooled sites = ", dat_male %>% dplyr::filter(type == "Observed") %>% summarise(sum(count)) %>% as.numeric()))  + 
-  labs(fill = "Genotype:") + 
+    labs(title = "F2 Males of F1 male (0/1) x female (0/0)", 
+         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+   scale_x_discrete("type", labels = c("Expected","Observed")) +
+labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust = 1),
-        axis.title.x = element_blank())+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-p_female_pooled <- ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) + 
-    geom_bar(position="fill", stat="identity", width = 0.8) +
+p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = paste0("F2 Female, pooled sites = ", dat_fem %>% dplyr::filter(type == "Observed") %>% summarise(sum(count)) %>% as.numeric())) + 
-  labs(fill = "Genotype:") +
+    labs(title = "F2 females of F1 male (0/1) x female (0/0)", 
+         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+   scale_x_discrete("type", labels = c("Expected","Observed")) +
+labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust = 1),
-        axis.title.x = element_blank())+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-combined <- p_female_pooled + p_male_pooled & theme(legend.position = "bottom")
-combined + plot_layout(guides = "collect") + plot_annotation(
-  title = 'F2 genotype. F1 Cross: male (0/1) x female (0/0)')
+grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
 # plot each individual:
-ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) + 
+ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = "F2 male genotype. F1 Cross: male (0/1) x female (0/0)", fill = "Genotype:") +
-    geom_text(data = dat_male %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    labs(title = "F2 Males of F1 male (0/1) x female (0/0)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
-    theme_classic()+ 
-    theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
-        
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) + 
+ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = "F2 female genotype. F1 Cross: male (0/1) x female (0/0)", fill = "Genotype:") + 
-    geom_text(data = dat_fem %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    labs(title = "F2 Females of F1 male (0/1) x female (0/0)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
-    theme_classic()+ 
-    theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ### (8) F1 male (0/1) x female (1/1)
@@ -1114,89 +1112,88 @@ together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = c
     replace(is.na(.), 0) %>%
     mutate(total = as.numeric(sum(obs)))
 
-# state the expected site proportion of each genotype and sex under the different hypothesis:
-# Heterozygotic sites are real:Males can carry and inherit two alleles
-fem_sitesReal <- data.frame(type = "sitesReal", sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0.5,0.5))
-
-# Heterozygotic sites are false:Males can carry and inherit only one allele
-# the heterozygotic sites are actually (0)
-fem_sitesFalse_0 <- data.frame(type = "sitesFalse_0",sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,1,0))
-# the heterozygotic sites are actually (1)
-fem_sitesFalse_1 <- data.frame(type = "sitesFalse_1", sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0,1))
-
-# males F2 genotype is expected to stay the same , as it is produced from unfertilized egg, hence have no paternal inheritance
-male_sitesReal <- data.frame(type = "sitesReal",sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,1))
-male_sitesFalse_0 <- data.frame(type = "sitesFalse_0",sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,1))
-male_sitesFalse_1 <- data.frame(type = "sitesFalse_1", sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,1))
-
-expected_prop <- bind_rows(fem_sitesReal,fem_sitesFalse_0,fem_sitesFalse_1,male_sitesReal,male_sitesFalse_0,male_sitesFalse_1) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
+fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0.5,0.5))
+male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,1))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
  # mutate(type = "exp")
 
 # using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-expected <- observed %>%
+dat <- together %>%
+  #mutate(sample = as.character(sample)) %>%
   mutate(gt = as.character(gt)) %>%
-  full_join(expected_prop, by = c("gt", "sex")) %>% 
-  mutate(count = total*prop)
-
-x <- observed %>%
-  dplyr::select(c("sample","sex","gt","total", "obs")) %>%
-  mutate(type = "Observed") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-
-dat <-  bind_rows(x, expected) %>% 
-  dplyr::select(-obs)
+  right_join(mendel, by = c("gt", "sex")) %>% 
+  mutate(exp = total*prop)
 ```
 
 ```{r}
-# subset for males and females, and reorder the "types" levels:
-dat_fem <- dat %>% dplyr::filter(sex == "female")
-level_order_fem <- factor(dat_fem$type, level = c("sitesFalse_0", "sitesFalse_1", "sitesReal", "Observed"))
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
 
-dat_male <- dat %>% dplyr::filter(sex == "male")
-level_order_male <- factor(dat_male$type, level = c("sitesFalse_0", "sitesFalse_1", "sitesReal", "Observed"))
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+  
+df_male <- rbind(x, y) %>%
+  dplyr::filter(sex == "male")
+      
+df_fem <- rbind(x, y) %>%
+  dplyr::filter(sex == "female")
 
-p_male_pooled <- ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) + 
-    geom_bar(position="fill", stat="identity", width = 0.8) +
+p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = paste0("F2 Male, pooled sites = ", dat_male %>% dplyr::filter(type == "Observed") %>% summarise(sum(count)) %>% as.numeric()))  + 
-  labs(fill = "Genotype:") + 
+    labs(title = "F2 Males of F1 male (0/1) x female (1/1)", 
+         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+   scale_x_discrete("type", labels = c("Expected","Observed")) +
+labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust = 1),
-        axis.title.x = element_blank())+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-p_female_pooled <- ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) + 
-    geom_bar(position="fill", stat="identity", width = 0.8) +
+p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = paste0("F2 Female, pooled sites = ", dat_fem %>% dplyr::filter(type == "Observed") %>% summarise(sum(count)) %>% as.numeric())) + 
-  labs(fill = "Genotype:") +
+    labs(title = "F2 females of F1 male (0/1) x female (1/1)", 
+         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+   scale_x_discrete("type", labels = c("Expected","Observed")) +
+labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust = 1),
-        axis.title.x = element_blank())+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-combined <- p_female_pooled + p_male_pooled & theme(legend.position = "bottom")
-combined + plot_layout(guides = "collect") + plot_annotation(
-  title = 'F2 genotype. F1 Cross: male (0/1) x female (1/1)')
+grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
 # plot each individual:
-ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) + 
+ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = "F2 male genotype. F1 Cross: male (0/1) x female (1/1)", fill = "Genotype:") +
-    geom_text(data = dat_male %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    labs(title = "F2 Males of F1 male (0/1) x female (1/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
-    theme_classic()+ 
-    theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
-        
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) + 
+ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = "F2 female genotype. F1 Cross: male (0/1) x female (1/1)", fill = "Genotype:") + 
-    geom_text(data = dat_fem %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    labs(title = "F2 Females of F1 male (0/1) x female (1/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
-    theme_classic()+ 
-    theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ### (9) F1 male (0/1) x female (0/1)
@@ -1242,89 +1239,88 @@ together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = c
     replace(is.na(.), 0) %>%
     mutate(total = as.numeric(sum(obs)))
 
-# state the expected site proportion of each genotype and sex under the different hypothesis:
-# Heterozygotic sites are real:Males can carry and inherit two alleles
-fem_sitesReal <- data.frame(type = "sitesReal", sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.25, 0.5, 0.25))
-
-# Heterozygotic sites are false:Males can carry and inherit only one allele
-# the heterozygotic sites are actually (0)
-fem_sitesFalse_0 <- data.frame(type = "sitesFalse_0",sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5, 0))
-# the heterozygotic sites are actually (1)
-fem_sitesFalse_1 <- data.frame(type = "sitesFalse_1", sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0, 0.5, 0.5))
-
-# males F2 genotype is expected to stay the same , as it is produced from unfertilized egg, hence have no paternal inheritance
-male_sitesReal <- data.frame(type = "sitesReal",sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
-male_sitesFalse_0 <- data.frame(type = "sitesFalse_0",sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
-male_sitesFalse_1 <- data.frame(type = "sitesFalse_1", sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
-
-expected_prop <- bind_rows(fem_sitesReal,fem_sitesFalse_0,fem_sitesFalse_1,male_sitesReal,male_sitesFalse_0,male_sitesFalse_1) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
+# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
+fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.25,0.5,0.25))
+male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5,0,0.5))
+mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
  # mutate(type = "exp")
 
 # using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-expected <- observed %>%
+dat <- together %>%
+  #mutate(sample = as.character(sample)) %>%
   mutate(gt = as.character(gt)) %>%
-  full_join(expected_prop, by = c("gt", "sex")) %>% 
-  mutate(count = total*prop)
-
-x <- observed %>%
-  dplyr::select(c("sample","sex","gt","total", "obs")) %>%
-  mutate(type = "Observed") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-
-dat <-  bind_rows(x, expected) %>% 
-  dplyr::select(-obs)
+  right_join(mendel, by = c("gt", "sex")) %>% 
+  mutate(exp = total*prop)
 ```
 
 ```{r}
-# subset for males and females, and reorder the "types" levels:
-dat_fem <- dat %>% dplyr::filter(sex == "female")
-level_order_fem <- factor(dat_fem$type, level = c("sitesFalse_0", "sitesFalse_1", "sitesReal", "Observed"))
+x <- dat %>%
+  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
+  mutate(type = "exp") %>%
+  dplyr::rename(count = exp)
 
-dat_male <- dat %>% dplyr::filter(sex == "male")
-level_order_male <- factor(dat_male$type, level = c("sitesFalse_0", "sitesFalse_1", "sitesReal", "Observed"))
+y <- dat %>%
+  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
+  mutate(type = "obs") %>%
+  dplyr::rename(count = obs) %>%
+  mutate(prop = (count/total))
+  
+df_male <- rbind(x, y) %>%
+  dplyr::filter(sex == "male")
+      
+df_fem <- rbind(x, y) %>%
+  dplyr::filter(sex == "female")
 
-p_male_pooled <- ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) + 
-    geom_bar(position="fill", stat="identity", width = 0.8) +
+p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = paste0("F2 Male, pooled sites = ", dat_male %>% dplyr::filter(type == "Observed") %>% summarise(sum(count)) %>% as.numeric()))  + 
-  labs(fill = "Genotype:") + 
+    labs(title = "F2 Males of F1 male (0/1) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+   scale_x_discrete("type", labels = c("Expected","Observed")) +
+labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust = 1),
-        axis.title.x = element_blank())+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-p_female_pooled <- ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) + 
-    geom_bar(position="fill", stat="identity", width = 0.8) +
+p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = paste0("F2 Female, pooled sites = ", dat_fem %>% dplyr::filter(type == "Observed") %>% summarise(sum(count)) %>% as.numeric())) + 
-  labs(fill = "Genotype:") +
+    labs(title = "F2 females of F1 male (0/1) x female (0/1)", 
+         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+   scale_x_discrete("type", labels = c("Expected","Observed")) +
+labs(fill = "Genotype") + 
   theme_classic() +
-  theme(axis.text.x = element_text(size=12, angle = 45,hjust = 1),
-        axis.title.x = element_blank())+scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  theme(axis.text.x = element_text(size=18),
+        axis.text.y = element_text(size=20),
+        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-combined <- p_female_pooled + p_male_pooled & theme(legend.position = "bottom")
-combined + plot_layout(guides = "collect") + plot_annotation(
-  title = 'F2 genotype. F1 Cross: male (0/1) x female (0/1)')
+grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
 
 # plot each individual:
-ggplot(dat_male, aes(fill=gt, y=prop, x=level_order_male)) + 
+ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = "F2 male genotype. F1 Cross: male (0/1) x female (0/1)", fill = "Genotype:") +
-    geom_text(data = dat_male %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    labs(title = "F2 Males of F1 male (0/1) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
-    theme_classic()+ 
-    theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
-        
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 
-ggplot(dat_fem, aes(fill=gt, y=prop, x=level_order_fem)) + 
+ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 siblings") + 
     ylab("Proportion of F2 genotype") +
-    labs(title = "F2 female genotype. F1 Cross: male (0/1) x female (0/1)", fill = "Genotype:") + 
-    geom_text(data = dat_fem %>% filter(gt == "1/1") %>% filter(type == "Observed"), aes(x = 4, y = 0.8, label = total), inherit.aes = FALSE) +
+    labs(title = "F2 Females of F1 male (0/1) x female (0/1)") + 
+   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
+    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
     facet_wrap(~ sample) +
-    theme_classic()+ 
-    theme(legend.position = "bottom", axis.title.x = element_blank(), axis.text.x = element_text(size=8, angle = 45,hjust = 1)) +scale_fill_manual(values=c("#ffbf00", "#9bc53d","#1982c4"))
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
 ```
 
 ## Statistics
