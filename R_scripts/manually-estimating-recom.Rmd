@@ -173,12 +173,11 @@ will have different genotype in a pair:
 
 **F2 males:**  
 - Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1  
-- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0 (depends on the type of
-parthenogenesis)
+- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0  
 
 so all we need to do in order to count recombination events in a
 chromosome, is to count the pairs of **same** and **different**
-genotypes, and divide by the length of the chromosome in bp.  
+genotypes out of the total pair count, and divide by the length of the chromosome in bp.  
 
 Calculations:  
 -  **Sum of unique pairs** = *n(n-1)/2 x n* = number of genotyped sites
