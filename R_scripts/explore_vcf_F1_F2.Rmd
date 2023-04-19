@@ -171,7 +171,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -304,7 +305,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+          dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -436,7 +438,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+            dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -567,7 +570,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+            dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -701,6 +705,7 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
   dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
   dplyr::select(contains("grn")) %>%
@@ -828,7 +833,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+      dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -959,7 +965,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+      dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -1086,7 +1093,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+       dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -1213,7 +1221,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
