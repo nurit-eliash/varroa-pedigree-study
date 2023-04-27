@@ -140,6 +140,10 @@ Then we crossed heterozygotic sites, to explore the mode of genetic inheritance 
 -   **Heterozygotic male, with heterozygotic female:**
     (9) F1 male (0/1) x female (0/1)
 
+
+In addition to the fixed F1 genotypes, we also "fixed" the F0 female genotype to match that of her son (F1 male), so we can phase the alleles of the F1 generations.   
+"Phasing alleles" is the process of determine the parental origin of each allele.  
+for heterozygotic genotype phasing is critical, as it allows the tracking of the allele from one generation tot he next.    
 For each crossing we have expected genotype-ratio of the F2, based on the following assumptions under arrhenotokous haplodiploid system:
 
 -   Fertilized egg develops into diploid female ♀ (2n).\
@@ -423,7 +427,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 #### F2 offpsring
 
 We expect zero sites for this cross, since there is no paternal inheritance to the males.\
-Indeed, there are only 103 sites in the F2 pooled females, and 71 for the F2 pooled males:
+Indeed, there are only 23 sites in the F2 pooled females, and 14 for the F2 pooled males:
 
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -555,7 +559,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 #### F2 offspring
 
 We expect zero sites for this cross, since there is no paternal inheritance to the males.\
-Indeed, there are only 98 sites in the F2 pooled females, and 75 for the F2 pooled males:
+Indeed, there are only 24 sites in the F2 pooled females, and 15 for the F2 pooled males:
 
 ```{r}
 # set the families (include only families with at least one adult F2)
