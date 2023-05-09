@@ -36,6 +36,10 @@ library(dplyr)
 library(ggplot2)
 library("vcfR") # for extracting genotype data from a vcf file
 library(pinfsc50)
+library(reshape)
+library(reshape2)
+library(hrbrthemes)
+library(viridis)
 ```
 
 Set directory
@@ -184,12 +188,93 @@ allele2 <- masplit(ad, record = 2)
 ad1 <- allele1 / (allele1 + allele2)
 ad2 <- allele2 / (allele1 + allele2)
 
-hist(ad2[,"520_520_fnd_S191"], breaks = seq(0,1,by=0.02), col = "#1f78b4", xaxt="n")
-hist(ad1[,"520_520_fnd_S191"], breaks = seq(0,1,by=0.02), col = "#a6cee3", add = TRUE)
+hist(ad2[,"400_401a_grnson_S112"], breaks = seq(0,1,by=0.02), col = "#1f78b4", xaxt="n")
+hist(ad1[,"400_401a_grnson_S112"], breaks = seq(0,1,by=0.02), col = "#a6cee3", add = TRUE)
 axis(side=1, at=c(0,0.25,0.333,0.5,0.666,0.75,1), labels=c(0,"1/4","1/3","1/2","1/3","3/4",1))
 
 #This allows us to focus on the heterozygous variants and we observe a peak at 0.5 consistent with our expectation. However, the frequencies range almost completely from 0 to one. This suggests some improvement could be made.
+```
 
+### Plot all samples Allele balance
+```{r}
+adM <- reshape::melt(ad) 
+colnames(adM) = c("site", "sample", "gt")
+#clean the sample names
+adM$sample <- sub("_[^_]+$", "", adM$sample) 
+
+adTable <- adM %>% separate(gt, c("ref", "alt")) %>% 
+  na.omit()
+# make a table for ploting
+table <- adTable %>% 
+ dplyr::mutate("ref" = as.numeric(ref)) %>%
+ dplyr::mutate("alt" = as.numeric(alt)) %>%
+ dplyr::mutate(Ref=ref/(ref+ alt)) %>%   
+ dplyr::mutate(Alt=alt/(ref+ alt)) %>%
+  dplyr::select(c("site","sample","Ref","Alt")) %>%
+  pivot_longer(c("Ref","Alt")) %>%
+  dplyr::rename("Allele"="name")
+
+#plot adult males
+P_male <- table %>% dplyr::filter(grepl("_son", sample)) %>%
+  ggplot(aes(x=value, color=Allele, fill=Allele)) +
+    geom_histogram() +
+    theme_classic() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)  ) +
+    xlab("Allele balance") +
+    ylab("Site count")+
+  ggtitle("Males Allele balance")+
+  theme(legend.position="bottom")  +
+    facet_wrap(~sample, scales = "free") 
+
+P_female <- table %>% dplyr::filter(grepl("_dat|fnd", sample)) %>%
+  ggplot(aes(x=value, color=Allele, fill=Allele)) +
+    geom_histogram() +
+    theme_classic() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)  ) +
+    xlab("Allele balance") +
+    ylab("Site count")+
+  ggtitle("Females Allele balance")+
+  theme(legend.position="bottom")  +
+    facet_wrap(~sample, scales = "free") 
+
+P_nymph <- table %>% dplyr::filter(stringr::str_ends(sample, "grn")) %>%
+  ggplot(aes(x=value, color=Allele, fill=Allele)) +
+    geom_histogram() +
+    theme_classic() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)  ) +
+    xlab("Allele balance") +
+    ylab("Site count")+
+  ggtitle("Nymph Allele balance")+
+  theme(legend.position="bottom")  +
+    facet_wrap(~sample, scales = "free") 
+```
+
+## Genetic differentiation
+measure population diversity and differentiation. Because VCF data typically do not include population information we’ll have to supply it as a factor. The method ‘nei’ employed here is based on the methods reported by Hedrick (Hedrick 2005). The exception is that the heterozygosities are weighted by the number of alleles observed in each population. This was inspired by hierfstat::pairwise.fst() which uses the number of individuals observed in each population to weight the heterozygosities. By using the number of alleles observed instead of the number of individuals we remove an assumption about how many alleles each individual may contribute. That is, we should be able to accomodate samples of mixed ploidy.
+```{r}
+pop <- as.factor(c("us", "eu", "us", "af", "eu", "us", "mx", "eu", "eu", "sa", "mx", "sa", "us", "sa", "Pmir", "us", "eu", "eu"))
+myDiff <- genetic_diff(vcf, pops = pop, method = 'nei')
+knitr::kable(head(myDiff[,1:15]))
+knitr::kable(head(myDiff[,16:19]))
+
+#We now have information for each variant in the VCF data. Because this is typically a large quantity of information, we’ll want to summarize it. One way is to take averages of the data.
+knitr::kable(round(colMeans(myDiff[,c(3:9,16,19)], na.rm = TRUE), digits = 3))
+
+#Another way to summarize data is to use violin plots.
+dpf <- melt(myDiff[,c(3:8,19)], varnames=c('Index', 'Sample'), value.name = 'Depth', na.rm=TRUE)
+p <- ggplot(dpf, aes(x=variable, y=Depth)) + 
+  geom_violin(fill="#2ca25f", adjust = 1.2) + 
+  xlab("") + 
+  theme_bw()
 ```
 
 ## Individual based statistics
