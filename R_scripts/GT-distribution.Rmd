@@ -1,0 +1,143 @@
+---
+title: "Varroa mite mode of inheritance"
+author: "Nurit Eliash"
+date: "1/24/2022"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+```{=html}
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+```
+
+## load libraries
+```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR") # for extracting genotype data from a vcf file
+library("data.table")
+library("stringr")
+library("janitor")
+```
+
+## Load Variant Call Format (VCF) file.
+Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).
+
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("ID")
+#clean the ID names
+gt$ID <- sub("_[^_]+$", "", gt$ID)
+
+table <-  gt %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) 
+```
+
+read the meta data table
+```{r}
+meta <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/meta_more.csv")
+
+```
+
+## Control: Homozygotic sites (crosses 1-4)
+
+To detect false sites
+
+### (1) F1 male (0/0) x female (0/0)
+
+#### F2 offspring
+
+we expect all F2 offspring to be homozygotic (0/0) like their parents (F1)
+
+```{r include=FALSE}
+# Prepare table with observed and expected counts, per family:
+
+# set the families 
+family = grep("fnd",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+#  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n)
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
+# replace "NA" with zero value when gt doesn't exists
+samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1"))) # add all possible genotypes
+together <- left_join(samples, observed, by=c("sample","gt")) %>% 
+            group_by(sample) %>%
+            mutate(obs = coalesce(obs, 0)) %>% # replace "NA" with zero value when gt doesn't exists
+            mutate(total = as.numeric(sum(obs))) %>%
+            left_join(meta, by="sample") %>%
+            mutate(freq=obs/total)
+
+together %>%
+ #   dplyr::filter("total" > 30) %>%
+ggplot( aes(x=freq, fill=gt)) +
+    geom_histogram(alpha=1, position = 'identity') +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+    theme_classic() +
+    labs(fill="") +
+   facet_wrap(~ sex)
+
+together %>%
+#  dplyr::filter("total" > 30) %>%
+  ggplot(aes(x=freq, group=gt, fill=gt)) +
+    geom_density(adjust=1.5, alpha=1) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+    theme_classic() +
+   facet_wrap(~ sex) 
+
+
+
+```
+
+   
+  together %>%  
+  pivot_wider(names_from="gt", values_from="obs")  %>% 
+  mutate()
+    view()     
