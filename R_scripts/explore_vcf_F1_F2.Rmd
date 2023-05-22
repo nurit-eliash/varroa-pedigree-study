@@ -150,24 +150,28 @@ For each crossing we have expected genotype-ratio of the F2, based on the follow
 -   Unfertilized egg develops into haploid male ♂ (n).\
 -   No paternal inheritance in the males.
 
+```{r}
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# or, include all F2 samples, but indicate if they have an adult sister (may indicate if the F1 female was fertilized)
+#family = grep("grn",gt$ID, value=TRUE) %>%
+#  str_extract("[^_]+")  %>%
+#  unique()
+```
+
 ## Control: Homozygotic sites (crosses 1-4)
 
 To detect false sites
 
 ### (1) F1 male (0/0) x female (0/0)
 
-#### F2 offspring
-
 we expect all F2 offspring to be homozygotic (0/0) like their parents (F1)
 
 ```{r include=FALSE}
 # Prepare table with observed and expected counts, per family:
-
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -239,19 +243,19 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/1") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
         axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
+  
 p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/0) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/1") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
     scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -506,7 +510,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -518,7 +522,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/0) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
     scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -638,7 +642,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (1/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -650,7 +654,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (1/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric()))+ 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count)))+ 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -772,7 +776,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/0) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -785,7 +789,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/0) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -901,7 +905,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (1/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -914,7 +918,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (1/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -953,8 +957,6 @@ The former crosses of heterozygotic females (5 and 6) show that F2 males can be 
 **But are these sites real? and if they are, can they be transmitted to their daughters?**\
 
 ### (7) F1 male (0/1) x female (0/0)
-
-#### F2 offspring
 
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -1033,7 +1035,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -1046,7 +1048,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -1082,14 +1084,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 
 ### (8) F1 male (0/1) x female (1/1)
 
-#### F2 offspring
-
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -1161,7 +1156,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/1) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -1174,7 +1169,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/1) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -1210,14 +1205,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 
 ### (9) F1 male (0/1) x female (0/1)
 
-#### F2 offspring
-
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -1289,7 +1277,7 @@ p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 males") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 Males of F1 male (0/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
@@ -1302,7 +1290,7 @@ p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
     xlab("F2 females") + 
     ylab("Proportion of F2 genotype") +
     labs(title = "F2 females of F1 male (0/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
+         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
    scale_x_discrete("type", labels = c("Expected","Observed")) +
 labs(fill = "Genotype") + 
   theme_classic() +
