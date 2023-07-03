@@ -1,5 +1,5 @@
 ---
-title: "Varroa mite mode of inheritance"
+title: "Varroa mite mode of inheritance-all grandkids"
 author: "Nurit Eliash"
 date: "1/24/2022"
 output:

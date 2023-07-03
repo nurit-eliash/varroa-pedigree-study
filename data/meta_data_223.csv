@@ -1,0 +1,224 @@
+﻿name,sample,family,dev_stage,generation,sex,pedigree
+110_110_fnd,110_110_fnd_S42,110,Adult,F0,female,F0_female_110
+110_110a_son,110_110a_son_S43,110,Adult,F1,male,F1_male_110
+110_111_dat,110_111_dat_S44,110,Adult,F1,female,F1_female_110
+110_111a_grn,110_111a_grn_S45,110,Nymph,F2,not determined,F2_not determined_110
+110_111b_grn,110_111b_grn_S46,110,Egg,F2,not determined,F2_not determined_110
+110_111c_grnson,110_111c_grnson_S47,110,Adult,F2,male,F2_male_110
+110_111d_grndat,110_111d_grndat_S48,110,Adult,F2,female,F2_female_110
+110_111e_grn,110_111e_grn_S49,110,Nymph,F2,not determined,F2_not determined_110
+110_111f_grn,110_111f_grn_S50,110,Nymph,F2,not determined,F2_not determined_110
+133_133_fnd,133_133_fnd_S51,133,Adult,F0,female,F0_female_133
+133_133a_son,133_133a_son_S52,133,Adult,F1,male,F1_male_133
+133_134_dat,133_134_dat_S53,133,Adult,F1,female,F1_female_133
+133_134a_grnson,133_134a_grnson_S54,133,Adult,F2,male,F2_male_133
+133_134b_grn,133_134b_grn_S55,133,Nymph,F2,not determined,F2_not determined_133
+133_134c_grn,133_134c_grn_S56,133,Egg,F2,not determined,F2_not determined_133
+177_177_fnd,177_177_fnd_S57,177,Adult,F0,female,F0_female_177
+177_177a_son,177_177a_son_S58,177,Adult,F1,male,F1_male_177
+177_178_dat,177_178_dat_S59,177,Adult,F1,female,F1_female_177
+177_178a_grndat,177_178a_grndat_S60,177,Adult,F2,female,F2_female_177
+177_178b_grnson,177_178b_grnson_S61,177,Adult,F2,male,F2_male_177
+177_178c_grn,177_178c_grn_S62,177,Nymph,F2,not determined,F2_not determined_177
+177_178d_grn,177_178d_grn_S63,177,Nymph,F2,not determined,F2_not determined_177
+187_187_fnd,187_187_fnd_S64,187,Adult,F0,female,F0_female_187
+187_187a_son,187_187a_son_S65,187,Adult,F1,male,F1_male_187
+187_188_dat,187_188_dat_S66,187,Adult,F1,female,F1_female_187
+187_188a_grnson,187_188a_grnson_S67,187,Adult,F2,male,F2_male_187
+187_188b_grn,187_188b_grn_S68,187,Nymph,F2,not determined,F2_not determined_187
+187_188c_grn,187_188c_grn_S69,187,Nymph,F2,not determined,F2_not determined_187
+240_240_fnd,240_240_fnd_S70,240,Adult,F0,female,F0_female_240
+240_240a_son,240_240a_son_S71,240,Adult,F1,male,F1_male_240
+240_241_dat,240_241_dat_S72,240,Adult,F1,female,F1_female_240
+240_241a_grndat,240_241a_grndat_S73,240,Adult,F2,female,F2_female_240
+240_241b_grndat,240_241b_grndat_S133,240,Adult,F2,female,F2_female_240
+240_241c_grnson,240_241c_grnson_S74,240,Adult,F2,male,F2_male_240
+240_241d_grn,240_241d_grn_S75,240,Nymph,F2,not determined,F2_not determined_240
+240_241e_grn,240_241e_grn_S76,240,Nymph,F2,not determined,F2_not determined_240
+266_266_fnd,266_266_fnd_S77,266,Adult,F0,female,F0_female_266
+266_266a_son,266_266a_son_S78,266,Adult,F1,male,F1_male_266
+266_267_dat,266_267_dat_S79,266,Adult,F1,female,F1_female_266
+266_267a_grndat,266_267a_grndat_S134,266,Adult,F2,female,F2_female_266
+266_267b_grndat,266_267b_grndat_S80,266,Adult,F2,female,F2_female_266
+266_267c_grn,266_267c_grn_S81,266,Nymph,F2,not determined,F2_not determined_266
+284_284_fnd,284_284_fnd_S82,284,Adult,F0,female,F0_female_284
+284_284a_son,284_284a_son_S83,284,Adult,F1,male,F1_male_284
+284_285_dat,284_285_dat_S84,284,Adult,F1,female,F1_female_284
+284_285a_grnson,284_285a_grnson_S85,284,Adult,F2,male,F2_male_284
+284_285b_grndat,284_285b_grndat_S86,284,Adult,F2,female,F2_female_284
+284_285c_grn,284_285c_grn_S87,284,Nymph,F2,not determined,F2_not determined_284
+284_285d_sis,284_285d_sis_S88,284,Adult,F1,female,F1_female_284
+300_300_fnd,300_300_fnd_S89,300,Adult,F0,female,F0_female_300
+300_300a_son,300_300a_son_S90,300,Adult,F1,male,F1_male_300
+300_301_dat,300_301_dat_S212,300,Adult,F1,female,F1_female_300
+300_301a_grnson,300_301a_grnson_S91,300,Adult,F2,male,F2_male_300
+300_301b_grn,300_301b_grn_S92,300,Nymph,F2,not determined,F2_not determined_300
+300_301c_grn,300_301c_grn_S93,300,Egg,F2,not determined,F2_not determined_300
+302_302_fnd,302_302_fnd_S94,302,Adult,F0,female,F0_female_302
+302_302a_son,302_302a_son_S95,302,Adult,F1,male,F1_male_302
+302_303_dat,302_303_dat_S96,302,Adult,F1,female,F1_female_302
+302_303a_grn,302_303a_grn_S97,302,Nymph,F2,not determined,F2_not determined_302
+302_303b_grnson,302_303b_grnson_S98,302,Adult,F2,male,F2_male_302
+322_322_fnd,322_322_fnd_S99,322,Adult,F0,female,F0_female_322
+322_322a_son,322_322a_son_S213,322,Adult,F1,male,F1_male_322
+322_323_dat,322_323_dat_S214,322,Adult,F1,female,F1_female_322
+322_323a_grndat,322_323a_grndat_S100,322,Adult,F2,female,F2_female_322
+322_323b_grnson,322_323b_grnson_S215,322,Adult,F2,male,F2_male_322
+322_323c_grn,322_323c_grn_S216,322,Nymph,F2,not determined,F2_not determined_322
+322_323d_grn,322_323d_grn_S217,322,Nymph,F2,not determined,F2_not determined_322
+338_338_fnd,338_338_fnd_S101,338,Adult,F0,female,F0_female_338
+338_338a_son,338_338a_son_S102,338,Adult,F1,male,F1_male_338
+338_339_dat,338_339_dat_S103,338,Adult,F1,female,F1_female_338
+338_339a_grndat,338_339a_grndat_S104,338,Adult,F2,female,F2_female_338
+338_339b_grnson,338_339b_grnson_S105,338,Adult,F2,male,F2_male_338
+338_339c_grn,338_339c_grn_S106,338,Nymph,F2,not determined,F2_not determined_338
+338_339d_grn,338_339d_grn_S107,338,Nymph,F2,not determined,F2_not determined_338
+338_339e_grn,338_339e_grn_S108,338,Egg,F2,not determined,F2_not determined_338
+400_400_fnd,400_400_fnd_S109,400,Adult,F0,female,F0_female_400
+400_400a_son,400_400a_son_S110,400,Adult,F1,male,F1_male_400
+400_401_dat,400_401_dat_S111,400,Adult,F1,female,F1_female_400
+400_401a_grnson,400_401a_grnson_S112,400,Adult,F2,male,F2_male_400
+412_412_fnd,412_412_fnd_S113,412,Adult,F0,female,F0_female_412
+412_412a_son,412_412a_son_S114,412,Adult,F1,male,F1_male_412
+412_413_dat,412_413_dat_S115,412,Adult,F1,female,F1_female_412
+412_413a_grnson,412_413a_grnson_S116,412,Adult,F2,male,F2_male_412
+412_413b_grn,412_413b_grn_S117,412,Nymph,F2,not determined,F2_not determined_412
+426_426_fnd,426_426_fnd_S118,426,Adult,F0,female,F0_female_426
+426_426a_son,426_426a_son_S119,426,Adult,F1,male,F1_male_426
+426_427_dat,426_427_dat_S120,426,Adult,F1,female,F1_female_426
+426_427a_grndat,426_427a_grndat_S121,426,Adult,F2,female,F2_female_426
+426_427b_grnson,426_427b_grnson_S122,426,Adult,F2,male,F2_male_426
+426_427c_grn,426_427c_grn_S123,426,Nymph,F2,not determined,F2_not determined_426
+426_427d_grn,426_427d_grn_S124,426,Nymph,F2,not determined,F2_not determined_426
+426_427e_grn,426_427e_grn_S125,426,Nymph,F2,not determined,F2_not determined_426
+426_427f_grn,426_427f_grn_S126,426,Nymph,F2,not determined,F2_not determined_426
+43_43_fnd,43_43_fnd_S1,43,Adult,F0,female,F0_female_43
+43_43a_son,43_43a_son_S2,43,Adult,F1,male,F1_male_43
+43_43b_sis,43_43b_sis_S3,43,Adult,F1,female,F1_female_43
+43_44_dat,43_44_dat_S4,43,Adult,F1,female,F1_female_43
+43_44a_grndat,43_44a_grndat_S5,43,Adult,F2,female,F2_female_43
+43_44b_grnson,43_44b_grnson_S6,43,Adult,F2,male,F2_male_43
+43_44c_grn,43_44c_grn_S7,43,Nymph,F2,not determined,F2_not determined_43
+43_44d_grn,43_44d_grn_S8,43,Nymph,F2,not determined,F2_not determined_43
+458_458_fnd,458_458_fnd_S127,458,Adult,F0,female,F0_female_458
+458_458a_son,458_458a_son_S128,458,Adult,F1,male,F1_male_458
+458_459_dat,458_459_dat_S129,458,Adult,F1,female,F1_female_458
+458_459a_grnson,458_459a_grnson_S130,458,Adult,F2,male,F2_male_458
+458_459b_grn,458_459b_grn_S131,458,Nymph,F2,not determined,F2_not determined_458
+458_459c_grn,458_459c_grn_S132,458,Egg,F2,not determined,F2_not determined_458
+46_46_fnd,46_46_fnd_S9,46,Adult,F0,female,F0_female_46
+46_46a_son,46_46a_son_S10,46,Adult,F1,male,F1_male_46
+46_46b_sis,46_46b_sis_S11,46,Nymph,F1,not determined,F1_not determined_46
+46_47_dat,46_47_dat_S12,46,Adult,F1,female,F1_female_46
+46_47a_grn,46_47a_grn_S13,46,Nymph,F2,not determined,F2_not determined_46
+46_47b_grn,46_47b_grn_S14,46,Nymph,F2,not determined,F2_not determined_46
+46_47c_grndat,46_47c_grndat_S15,46,Adult,F2,female,F2_female_46
+46_47d_grnson,46_47d_grnson_S16,46,Adult,F2,male,F2_male_46
+46_47e_grn,46_47e_grn_S17,46,Nymph,F2,not determined,F2_not determined_46
+46_47f_grn,46_47f_grn_S18,46,Nymph,F2,not determined,F2_not determined_46
+46_47g_grn,46_47g_grn_S19,46,Nymph,F2,not determined,F2_not determined_46
+476_476_fnd,476_476_fnd_S156,476,Adult,F0,female,F0_female_476
+476_476a_son,476_476a_son_S157,476,Adult,F1,male,F1_male_476
+476_477_dat,476_477_dat_S158,476,Adult,F1,female,F1_female_476
+476_477a_grndat,476_477a_grndat_S159,476,Adult,F2,female,F2_female_476
+476_477b_grnson,476_477b_grnson_S160,476,Adult,F2,male,F2_male_476
+476_477c_grndat,476_477c_grndat_S161,476,Adult,F2,female,F2_female_476
+476_477d_grndat,476_477d_grndat_S162,476,Adult,F2,female,F2_female_476
+476_477e_grn,476_477e_grn_S163,476,Egg,F2,not determined,F2_not determined_476
+478_478_fnd,478_478_fnd_S164,478,Adult,F0,female,F0_female_478
+478_478a_son,478_478a_son_S165,478,Adult,F1,male,F1_male_478
+478_479-1_dat,478_479-1_dat_S166,478,Adult,F1,female,F1_female_478
+478_479-1a_grnson,478_479-1a_grnson_S167,478,Adult,F2,male,F2_male_478
+478_479-1b_grndat,478_479-1b_grndat_S168,478,Adult,F2,female,F2_female_478
+478_479-1c_grn,478_479-1c_grn_S169,478,Nymph,F2,not determined,F2_not determined_478
+478_479-1d_grn,478_479-1d_grn_S170,478,Nymph,F2,not determined,F2_not determined_478
+478_479-1e_grn,478_479-1e_grn_S171,478,Egg,F2,not determined,F2_not determined_478
+478_479-2_dat,478_479-2_dat_S172,478,Adult,F1,female,F1_female_478
+478_479-2a_grndat,478_479-2a_grndat_S173,478,Adult,F2,female,F2_female_478
+478_479-2b_grnson,478_479-2b_grnson_S174,478,Adult,F2,male,F2_male_478
+478_479-2c_grn,478_479-2c_grn_S218,478,Nymph,F2,not determined,F2_not determined_478
+478_479-2d_grndat,478_479-2d_grndat_S175,478,Adult,F2,female,F2_female_478
+48_48_fnd,48_48_fnd_S20,48,Adult,F0,female,F0_female_48
+48_48a_son,48_48a_son_S21,48,Adult,F1,male,F1_male_48
+48_48b_sis,48_48b_sis_S22,48,Nymph,F1,not determined,F1_not determined_48
+48_49_dat,48_49_dat_S23,48,Adult,F1,female,F1_female_48
+48_49a_grn,48_49a_grn_S24,48,Nymph,F2,not determined,F2_not determined_48
+48_49b_grn,48_49b_grn_S25,48,Nymph,F2,not determined,F2_not determined_48
+48_49c_grn,48_49c_grn_S26,48,Egg,F2,not determined,F2_not determined_48
+48_49d_grn,48_49d_grn_S27,48,Egg,F2,not determined,F2_not determined_48
+48_49e_grn,48_49e_grn_S221,48,Nymph,F2,not determined,F2_not determined_48
+48_49f_grn,48_49f_grn_S222,48,Nymph,F2,not determined,F2_not determined_48
+48_49g_grn,48_49g_grn_S223,48,Egg,F2,not determined,F2_not determined_48
+498_498_fnd,498_498_fnd_S219,498,Adult,F0,female,F0_female_498
+498_498a_son,498_498a_son_S176,498,Adult,F1,male,F1_male_498
+498_499_dat,498_499_dat_S177,498,Adult,F1,female,F1_female_498
+498_499a_grnson,498_499a_grnson_S178,498,Adult,F2,male,F2_male_498
+498_499b_grndat,498_499b_grndat_S179,498,Adult,F2,female,F2_female_498
+498_499c_grndat,498_499c_grndat_S180,498,Adult,F2,female,F2_female_498
+498_499d_grn,498_499d_grn_S181,498,Nymph,F2,not determined,F2_not determined_498
+498_499e_grn,498_499e_grn_S182,498,Egg,F2,not determined,F2_not determined_498
+502_502_fnd,502_502_fnd_S183,502,Adult,F0,female,F0_female_502
+502_502a_son,502_502a_son_S220,502,Adult,F1,male,F1_male_502
+502_503_dat,502_503_dat_S184,502,Adult,F1,female,F1_female_502
+502_503a_grndat,502_503a_grndat_S185,502,Adult,F2,female,F2_female_502
+502_503b_grnson,502_503b_grnson_S186,502,Adult,F2,male,F2_male_502
+502_503c_grn,502_503c_grn_S187,502,Nymph,F2,not determined,F2_not determined_502
+502_503d_grn,502_503d_grn_S188,502,Nymph,F2,not determined,F2_not determined_502
+502_503e_grn,502_503e_grn_S189,502,Egg,F2,not determined,F2_not determined_502
+502_503f_grndat,502_503f_grndat_S190,502,Adult,F2,female,F2_female_502
+520_520_fnd,520_520_fnd_S191,520,Adult,F0,female,F0_female_520
+520_520a_son,520_520a_son_S192,520,Adult,F1,male,F1_male_520
+520_521_dat,520_521_dat_S193,520,Adult,F1,female,F1_female_520
+520_521a_grn,520_521a_grn_S194,520,Nymph,F2,not determined,F2_not determined_520
+520_521b_grn,520_521b_grn_S195,520,Egg,F2,not determined,F2_not determined_520
+520_521c_grn,520_521c_grn_S196,520,Egg,F2,not determined,F2_not determined_520
+520_521d_grn,520_521d_grn_S197,520,Egg,F2,not determined,F2_not determined_520
+520_521e_grn,520_521e_grn_S198,520,Egg,F2,not determined,F2_not determined_520
+534_534_fnd,534_534_fnd_S135,534,Adult,F0,female,F0_female_534
+534_534a_son,534_534a_son_S136,534,Adult,F1,male,F1_male_534
+534_535_1_sis,534_535_1_sis_S137,534,Adult,F1,female,F1_female_534
+534_535_2_dat,534_535_2_dat_S138,534,Adult,F1,female,F1_female_534
+534_535_2a_grndat,534_535_2a_grndat_S139,534,Adult,F2,female,F2_female_534
+534_535_2b_grn,534_535_2b_grn_S140,534,Nymph,F2,not determined,F2_not determined_534
+534_535_2c_grnson,534_535_2c_grnson_S141,534,Adult,F2,male,F2_male_534
+534_535_2d_grn,534_535_2d_grn_S142,534,Nymph,F2,not determined,F2_not determined_534
+534_535_3_dat,534_535_3_dat_S143,534,Adult,F1,female,F1_female_534
+534_535_3a_grn,534_535_3a_grn_S144,534,Egg,F2,not determined,F2_not determined_534
+548_548_fnd,548_548_fnd_S145,548,Adult,F0,female,F0_female_548
+548_548a_son,548_548a_son_S146,548,Adult,F1,male,F1_male_548
+548_549_dat,548_549_dat_S147,548,Adult,F1,female,F1_female_548
+548_549a_grn,548_549a_grn_S148,548,Egg,F2,not determined,F2_not determined_548
+548_549b_grn,548_549b_grn_S149,548,Egg,F2,not determined,F2_not determined_548
+564_564_fnd,564_564_fnd_S199,564,Adult,F0,female,F0_female_564
+564_564a_son,564_564a_son_S200,564,Adult,F1,male,F1_male_564
+564_565-1_dat,564_565-1_dat_S201,564,Adult,F1,female,F1_female_564
+564_565-1a_grn,564_565-1a_grn_S202,564,Nymph,F2,not determined,F2_not determined_564
+564_565-1b_grnson,564_565-1b_grnson_S203,564,Adult,F2,male,F2_male_564
+564_565-1c_grn,564_565-1c_grn_S204,564,Nymph,F2,not determined,F2_not determined_564
+564_565-2_dat,564_565-2_dat_S205,564,Adult,F1,female,F1_female_564
+564_565-2a_grndat,564_565-2a_grndat_S206,564,Adult,F2,female,F2_female_564
+564_565-2b_grn,564_565-2b_grn_S207,564,Egg,F2,not determined,F2_not determined_564
+57_57_fnd,57_57_fnd_S28,57,Adult,F0,female,F0_female_57
+57_57a_son,57_57a_son_S29,57,Adult,F1,male,F1_male_57
+57_58_dat,57_58_dat_S30,57,Adult,F1,female,F1_female_57
+57_58a_grndat,57_58a_grndat_S31,57,Adult,F2,female,F2_female_57
+57_58b_grnson,57_58b_grnson_S32,57,Adult,F2,male,F2_male_57
+57_58c_grn,57_58c_grn_S33,57,Nymph,F2,not determined,F2_not determined_57
+57_58d_grn,57_58d_grn_S34,57,Nymph,F2,not determined,F2_not determined_57
+596_596_fnd,596_596_fnd_S208,596,Adult,F0,female,F0_female_596
+596_596a_son,596_596a_son_S209,596,Adult,F1,male,F1_male_596
+596_597_dat,596_597_dat_S210,596,Adult,F1,female,F1_female_596
+596_597a_grnson,596_597a_grnson_S211,596,Adult,F2,male,F2_male_596
+596_597b_grn,596_597b_grn_S155,596,Nymph,F2,not determined,F2_not determined_596
+600_600_fnd,600_600_fnd_S150,600,Adult,F0,female,F0_female_600
+600_600a_son,600_600a_son_S151,600,Adult,F1,male,F1_male_600
+600_601_dat,600_601_dat_S152,600,Adult,F1,female,F1_female_600
+600_601a_grnson,600_601a_grnson_S153,600,Adult,F2,male,F2_male_600
+600_601b_grn,600_601b_grn_S154,600,Egg,F2,not determined,F2_not determined_600
+63_63_fnd,63_63_fnd_S35,63,Adult,F0,female,F0_female_63
+63_63a_son,63_63a_son_S36,63,Adult,F1,male,F1_male_63
+63_64_dat,63_64_dat_S37,63,Adult,F1,female,F1_female_63
+63_64a_grn,63_64a_grn_S38,63,Nymph,F2,not determined,F2_not determined_63
+63_64b_grn,63_64b_grn_S39,63,Nymph,F2,not determined,F2_not determined_63
+63_64c_grn,63_64c_grn_S40,63,Egg,F2,not determined,F2_not determined_63
+63_64d_grn,63_64d_grn_S41,63,Egg,F2,not determined,F2_not determined_63
