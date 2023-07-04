@@ -41,6 +41,9 @@ library(reshape2)
 library(hrbrthemes)
 library(viridis)
 library("plotly") # for the 3d plots
+library("gridExtra")
+library(cowplot)
+library(egg)
 ```
 
 Set directory
@@ -299,8 +302,15 @@ P_fem_includ_homo = table %>%   dplyr::filter(sex == "female") %>%
 
 #### allele balance by family
 ```{r}
-table %>%   dplyr::filter(family == "240") %>%
- filter(value>0) %>% 
+#families = c("240","63")
+families = table$family %>% unique() %>% as.character()
+plotlist = list()
+
+# looping over families in table
+for(fam in families) {
+ plotlist[[fam]] =
+  table %>% filter(family == fam) %>%
+    filter(value>0) %>% 
  filter(value<1) %>%
   ggplot( aes(x=value, fill= allele)) +
     geom_histogram(color="black", position = 'identity') +
@@ -311,9 +321,55 @@ table %>%   dplyr::filter(family == "240") %>%
       strip.text.x = element_text(size = 8)) +
     xlab("Allele balance") +
     ylab("Site count")+
-  ggtitle("family 240 Allele balance") +
-  theme(legend.position="bottom")  +
-    facet_wrap(~sample, scales = "free") 
+  ggtitle(paste0("Family ", fam)) +
+  theme(legend.position="blank")  +
+    facet_wrap(~sample, scales = "free", nrow=1) 
+}
+
+all_plots = grid.arrange(grobs = plotlist, nrow=30, egg::set_panel_size)
+
+ggsave("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/plots/myplot.pdf", plot = all_plots,width = 40, height = 100, units = "cm")
+
+
+
+
+
+####
+
+### for 2 plots:
+families = c("240","400","63")
+plotlist = list()
+
+# looping over families in table
+for(fam in families) {
+ plotlist[[fam]] =
+  table %>% filter(family == fam) %>%
+    filter(value>0) %>% 
+ filter(value<1) %>%
+  ggplot( aes(x=value, fill= allele)) +
+    geom_histogram(color="black", position = 'identity') +
+        theme_classic() +
+        theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)) +
+    xlab("Allele balance") +
+    ylab("Site count")+
+  ggtitle(paste0("Family ", fam)) +
+  theme(legend.position="blank")  +
+    facet_wrap(~sample, scales = "free", nrow=1) 
+}
+
+
+all_plots = grid.arrange(grobs = plotlist, nrow=3,  common.legend = TRUE, legend="bottom", widths = unit(0.9, "npc"),  align = "v")
+
+#position.units = "npc", size.units = "mm"), heights = unit(0.5, "npc")
+
+ggsave("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/plots/myplot.pdf", plot = all_plots,width = 40, height = 20, units = "cm")
+
+
+#### זה מאוד מעצבן
+# try to find a way to force all plots to be the same size , regardless of number of plots in a facet
 
 ```
 
