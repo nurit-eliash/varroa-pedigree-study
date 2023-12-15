@@ -1,0 +1,131 @@
+---
+title: "Unsupervized genotype distribution"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+```{=html}
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+```
+
+### load libraries
+```{r}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR")
+library("data.table")
+library("stringr")
+library("janitor")
+library("gmodels")
+library("LinkageMapView") # for constructing the linkage map
+library("plotly")
+#setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/site position")
+```
+
+load VCF file
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("sample")
+
+#clean the ID names
+gt$sample <- sub("_[^_]+$", "", gt$sample)
+
+table <-  gt %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+```
+
+read the meta data table and set the family
+```{r}
+meta <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/meta_more.csv")
+
+# set the families 
+family = grep("fnd",gt$sample, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+```
+
+## Crossing homozygotic male, with heterozygotic female
+### (5) F1 male (0/0) x female (0/1)
+```{r}
+# Prepare table with observed and expected counts, per family:
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+#  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::rename(obs = n)
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
+# replace "NA" with zero value when gt doesn't exists
+samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1"))) # add all possible genotypes
+
+df <- left_join(samples, observed, by=c("sample","gt")) %>%  
+    replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
+    group_by(sample) %>%
+    mutate(total = as.numeric(sum(obs))) %>%
+    mutate(freq=round(obs/total, digit=2)) %>%
+  left_join(meta, by="sample") %>%
+    dplyr::rename(count = obs) %>% 
+  dplyr::select(c("sample", "family", "sex", "gt", "freq")) %>% 
+ tidyr::pivot_wider(names_from = gt, values_from = freq) %>%
+  rename(gt_01="0/1", gt_00="0/0", gt_11="1/1")
+
+
+p = df %>% dplyr::filter(sex %in% c("male", "female")) %>%
+  ggplot(aes(x=gt_01, y=gt_00, color=sex)) + 
+    geom_point(size=2) +
+    theme_bw() +  ggtitle('F2 offspring of F1 male (0/0) x female (0/1)')
+```
+
+```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
+
+ggplotly(p) %>% 
+  layout(legend = list(orientation = "h", x = 0, y = -0.1),
+         title = list(text = paste0('F2 offspring of F1 male (0/0) x female (0/1), ',
+                                    '<br>',
+                                    paste0("site count= ", sum(df$count)))))
+```
+
+
+
