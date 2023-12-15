@@ -1,0 +1,474 @@
+---
+title: "site-by-site heterozygosity"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+```{=html}
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+```
+### load libraries
+
+```{r}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR")
+library("data.table")
+library("stringr")
+library("janitor")
+library("gmodels")
+library("LinkageMapView") # for constructing the linkage map
+library("RIdeogram")
+#setwd("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/site position")
+```
+
+load VCF file
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("sample")
+
+#clean the ID names
+gt$sample <- sub("_[^_]+$", "", gt$sample)
+
+table <-  gt %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+```
+
+# each weird family: 240, 400, 412, 46, 458, 426 
+
+## family (240)
+```{r}
+table_240_F1 <- table %>% dplyr::select(starts_with("240")) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # keep on hetero sites in foundress
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0" | .=="1/1")) %>% # keep only homo sites in son
+  dplyr::select(c(ends_with("_son"))) %>% 
+  rownames_to_column("site")
+  
+# sites that lost heterozygosity in F2 males
+table_240_F2_00 <- table %>% dplyr::select(starts_with("240")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::filter_at(vars(matches("_grnson")), all_vars(. == "0/0" | .=="1/1"))  %>%  view()# keep 0/0 sites in F2 male (sites that lost heterozygosity) 
+  dplyr::select(c(ends_with("_grnson"))) %>% 
+  rownames_to_column("site")
+
+# change the input table, as per your choice 
+varroa_sites <- separate(table_240, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","240_240a_son")) %>%
+    dplyr::rename("gt" = "240_240a_son") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "1/1" sites
+  grepl("0/0",gt)~1,
+  grepl("1/1",gt)~1000))
+```
+
+## family (400)
+```{r}
+# sites that lost heterozygosity in F1 males
+table_400_F1_00 <- table %>% dplyr::select(starts_with("400")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # keep on hetero sites in foundress
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep only homo sites in son
+    dplyr::select(c(ends_with("_son"))) %>% 
+    rownames_to_column("site")
+
+# sites that lost heterozygosity in F2 males
+table_400_F2_00 <- table %>% dplyr::select(starts_with("400")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::filter_at(vars(matches("_grnson")), all_vars(. == "0/0"))  %>% # keep 0/0 sites in F2 male  
+    dplyr::select(c(ends_with("_grnson"))) %>% 
+    rownames_to_column("site")
+```
+
+## family (412)
+```{r}
+# sites that lost heterozygosity in F1 males
+table_412_F1_00 <- table %>% dplyr::select(starts_with("412")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # keep on hetero sites in foundress
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep only homo sites in son
+    dplyr::select(c(ends_with("_son"))) %>% 
+    rownames_to_column("site")
+
+# sites that lost heterozygosity in F2 males
+table_412_F2_00 <- table %>% dplyr::select(starts_with("412")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::filter_at(vars(matches("_grnson")), all_vars(. == "0/0"))  %>% # keep 0/0 sites in F2 male  
+    dplyr::select(c(ends_with("_grnson"))) %>% 
+    rownames_to_column("site")
+```
+
+## family (284)
+```{r}
+table_284 <- table %>% dplyr::select(starts_with("284")) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # keep on hetero sites in foundress
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0" | .=="1/1")) %>% # keep only homo sites in son
+  dplyr::select(c(ends_with("_son"))) %>% 
+  rownames_to_column("site")
+  
+varroa_sites <- separate(table_284, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","284_284a_son")) %>%
+    dplyr::rename("gt" = "284_284a_son") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "1/1" sites
+  grepl("0/0",gt)~1,
+  grepl("1/1",gt)~1000))
+```
+## family (478)
+```{r}
+table_478<- table %>% dplyr::select(starts_with("478")) %>%
+        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # keep on hetero sites in foundress
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0" | .=="1/1")) %>% # keep only homo sites in son
+  dplyr::select(c(ends_with("_son"))) %>% 
+  rownames_to_column("site")
+  
+varroa_sites <- separate(table_400, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","400_400a_son")) %>%
+    dplyr::rename("gt" = "400_400a_son") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "1/1" sites
+  grepl("0/0",gt)~1,
+  grepl("1/1",gt)~1000))
+```
+
+## visualize the sites on the chromosomes using RIdeogram
+https://cran.r-project.org/web/packages/RIdeogram/vignettes/RIdeogram.html
+```{r}
+# for varroa:
+# make the karyotype table with chromosomes start and end position
+varroa_karyotype <- tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
+           Start = 0,
+             End = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147),
+           ) %>% separate(col=Chr, into=c("noting","Chr"), sep="_") %>%
+  dplyr::select(-"noting") %>% as.data.frame()
+  
+# make the table for the sites to be visualized
+varroa_sites <- separate(table_412_F2_00, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","412_413a_grnson")) %>% # select the F1 / F2 male: grnson/son
+    dplyr::rename("gt" = "412_413a_grnson") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "1/1" sites
+  grepl("0/0",gt)~1,
+  grepl("1/1",gt)~1000)) %>% # remove the "gt" column, caus the function takes only 4 columns
+  dplyr::select(-gt)
+
+#RIdeogram::ideogram(karyotype = varroa_karyotype)
+ideogram(karyotype = varroa_karyotype, overlaid = varroa_sites)
+convertSVG("chromosome.svg", device = "png")
+```
+
+## loop for all weird families
+ 240, 400, 412, 46, 458, 426 
+### F1 males
+```{r}
+# define th weird families:
+w_families = c("240", "400", "412", "46", "458", "426")
+
+obs_F1 <- list()
+
+for (fam in w_families) {
+obs_F1[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # filter for hetero sites in the F0 female
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::select(c(ends_with("_son"))) %>%  
+  rownames_to_column("site")
+}
+
+# join all F1 males into one dataframe, and count the number of samples that lost heterozygosity in each site (values can get 1-6)
+F1_males_00_w = obs_F1 %>% reduce(full_join) %>%
+  tidyr::pivot_longer(-"site")  %>%
+  drop_na() %>% 
+  dplyr::count(site, .drop = FALSE) %>% 
+  dplyr::rename(Value = n) %>% 
+  separate(site, into = c("NW","Chr","Pos"), sep = '_') %>% 
+  select(c("Chr","Pos","Value")) %>% 
+  dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+```
+
+### F2 males
+```{r}
+# define th weird families:
+w_families = c("240", "400", "412", "46", "458", "426")
+
+obs_F2 <- list()
+
+for (fam in w_families) {
+obs_F2[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::filter_at(vars(matches("_grnson")), all_vars(. == "0/0"))  %>% # keep 0/0 sites in F2 male  
+    dplyr::select(c(ends_with("_grnson"))) %>%  
+  rownames_to_column("site")
+}
+
+# join all F1 males into one dataframe, and count the number of samples that lost heterozygosity in each site (values can get 1-6)
+F2_males_00_w = obs_F2 %>% reduce(full_join) %>%
+  tidyr::pivot_longer(-"site")  %>%
+  drop_na() %>% 
+  dplyr::count(site, .drop = FALSE) %>% 
+  dplyr::rename(Value = n) %>% 
+  separate(site, into = c("NW","Chr","Pos"), sep = '_') %>% 
+  select(c("Chr","Pos","Value")) %>% 
+  dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+```
+
+
+## join F1 and F2 sites
+```{r}
+F1_all = obs_F1 %>% reduce(full_join)
+  
+F2_all = obs_F2 %>% reduce(full_join) 
+
+all <- full_join(F1_all, F2_all) %>% 
+  tidyr::pivot_longer(-"site")  %>% 
+  drop_na() %>% 
+  dplyr::count(site, .drop = FALSE) %>% 
+  dplyr::rename(Value = n) %>% 
+  separate(site, into = c("NW","Chr","Pos"), sep = '_') %>% 
+  select(c("Chr","Pos","Value")) %>% 
+  dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+
+# filter for the most density sites (at least 2 )
+less <- all %>% filter(Value>1)
+less %>% filter(Value == 1) %>% view()
+```
+
+### visualize the sites density on the chromosomes using RIdeogram
+https://cran.r-project.org/web/packages/RIdeogram/vignettes/RIdeogram.html
+```{r}
+# for varroa:
+# make the karyotype table with chromosomes start and end position
+varroa_karyotype <- tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
+           Start = 0,
+             End = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147),
+           ) %>% separate(col=Chr, into=c("noting","Chr"), sep="_") %>%
+  dplyr::select(-"noting") %>% as.data.frame()
+
+#RIdeogram::ideogram(karyotype = varroa_karyotype)
+ideogram(karyotype = varroa_karyotype, overlaid = less, colorset1 = c("#E52823","#E67D25","#E6D419"))
+ideogram(karyotype = varroa_karyotype, overlaid = F1_males_00_w, colorset1 = c("#4CE6DE","#2776E6","#273AE6"))
+ideogram(karyotype = varroa_karyotype, overlaid = F2_males_00_w, colorset1 = c("#4CE6DE","#2776E6","#273AE6"))
+
+convertSVG("chromosome.svg", device = "png")
+```
+
+
+
+
+## plot the hetero sites in the female, and where it was lost
+### family (400)
+```{r}
+# sites that lost heterozygosity in F2 males
+table_400_F2 <- table %>% dplyr::select(starts_with("400")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::select(c(ends_with("_grnson"))) %>% 
+    rownames_to_column("site") %>%
+    drop_na()
+
+varroa_sites <- separate(table_400_F2, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","400_401a_grnson")) %>%
+    dplyr::rename("gt" = "400_401a_grnson") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "0/1" sites
+  grepl("0/0",gt)~1,
+  grepl("0/1",gt)~10))
+```
+
+### family (412)
+```{r}
+# sites that lost heterozygosity in F2 males
+table_412_F2 <- table %>% dplyr::select(starts_with("412")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::select(c(ends_with("_grnson"))) %>% 
+    rownames_to_column("site") %>%
+    drop_na()
+
+varroa_sites <- separate(table_412_F2, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","412_413a_grnson")) %>%
+    dplyr::rename("gt" = "412_413a_grnson") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "0/1" sites
+  grepl("0/0",gt)~1,
+  grepl("0/1",gt)~10))
+```
+
+### family (302)
+```{r}
+# sites that lost heterozygosity in F2 males
+table_302_F2 <- table %>% dplyr::select(starts_with("302")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::select(c(ends_with("_grnson"))) %>% 
+    rownames_to_column("site") %>%
+    drop_na()
+
+varroa_sites <- separate(table_302_F2, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","302_303b_grnson")) %>%
+    dplyr::rename("gt" = "302_303b_grnson") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "0/1" sites
+  grepl("0/0",gt)~1,
+  grepl("0/1",gt)~10))
+```
+
+### family (600)
+```{r}
+# sites that lost heterozygosity in F2 males
+table_600_F2 <- table %>% dplyr::select(starts_with("600")) %>%
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::select(c(ends_with("_grnson"))) %>% 
+    rownames_to_column("site") %>%
+    drop_na()
+
+varroa_sites <- separate(table_600_F2, site, into = c("NW","Chr","Pos"), sep = '_') %>%
+  select(c("Chr","Pos","600_601a_grnson")) %>%
+    dplyr::rename("gt" = "600_601a_grnson") %>%
+    dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+  dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "0/1" sites
+  grepl("0/0",gt)~1,
+  grepl("0/1",gt)~10))
+```
+
+## loop for all *weird* families
+ 240, 400, 412, 46, 458, 426 
+### F2 males
+```{r}
+# define th weird families:
+w_families = c("240", "400", "412", "46", "458", "426")
+
+obs_F2 <- list()
+
+for (fam in w_families) {
+obs_F2[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% # keep on hetero sites in F1 female
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>% # keep 0/0 sites in F1 male
+    dplyr::select(c(ends_with("_grnson"))) %>%  
+  rownames_to_column("site") %>%
+      drop_na()
+}
+
+# join all F1 males into one dataframe, and count the number of samples that *kept* heterozygosity in each site (values can get 1-6)
+F2_males_01 = obs_F2 %>% reduce(full_join) %>%
+  tidyr::pivot_longer(-"site")  %>% 
+        drop_na() %>% 
+  filter(value == "0/1") %>% 
+dplyr::count(site, .drop = FALSE) %>% 
+  dplyr::rename(Value = n) %>% 
+  separate(site, into = c("NW","Chr","Pos"), sep = '_') %>% 
+  select(c("Chr","Pos","Value")) %>% 
+  dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+   dplyr::mutate("End" = Start + 300000) #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  
+# join all F1 males into one dataframe, and count the number of samples that *LOST* heterozygosity in each site (values can get 1-6)
+F2_males_00 = obs_F2 %>% reduce(full_join) %>%
+  tidyr::pivot_longer(-"site")  %>% 
+        drop_na() %>% 
+  filter(value == "0/0") %>% 
+dplyr::count(site, .drop = FALSE) %>% 
+  dplyr::rename(Value = n) %>% 
+  separate(site, into = c("NW","Chr","Pos"), sep = '_') %>% 
+  select(c("Chr","Pos","Value")) %>% 
+  dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+   dplyr::mutate("End" = Start + 300000) #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+
+# keep all sites , to view on the same plot:
+F2_all <- obs_F2 %>% reduce(full_join) %>%
+  tidyr::pivot_longer(-"site")  %>% 
+  filter(value %in% c("0/0", "0/1")) %>%  
+  separate(site, into = c("NW","Chr","Pos"), sep = '_') %>% 
+  select(c("Chr","Pos","value")) %>% 
+  dplyr::rename("Start" = "Pos") %>%
+  mutate(Start = as.numeric(Start)) %>%
+dplyr::mutate("End" = Start + 300000) %>% #i arbitrary add a value of 300,000, so the line would be visible on the mapping 
+  dplyr::mutate(Value=case_when(# i arbitrary add a "value" for each site, based on the genotype, so we can distinguish btw "0/0" and "0/1" sites
+  grepl("0/0",value)~1,
+  grepl("0/1",value)~10)) %>%
+  select(c("Chr","Start", "End","Value")) %>%
+  distinct(Start,.keep_all = TRUE) # we can decide to keep only unique sites
+  
+
+  
+```
+
+### visualize the sites density on the chromosomes using RIdeogram
+https://cran.r-project.org/web/packages/RIdeogram/vignettes/RIdeogram.html
+```{r}
+# for varroa:
+# make the karyotype table with chromosomes start and end position
+varroa_karyotype <- tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
+           Start = 0,
+             End = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147),
+           ) %>% separate(col=Chr, into=c("noting","Chr"), sep="_") %>%
+  dplyr::select(-"noting") %>% as.data.frame()
+
+#RIdeogram::ideogram(karyotype = varroa_karyotype)
+# for lost sites in one plot:
+ideogram(karyotype = varroa_karyotype, overlaid = F2_males_00, colorset1 = c("#E6D419","#DC0109"))
+
+# for kept sites in one plot:
+ideogram(karyotype = varroa_karyotype, overlaid = F2_males_01, colorset1 = c("#4CE6DE","#273AE6"))
+
+# for lost + kept in the same plot
+ideogram(karyotype = varroa_karyotype, overlaid = F2_all, colorset1 = c("#DC0109","#273AE6"))
+
+convertSVG("chromosome.svg", device = "png")
+```
+
+

@@ -298,6 +298,26 @@ P_fem_includ_homo = table %>%   dplyr::filter(sex == "female") %>%
   ggtitle("Females Allele balance, keep all homo sites") +
   theme(legend.position="bottom")  +
     facet_wrap(~sample, scales = "free") 
+
+# plot everyone
+p_all = table %>% 
+  filter(value>0) %>% # remove the very much homozygotic sites
+  filter(value<1) %>%
+  ggplot( aes(x=value, fill= allele)) +
+    geom_histogram(color="black", position = 'identity') +
+        theme_classic() +
+        theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)) +
+    xlab("Allele balance") +
+    ylab("Site count")+
+  ggtitle("varroa allele balance") +
+  theme(legend.position="bottom")  +
+    facet_wrap(~sample, scales = "free") 
+
+ggsave("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/results/plots/myplot.pdf", plot = p_all,width = 80, height = 60, units = "cm")
+
 ```
 
 #### allele balance by family

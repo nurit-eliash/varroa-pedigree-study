@@ -239,13 +239,16 @@ labs(fill = "Genotype") +
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
         axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+```
+
+```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%"}
 
 grid.arrange(p_male_pooled, p_egg_pooled, p_nymph_pooled, ncol = 3)
-
+```
 
 ################################### do this later
-# plot ratio for each individual: 
-# males:
+ plot ratio for each individual: 
+ males:
 ggplot(filter(together, sex=="male"), aes(fill=gt, y=freq, x=adult_sisters)) + 
     geom_bar(position="fill", stat="identity", ) +
     xlab("F2 siblings") + 
@@ -257,7 +260,7 @@ ggplot(filter(together, sex=="male"), aes(fill=gt, y=freq, x=adult_sisters)) +
   theme_classic() +
   theme(axis.text.x = element_text(size=15),
         axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-```
+
 
 ### (2) F1 male (1/1) x female (1/1)
 
