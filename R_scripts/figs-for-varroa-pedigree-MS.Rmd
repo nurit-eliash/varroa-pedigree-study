@@ -31,9 +31,143 @@ library("ggpubr")
 library("gridExtra")
 library("grid")
 library("GGally")
+library("vcfR") # for extracting genotype data from a vcf file
+library("janitor")
+
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### load VCF file
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("ID")
+#clean the ID names
+gt$ID <- sub("_[^_]+$", "", gt$ID)
+
+table <-gt %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>% 
+  dplyr::select(contains(c("son", "dat", "fnd"))) # keep only adults of F0, F1 and F2 
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+```
+
+# Main figures
+## Figure 2
+Crossing homozygotic male, with heterozygotic female
+(5) F1 male (0/0) x female (0/1)
+
+```{r}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female"))
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
+samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "Male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+    group_by(sample) %>%
+    replace(is.na(.), 0) %>%
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
+
+# make a table with the expected proportions for the different modes of reproduction:
+Haploid = data.frame(mode = "Haploid", gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
+Automixis = data.frame(mode = "Automixis", gt = c("0/0", "0/1", "1/1"),prop = c(0, 1, 0))
+Sexual = data.frame(mode = "Sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0.5, 0))
+
+modes = rbind(Haploid,Automixis,Sexual)
+```
+
+## Pooled sites
+```{r}
+samples_obs_forPlot = samples_obs %>% 
+  dplyr::filter(total>=10) %>%
+  mutate(class = "Observed") %>%
+  dplyr::filter(normality == "normal") %>%
+  select(c("sample","gt", "total", "sex","prop","class")) %>%
+  rename(type = sex)
+  
+modes_forPlot = modes %>% 
+  mutate(class = "Expected") %>%
+    rename(type = mode)
+
+pooled_obs_count =  samples_obs %>% 
+    dplyr::filter(total>=10) %>%
+    dplyr::filter(normality == "normal") %>%
+    filter(gt =="0/0") %>%
+    group_by(sex) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(sex,count)) %>% 
+    unique()
+
+df = rbind(samples_obs_forPlot, modes_forPlot) 
+
+# order the x axis text 
+df$type <- factor(df$type, level=c("Haploid" ,"Sexual","Automixis","Female","Male"))
+
+# change the labales 
+my_strip_labels <- as_labeller(c(
+  "Expected" = "Expected proportions",
+  "Observed" = "Observed proportions"))
+
+df %>% ggplot(aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    ylab("Genotype proportion") +
+    labs(title = "Offspring genotype, crossing (0/0) male x (0/1) female",
+        subtitle = "Pooled sites: females = 5,243, males = 5,747") +
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12),
+          plot.subtitle = element_text(hjust = 0)) +
+   scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "bottom") +
+   facet_grid(.~class, scales = 'free',space = 'free',drop = F,
+              labeller = my_strip_labels)  # add labels
+```
+
+
+# Supp figures
 ## Heterozygosity per individual
 ### varroa mite
 originally from ~/Documents/GitHub/varroa-linkage-map/R_scripts/LinkMap malesHet.Rmd

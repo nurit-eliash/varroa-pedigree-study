@@ -30,7 +30,7 @@ All biosamples are available in Sequence Read Archive (SRA) under the accession 
 All data are available and reproducible from the [GitHub page](https://github.com/nurit-eliash/varroa-linkage-map).  
 
 
-## load libraries
+### load libraries
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library("tidyverse")
 library("plyr")
@@ -52,14 +52,14 @@ library("broom")
 library("DescTools") # for the Goodness-of-Fit test, 3 variables; and for Breslow-Day Test for Homogeneity of the Odds Ratios
 library("vcd") # for the woolf test testign log odds for each pair
 library("patchwork") # for gathering the plots
-#library("fuzzyjoin") # to join tables based on a string in a column
+library("fuzzyjoin") # to join tables based on a string in a column
 #library("aspi") # Repeated G–tests of Goodness-of-Fit, work only for 2 variables..
 #library("RVAideMemoire") # Repeated G–tests of Goodness-of-Fit, work only for 2 variables...
 #library("InfoTrad")
 #library("ggthemes") # for more colors in the ggplot
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
-                      fig.asp = 0.6,
+                      fig.asp = 0.4,
                       out.width = "100%")
 #fig.width = 6,fig.asp = 0.8,out.width = "100%"
 ```
@@ -81,9 +81,15 @@ gt$ID <- sub("_[^_]+$", "", gt$ID)
 
 The individual ID name nomenclature is composed of 3 parts, separated by an underscore (\_).\
 The first part is the family ID, the second is the unique name of the individual, and the the third part indicates its generation, sex, and its position in relation to the foundress mite (generation F0).\
-For example:
-Individual ID *240_240a_son*, belong to family *240*, has a unique name of *240a* and is the *son* of the foundress mite of family 240, that is, its a male of F1 generation.\
-Individual ID *240_241b_grndat*, belong to family *240*, has a unique name of *241b* and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F2 generation (and the daughter of *240_240a_son*).
+
+**For example:**  
+Individual ID *240_240a_son*, belong to family *240*,  
+has a unique name of *240a*,   
+and is the *son* of the foundress mite of family 240, that is, its a male of F1 generation.\
+
+Individual ID *240_241b_grndat*, belong to family *240*,   
+has a unique name of *241b*,   
+and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F2 generation (and the daughter of *240_240a_son*).
 
 ------------------------------------------------------------------------
 
@@ -104,13 +110,13 @@ table <-  gt %>%
 table %>% select(contains(c("240_"))) %>% head()
 ```
 
-The family members include:
+The family members include:  
 
--   F0 generation: foundress female mite (**240_240_fnd**).\
--   F1 generation: adult son (**240_240a_son**) and adult daughter (**240_241_dat**) of the foundress F0 mite. Because in varroa mite reproduction is via sib-mating, these brother and sister will also mate, to produce the F2 generation.\
--   F2 generation: adult grandson (**240_241c_grnson**) and two adult granddaughters (**240_241a_grndat** and **240_241b_grndat**), of the foundress F0 mite.
+-   **F0 generation:** foundress female mite (*240_240_fnd*).\
+-   **F1 generation:** adult son (*240_240a_son*) and adult daughter (*240_241_dat*) of the foundress F0 mite. Because in varroa mite reproduction is via sib-mating, these brother and sister will also mate, to produce the F2 generation.\
+-   **F2 generation:** adult grandson (*240_241c_grnson*) and two adult granddaughters (*240_241a_grndat* and *240_241b_grndat*), of the foundress F0 mite.
 
-Each individual, was genotyped for each site with one of the three genotypes:
+Each individual, is genotyped for each site with one of the three genotypes:
 
 -   Homozygote for the reference allele = **0/0**
 -   Heterozygote = **0/1**
@@ -144,11 +150,14 @@ Then we crossed heterozygotic sites, to explore the mode of genetic inheritance 
 In addition to the fixed F1 genotypes, we also "fixed" the F0 female genotype to match that of her son (F1 male), so we can phase the alleles of the F1 generations.   
 "Phasing alleles" is the process of determine the parental origin of each allele.  
 for heterozygotic genotype phasing is critical, as it allows the tracking of the allele from one generation tot he next.    
-For each crossing we have expected genotype-ratio of the F2, based on the following assumptions under arrhenotokous haplodiploid system:
 
--   Fertilized egg develops into diploid female ♀ (2n).\
--   Unfertilized egg develops into haploid male ♂ (n).\
--   No paternal inheritance in the males.
+Varroa mite was known to have a haplo-diploid reproductive system, in which females are produced sexually, and males are produced in an arrhenotokous haplodiploid system.  
+
+For each crossing we observed the F2 genotype proportion, and compared it to the proportion of 3 known reproductive modes:  
+
+-   **Haploid parthenogenesis:** unfertilized egg develops into haploid male ♂ (n). [no paternal inheritance]\
+-   **Automixis, Diploid parthenogenesis:** two oocytes from mother fuse into a diploid zygote (2n).[no paternal inheritance]\ 
+-   **Sexual reproduction:** fertilized egg develops into diploid female ♀ (2n).[paternal and maternal inheritance]\
 
 ```{r}
 # set the families (include only families with at least one adult F2)
@@ -162,16 +171,13 @@ family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
 #  unique()
 ```
 
-## Control: Homozygotic sites (crosses 1-4)
-
-To detect false sites
+## 'Sanity check': Crossing homozygotic sites (crosses 1-4)
 
 ### (1) F1 male (0/0) x female (0/0)
 
 we expect all F2 offspring to be homozygotic (0/0) like their parents (F1)
 
-```{r include=FALSE}
-# Prepare table with observed and expected counts, per family:
+```{r}
 # define a list to put all the data frames in
 obs <- list()
 
@@ -179,8 +185,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -190,7 +196,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -199,113 +204,126 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
-    grepl("son", sample) ~ "male",
-    grepl("dat", sample) ~ "female")) %>%
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(1,0,0))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(1,0,0))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(1, 0, 0))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(1, 0, 0))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(1, 0, 0))
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+modes = rbind(haploid,automixis,sexual)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-  
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
-
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/0) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-  
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (0/0) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-    scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-# plot ratio for each individual: 
-# males:
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/0) x female (0/0)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
   labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
+  
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-# and females:
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (0/0) x female (0/0)") + 
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
+
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (0/0) x female (0/0)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (0/0) x female (0/0)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) + 
+  theme(legend.position = "none")
+
+
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (0/0) x female (0/0)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
 ### (2) F1 male (1/1) x female (1/1)
-
-#### F2 offspring
-
 we expect all F2 offspring to be homozygotic (1/1) like their parents (F1)
-
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -313,8 +331,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-          dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -324,7 +342,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -333,112 +350,127 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0,1))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,1))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(0, 0, 1))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(0, 0, 1))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0, 0, 1))
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+modes = rbind(haploid,automixis,sexual)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
+  labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
   
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (1/1) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", df_male %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
 
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (1/1) x female (1/1)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (1/1) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", df_fem %>% dplyr::filter(gt == "0/0") %>% dplyr::filter(type == "obs") %>% summarise(sum(total)) %>% as.numeric())) + 
-    scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (1/1) x female (1/1)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (1/1) x female (1/1)") + 
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (1/1) x female (1/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (1/1) x female (1/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
+  labs(fill = "Genotype") +
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
 ### (3) F1 male (0/0) x female (1/1)
-
-#### F2 offpsring
-
-We expect zero sites for this cross, since there is no paternal inheritance to the males.\
+We expect zero sites for this cross, because the F1 are siblings.\
 Indeed, there are only 23 sites in the F2 pooled females, and 14 for the F2 pooled males:
 
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -446,8 +478,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-            dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -457,7 +489,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -466,111 +497,45 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
-
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0,0))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,0))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
-
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-  
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/0) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (0/0) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-    scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/0) x female (1/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (0/0) x female (1/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+pooled_obs_count
 ```
 
 ### (4) F1 male (1/1) x female (0/0)
-
-#### F2 offspring
 
 We expect zero sites for this cross, since there is no paternal inheritance to the males.\
 Indeed, there are only 24 sites in the F2 pooled females, and 15 for the F2 pooled males:
 
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -578,8 +543,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-            dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -589,7 +554,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -598,96 +562,37 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
-
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0,0))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,0))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
-
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
-  
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (1/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (1/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count)))+ 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (1/1) x female (0/0)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (1/1) x female (0/0)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
-  labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=15),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+pooled_obs_count
 ```
 
 ------------------------------------------------------------------------
@@ -696,16 +601,7 @@ ggplot(df_fem, aes(fill=gt, y=prop, x=type)) +
 
 ### (5) F1 male (0/0) x female (0/1)
 
-#### F2 offspring
-
-We expect F2 females' sites to be evenly distributed between 0/1 and 0/0 genotypes, and F2 males to be evenly distributed between 0/0 and 1/1 (as they are hemizygote).
-
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -724,7 +620,6 @@ obs[[fam]] <- table %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -733,107 +628,127 @@ obs[[fam]] <- table %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
-   
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5, 0.5, 0))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex)) %>% mutate(gt = as.character(gt)) 
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(0, 1, 0))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0.5, 0))
+
+modes = rbind(haploid,automixis,sexual)
+ #   right_join(together, by = c("gt", "sex"),multiple = "all") %>% 
+  #select(c("sample", "gt","sex","total" ,"mode", "prop")) 
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
+  labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
   
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/0) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
 
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (0/0) x female (0/1)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (0/0) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/0) x female (0/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (0/0) x female (0/1)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (0/0) x female (0/1)") + 
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (0/0) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
 ### (6) F1 male (1/1) x female (0/1)
 
-#### F2 offpsring
-
-We expect F2 females' sites to be evenly distributed between 0/1 and 1/1 genotypes, and F2 males to be evenly distributed between 0/0 and 1/1 (as they are hemizygote).
-
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -841,8 +756,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-      dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -852,7 +767,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -861,94 +775,120 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0.5,0.5))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5,0,0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(0, 1, 0))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0, 0.5, 0.5))
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+modes = rbind(haploid,automixis,sexual)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
+  labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
   
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (1/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
 
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (1/1) x female (0/1)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (1/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (1/1) x female (0/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (1/1) x female (0/1)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (1/1) x female (0/1)") + 
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (1/1) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
 ## Crossing heterozygotic male, with homozygotic female
@@ -959,11 +899,6 @@ The former crosses of heterozygotic females (5 and 6) show that F2 males can be 
 ### (7) F1 male (0/1) x female (0/0)
 
 ```{r}
-# set the families (include only families with at least one adult F2)
-family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-  str_extract("[^_]+")  %>%
-  unique()
-
 # define a list to put all the data frames in
 obs <- list()
 
@@ -971,8 +906,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-      dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -982,7 +917,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -991,95 +925,120 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.5,0.5,0))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(1,0,0))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(1, 0, 0))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(1, 0, 0))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0.5, 0))
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+modes = rbind(haploid,automixis,sexual)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
+  labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
   
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
 
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (0/1) x female (0/0)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (0/1) x female (0/0)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-# plot each individual:
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/1) x female (0/0)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (0/1) x female (0/0)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (0/1) x female (0/0)") + 
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (0/1) x female (0/0)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
 ### (8) F1 male (0/1) x female (1/1)
@@ -1092,8 +1051,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-       dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
- dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -1103,7 +1062,6 @@ obs[[fam]] <- table %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -1112,97 +1070,123 @@ obs[[fam]] <- table %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0,0.5,0.5))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0,0,1))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(0, 0, 1))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(0, 0, 1))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0, 0.5, 0.5))
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+modes = rbind(haploid,automixis,sexual)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
+  labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
   
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/1) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
 
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (0/1) x female (1/1)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (0/1) x female (1/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-# plot each individual:
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/1) x female (1/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (0/1) x female (1/1)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (0/1) x female (1/1)") + 
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (0/1) x female (1/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
+## Crossing heterozygotic male and female
 ### (9) F1 male (0/1) x female (0/1)
 
 ```{r}
@@ -1213,8 +1197,8 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-        dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
@@ -1224,7 +1208,6 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   mutate(n = as.numeric(n)) %>%
   group_by(sample) %>%
   mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n) %>%
   mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female"))
@@ -1233,95 +1216,120 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
 # bind all families together, to a final data frame containing all observed counts
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
-together <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+  
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "male",
     grepl("dat", sample) ~ "female")) %>%
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
-    mutate(total = as.numeric(sum(obs)))
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
 
-# state the expected site proportion of each genotype and sex under a perfect mendelian segregation of F2
-fem_exp <- data.frame(sex = "female", gt = c("0/0", "0/1", "1/1") , prop = c(0.25,0.5,0.25))
-male_exp <- data.frame(sex = "male",gt = c("0/0", "0/1", "1/1"),prop = c(0.5,0,0.5))
-mendel <- bind_rows(fem_exp,male_exp) %>% mutate(sex = as.character(sex))%>% mutate(gt = as.character(gt)) 
- # mutate(type = "exp")
+# make a table with the expected proportions for the different modes of reproduction:
+haploid = data.frame(mode = "haploid", gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0, 0.5))
+automixis = data.frame(mode = "automixis", gt = c("0/0", "0/1", "1/1"),prop = c(0, 1, 0))
+sexual = data.frame(mode = "sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0.25, 0.5, 0.25))
 
-# using on the total genotypes count of sites per sample, calculate the expected counts, and add them to the observed counts into a final dat table
-dat <- together %>%
-  #mutate(sample = as.character(sample)) %>%
-  mutate(gt = as.character(gt)) %>%
-  right_join(mendel, by = c("gt", "sex")) %>% 
-  mutate(exp = total*prop)
+modes = rbind(haploid,automixis,sexual)
 ```
 
 ```{r}
-x <- dat %>%
-  dplyr::select(c("sample","gt","sex", "exp","prop", "total")) %>%
-  mutate(type = "exp") %>%
-  dplyr::rename(count = exp)
+# order the modes 
+modes$mode <- factor(modes$mode, level=c("haploid", "automixis", "sexual"))
 
-y <- dat %>%
-  dplyr::select(c("sample","gt","sex", "obs","total")) %>%
-  mutate(type = "obs") %>%
-  dplyr::rename(count = obs) %>%
-  mutate(prop = (count/total))
+p_modes <- modes %>% 
+    ggplot(aes(fill=gt, y=prop, x=mode)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    xlab("Possible reproductive modes") + 
+    ylab("Genotype proportion") +
+    labs(title = "Expected proportions") +
+  labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   theme(legend.position = "none")
   
-df_male <- rbind(x, y) %>%
-  dplyr::filter(sex == "male")
-      
-df_fem <- rbind(x, y) %>%
-  dplyr::filter(sex == "female")
+# order the types for the observed proportions 
+samples_obs$type <- factor(samples_obs$type, level=c("female_normal", "male_normal", "male_abnormal"))
 
-p_male_pooled <- ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
+# make a table with site count per pooled data, for the three "types"
+pooled_obs_count =  samples_obs %>% 
+    filter(gt =="0/0") %>%
+    group_by(type) %>% 
+    mutate(count = sum(total)) %>% 
+    select(c(type,count)) %>% 
+    unique()
+
+p_samples <- samples_obs %>% dplyr::filter(total>=10) %>%
+    ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 males") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_male,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+        scale_x_discrete("Genotype proportion", labels = c("Females","Normal 
+males", "Abnormal 
+males")) +
+    xlab("Observed genotype proportion") + 
+    ylab("Genotype proportion") +
+    labs(title = "Observed proportions") + 
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12)) +
+     scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+     theme(legend.position = "none")
 
-p_female_pooled <- ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+pooled_obs_count
+
+# Create plot with legend
+p_legend <- p_samples +theme(legend.position = "bottom")
+# Create user-defined function, which extracts legends from ggplots
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+# Apply user-defined function to extract legend
+shared_legend <- extract_legend(p_legend)
+
+# Draw plots with shared legend
+grid.arrange(arrangeGrob(p_modes, p_samples,ncol = 2), shared_legend, nrow = 2, heights = c(10, 1),top = grid::textGrob("Pooled offspring genotype, crossing male (0/1) x female (0/1)", x = 0, hjust = 0))
+
+# and plot each individual separately
+samples_obs %>% filter(sex == "male") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 females") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 females of F1 male (0/1) x female (0/1)", 
-         subtitle = paste0("Pooled sites = ", sum(dplyr::filter(df_fem,type == "obs")$count))) + 
-   scale_x_discrete("type", labels = c("Expected","Observed")) +
-labs(fill = "Genotype") + 
-  theme_classic() +
-  theme(axis.text.x = element_text(size=18),
-        axis.text.y = element_text(size=20),
-        axis.title.x = element_blank()) +scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
-
-grid.arrange(p_female_pooled, p_male_pooled, ncol = 2)
-
-# plot each individual:
-ggplot(df_male, aes(fill=gt, y=prop, x=type)) + 
-    geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Males of F1 male (0/1) x female (0/1)") + 
-   # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_male, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Male offspring genotype, crossing male (0/1) x female (0/1)") + 
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="male", total>=10), aes(label=total), vjust = 0) +
+   facet_wrap(~ type, scales ="free_x") +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 
-ggplot(df_fem, aes(fill=gt, y=prop, x=type)) + 
+samples_obs %>% filter(sex == "female") %>% 
+  dplyr::filter(total>=10) %>%
+  ggplot(aes(fill=gt, y=prop, x=sample)) + 
     geom_bar(position="fill", stat="identity", ) +
-    xlab("F2 siblings") + 
-    ylab("Proportion of F2 genotype") +
-    labs(title = "F2 Females of F1 male (0/1) x female (0/1)") + 
+    xlab("F2 offspring") + 
+    ylab("Genotype proportion") +
+    labs(title = "Female offspring genotype, crossing male (0/1) x female (0/1)") + 
    # geom_text(aes(label = n), position = position_stack(vjust = 0.5)) +
-    geom_text(data = filter(df_fem, gt == "1/1"), aes(y=prop, x=type, label=total), vjust = 0) +
-    facet_wrap(~ sample) +
+    geom_text(data = filter(samples_obs, gt == "1/1", sex =="female", total>=10), aes(label=total), vjust = 0) +
   labs(fill = "Genotype") +
-  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))
+  theme_classic()+scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+  theme(axis.text.x=element_text(angle = 45, hjust = 1))+ 
+  theme(legend.position = "none")
 ```
 
 ## Statistics
@@ -1375,7 +1383,6 @@ homogen_fem <- woolf_test(Data.xtabs)
 ```
 
 #### CMH Test for males
-
 ```{r eval=FALSE, include=FALSE}
 df <- rbind(x, y) %>%
   dplyr::filter(sex == "male") %>%

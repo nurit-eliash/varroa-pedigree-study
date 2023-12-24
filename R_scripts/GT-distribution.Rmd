@@ -96,10 +96,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -109,16 +108,16 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
-p = df %>% #dplyr::filter(total>10) %>%
+# wrap by gt
+p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
                           ", n:", total))) + 
@@ -130,15 +129,28 @@ scale_shape_manual(values=c(1,19)) +
   ggtitle('F2 offspring of F1 male (0/0) x female (0/0)') +
     facet_wrap( ~gt)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (0/0) x female (0/0)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (0/0) x female (0/0), ',
                                     '<br>',
-                                    paste0("site count= ", sum(df$count)))))
+                                    paste0("site count= ", sum(df$n)))))
 ```
 
 ### (2) F1 male (1/1) x female (1/1)
@@ -160,10 +172,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -173,16 +184,16 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
-p = df %>% #dplyr::filter(total>10) %>%
+# wrap by gt
+p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
                           ", n:", total))) + 
@@ -194,15 +205,28 @@ scale_shape_manual(values=c(1,19)) +
   ggtitle('F2 offspring of F1 male (1/1) x female (1/1)') +
     facet_wrap( ~gt)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (1/1) x female (1/1)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (1/1) x female (1/1), ',
                                     '<br>',
-                                    paste0("site count= ", sum(df$count)))))
+                                    paste0("site count= ", sum(df$n)))))
 ```
 
 ### (3) F1 male (0/0) x female (1/1)
@@ -218,17 +242,16 @@ for (fam in family) {
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
         dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
-dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
   dplyr::select(contains("grn")) %>%
   tidyr::pivot_longer(everything())  %>% 
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -238,16 +261,16 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
-p = df %>% #dplyr::filter(total>10) %>%
+# wrap by gt
+p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
                           ", n:", total))) + 
@@ -259,15 +282,28 @@ scale_shape_manual(values=c(1,19)) +
   ggtitle('F2 offspring of F1 male (0/0) x female (1/1)') +
     facet_wrap( ~gt)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (0/0) x female (1/1)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (0/0) x female (1/1), ',
                                     '<br>',
-                                    paste0("site count= ", sum(df$count)))))
+                                    paste0("site count= ", sum(df$n)))))
 ```
 
 ### (4) F1 male (1/1) x female (0/0)
@@ -290,10 +326,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -303,15 +338,15 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
+# wrap by gt
 p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
@@ -324,18 +359,37 @@ scale_shape_manual(values=c(1,19)) +
   ggtitle('F2 offspring of F1 male (1/1) x female (0/0)') +
     facet_wrap( ~gt)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (1/1) x female (0/0)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (1/1) x female (0/0), ',
                                     '<br>',
-                                    paste0("site count= ", sum(filter(df,count>10)$count)))))
+                                    paste0("site count= ", sum(df$n)))))
 ```
 only family 63 has sites in F2 for this cross.   
 something is wrong...
+
+
+
+
+# Informative crosses:
+analyse "normal" and "abnormal" F2 males separately
 
 ## Crossing homozygotic male, with heterozygotic female
 ### (5) F1 male (0/0) x female (0/1)
@@ -356,10 +410,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -369,15 +422,15 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
+# wrap by gt
 p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
@@ -390,14 +443,31 @@ scale_shape_manual(values=c(1,19)) +
   ggtitle('F2 offspring of F1 male (0/0) x female (0/1)') +
     facet_wrap( ~gt)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (0/0) x female (0/1)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
+
+#### Abnormal males
+240_241c_grnson, 400_401a_grnson,412_413a_grnson, 426_427b_grnson, 458_459a_grnson, 46_47d_grnson
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (0/0) x female (0/1), ',
                                     '<br>',
-                                    paste0("site count= ", sum(df$count)))))
+                                    paste0("site count= ", sum(df$n)))))
 ```
 
 ### (6) F1 male (1/1) x female (0/1)
@@ -418,10 +488,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -431,15 +500,15 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
+# wrap by gt
 p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
@@ -451,6 +520,20 @@ p = df %>% dplyr::filter(total>10) %>%
 scale_shape_manual(values=c(1,19)) +
   ggtitle('F2 offspring of F1 male (1/1) x female (0/1)') +
     facet_wrap( ~gt)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (1/1) x female (0/1)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
@@ -482,10 +565,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -495,15 +577,15 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
+# wrap by gt
 p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
@@ -513,13 +595,26 @@ p = df %>% dplyr::filter(total>10) %>%
   scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
   theme_bw() +
 scale_shape_manual(values=c(1,19)) +
-  ggtitle('F2 offspring of F1 male (0/1) x female (0/0)') +
+  ggtitle('F2 offspring of F1 male (0/1) x female (0/10') +
     facet_wrap( ~gt)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (0/1) x female (0/0)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (0/1) x female (0/0), ',
@@ -545,10 +640,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -558,15 +652,15 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
+# wrap by gt
 p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
@@ -576,13 +670,26 @@ p = df %>% dplyr::filter(total>10) %>%
   scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
   theme_bw() +
 scale_shape_manual(values=c(1,19)) +
-  ggtitle('F2 offspring of F1 male (0/1) x female (1/1)') +
+  ggtitle('F2 offspring of F1 male (0/1) x female (1/1') +
     facet_wrap( ~gt)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (0/1) x female (1/1)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (0/1) x female (1/1), ',
@@ -609,10 +716,9 @@ dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::rename(sample = name, gt = value) %>%
   dplyr::count(sample, gt, .drop = FALSE) %>% 
   dplyr::filter(gt %in% c("0/0", "1/1", "0/1")) %>%
-  mutate(n = as.numeric(n)) %>%
-  group_by(sample) %>%
-#  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::rename(obs = n)
+  mutate(n = as.numeric(n)) #%>%
+#  group_by(sample,gt) %>%
+ # mutate(total = as.numeric(sum(n)))
 }
 
 # bind all families together, to a final data frame containing all observed counts
@@ -622,15 +728,15 @@ samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c
 
 df <- left_join(samples, observed, by=c("sample","gt")) %>%  
     replace(is.na(.),0) %>% # replace "NA" with zero value when gt doesn't exists 
-    group_by(sample) %>%
-    mutate(total = as.numeric(sum(obs))) %>%
-    mutate(freq=round(obs/total, digit=2)) %>%
-  left_join(meta, by="sample") %>%
-    dplyr::rename(count = obs)
+    dplyr::group_by(sample) %>% 
+    dplyr::mutate(total = as.numeric(sum(n))) %>% 
+    dplyr::mutate(freq=round(n/total, digit=2)) %>%
+    left_join(meta, by="sample") 
 
 # order the stages 
 df$sex <- factor(df$sex, level=c("female", "male", "Nymph", "Egg"))
 
+# wrap by gt
 p = df %>% dplyr::filter(total>10) %>%
   ggplot(aes(x = sex, y = freq, colour = gt, shape = adult_sisters, 
               text = paste("sample:", sample,
@@ -640,17 +746,30 @@ p = df %>% dplyr::filter(total>10) %>%
   scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
   theme_bw() +
 scale_shape_manual(values=c(1,19)) +
-  ggtitle('F2 offspring of F1 male (0/1) x female (0/1)') +
+  ggtitle('F2 offspring of F1 male (0/1) x female (0/1') +
     facet_wrap( ~gt)  +  guides(color = "none") +
+ theme(plot.margin = margin(1, 1, 1, 1, "cm"))
+
+# warp by sex
+p = df %>% dplyr::filter(total>10) %>%
+  ggplot(aes(x = gt, y = freq, colour = gt, shape = adult_sisters, 
+              text = paste("sample:", sample,
+                          ", n:", total))) + 
+  geom_boxplot(outlier.shape = NAf, coef=0 ) +
+  geom_jitter(width=0.1, size=2) +
+  scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  theme_bw() +
+scale_shape_manual(values=c(1,19)) +
+  ggtitle('F2 offspring of F1 male (0/1) x female (0/1)') +
+    facet_wrap( ~sex)  +  guides(color = "none") +
  theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
 ```{r,  echo=FALSE,  out.width="100%", out.height="50%"}
-
 ggplotly(p) %>% 
   layout(legend = list(orientation = "h", x = 0, y = -0.1),
          title = list(text = paste0('F2 offspring of F1 male (0/1) x female (0/1), ',
                                     '<br>',
-                                    paste0("site count= ", sum(df$count)))))
+                                    paste0("site count= ", sum(df$n)))))
 ```
 
