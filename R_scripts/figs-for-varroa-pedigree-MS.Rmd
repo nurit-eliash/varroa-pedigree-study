@@ -61,7 +61,7 @@ family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
 ```
 
 # Main figures
-## Figure 2
+## Figure 2. Pedigree genomics
 Crossing homozygotic male, with heterozygotic female
 (5) F1 male (0/0) x female (0/1)
 
@@ -117,7 +117,7 @@ Sexual = data.frame(mode = "Sexual",gt = c("0/0", "0/1", "1/1"),prop = c(0.5, 0.
 modes = rbind(Haploid,Automixis,Sexual)
 ```
 
-## Pooled sites
+Pooled sites
 ```{r}
 samples_obs_forPlot = samples_obs %>% 
   dplyr::filter(total>=10) %>%
@@ -165,6 +165,47 @@ df %>% ggplot(aes(fill=gt, y=prop, x=type)) +
    facet_grid(.~class, scales = 'free',space = 'free',drop = F,
               labeller = my_strip_labels)  # add labels
 ```
+
+
+
+## Figure 3. Flow-cytometry
+original Rmd: ~/Documents/GitHub/varroa_ploidy/R_scripts/varroa-ploidy.Rmd
+```{r}
+data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_ploidy/data/ploidy.csv") %>%
+  dplyr::mutate(Family = as.character(Family)) %>%
+  dplyr::mutate(stage_mature = case_when(
+    grepl("adult", Stage) ~ "Mature",
+    !grepl("adult", Stage) ~ "Imature"))
+
+data %>% dplyr::filter(body.part == "Body") %>%
+ ggplot(aes(x=ploidy, color = Sex, fill = Sex)) + 
+  geom_histogram(position="dodge") +
+   geom_density(alpha=.2) +
+theme_classic2() +
+ggtitle("Ploidy count in mites' whole body
+Flow-cytometry. n=57") +
+  facet_wrap(~stage_mature)
+```
+
+## Figure 4. Karyotyping
+original Rmd: ~/Documents/GitHub/varroa-karyotyping/varroa karyotyping.Rmd
+```{r}
+dat <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/karyo_varroa.csv")
+summary(dat)
+
+dat %>% ggplot(aes(chromo_number, cell_perc, group=ID, color = sex) ) + 
+  geom_line(alpha=.3) + 
+  stat_smooth(se=F, method="gam", aes(group=sex)) + 
+  theme_bw() + 
+  geom_vline(xintercept = 7, color = "blue") +
+  geom_vline(xintercept = 14, color = "red") +
+ theme_classic2() +
+ggtitle("Chromosome count in immature mites
+(Karyotyping)") +
+        xlab("Number of chromosomes per cell") +
+        ylab("Percentage of cells per sample")
+```
+
 
 
 # Supp figures
