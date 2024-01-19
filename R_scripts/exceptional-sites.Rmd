@@ -1,0 +1,686 @@
+---
+title: "check-males-exceptional-sites"
+date: "2024-01-09"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+```{=html}
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+```
+
+### load libraries
+```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR") # for extracting genotype data from a vcf file
+library("data.table")
+library("stringr")
+library("janitor")
+library("plotly")
+library("graphics")
+library("quest")
+library("cowplot")
+
+
+#library("gmodels")
+#library("rstatix")
+#library("freqtables")
+#library("broom")
+#library("patchwork") # for gathering the plots
+#library("fuzzyjoin") # to join tables based on a string in a column
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                     fig.width = 10,
+                      fig.asp = 0.4,
+                      out.width = "100%")
+#fig.width = 6,fig.asp = 0.8,out.width = "100%"
+```
+
+## Variant mean depth
+### all samples
+Next we will examine the mean depth for each of our variants. This is essentially the number of reads that have mapped to this position. The output we generated with vcftools is the mean of the read depth across all individuals - it is for both alleles at a position and is not partitioned between the reference and the alternative. First we read in the data.
+```{r}
+depth_all <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)
+
+#a <- ggplot(depth_all, aes(mean_depth)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)
+#a + theme_light()
+
+summary(depth_all$mean_depth)
+```
+Again take a moment to look at the data - mean_depth is our column of interest but note that you can also get a an idea of the variance in depth among individuals from the var_depth column. Once again, we will use ggplot to look at the distribution of read depths
+### Mean depth by sex
+```{r}
+depth_fem <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/female.Q40BIALLDP16HDP40mis.5Chr7/female.Q40BIALLDP16HDP40mis.5Chr7.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1) %>% 
+  dplyr::mutate(sex ="Female")
+  
+depth_male <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/male.Q40BIALLDP16HDP40mis.5Chr7/male.Q40BIALLDP16HDP40mis.5Chr7.ldepth.mean", delim = "\t",
+           col_names = c("chr", "pos", "mean_depth", "var_depth"), skip = 1)%>% 
+  dplyr::mutate(sex ="Male")
+
+depth_sex = rbind(depth_fem,depth_male) %>% unite(site, c("chr", "pos"))
+  
+ggplot(depth_sex, aes(mean_depth, fill = sex)) + geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Mean site depth, by sex")
+
+ggplot(depth_sex, aes(var_depth, fill = sex)) + geom_density(colour = "black", alpha = 0.5) + theme_light()+
+  ggtitle("Mean site depth variance, by sex")
+```
+the site's depth is somewhat higher in females, compared to males.  
+the variance is similar.  
+
+### Variant missingness
+Next up we will look at the proportion of missingness at each variant. This is a measure of how many individuals lack a genotype at a call site. 
+```{r}
+miss_fem <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/female.Q40BIALLDP16HDP40mis.5Chr7/female.Q40BIALLDP16HDP40mis.5Chr7.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1) %>% 
+  dplyr::mutate(sex ="Female")
+
+miss_male <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/male.Q40BIALLDP16HDP40mis.5Chr7/male.Q40BIALLDP16HDP40mis.5Chr7.lmiss", delim = "\t",
+                       col_names = c("chr", "pos", "nchr", "nfiltered", "nmiss", "fmiss"), skip = 1) %>% 
+  dplyr::mutate(sex ="Male")
+
+miss_sex = rbind(miss_fem,miss_male) %>% unite(site, c("chr", "pos"))
+  
+ggplot(miss_sex, aes(fmiss, fill = sex)) + geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant missingness, by sex")
+
+summary(miss_sex$fmiss)
+```
+
+### Variant quality
+The first metric we will look at is the (Phred encoded) site quality. This is a measure of how much confidence we have in our variant calls. First of all, we read in the site quality report we generated using vcftools. We will use the read_delim command from the readr package (part of the the tidyverse) because it is more efficient for reading in large datafiles. It also allows us to set our own column names.
+
+Take a look at the data when it is read in. You will see that for each site in our subsampled VCF, we have extracted the site quality score. Now we will plot the distribution of this quality using ggplot. Usually, the geom_density function works best, but you can use geom_histogram too.
+```{r}
+qual_fem <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/female.Q40BIALLDP16HDP40mis.5Chr7/female.Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
+           col_names = c("chr", "pos", "qual"), skip = 1) %>% 
+  dplyr::mutate(sex ="Female")
+
+qual_male <-read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/male.Q40BIALLDP16HDP40mis.5Chr7/male.Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
+           col_names = c("chr", "pos", "qual"), skip = 1) %>% 
+  dplyr::mutate(sex ="Male")
+  
+qual_sex = rbind(qual_fem,qual_male) %>% unite(site, c("chr", "pos"))
+  
+ggplot(qual_sex, aes(qual, fill = sex)) + geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant quality, by sex")
+
+summary(qual_male$qual)
+
+summary(qual_fem$qual)
+
+```
+ the quality is same for individuals, - its already normalized.
+
+## Load Variant Call Format (VCF) file.
+
+Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).
+
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("ID")
+#clean the ID names
+gt$ID <- sub("_[^_]+$", "", gt$ID)
+
+table <-  gt %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>% 
+  dplyr::select(contains(c("son", "dat", "fnd"))) # keep only adults of F0, F1 and F2 
+
+# set the families (include only families with at least one adult F2)
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+
+# or, include all F2 samples, but indicate if they have an adult sister (may indicate if the F1 female was fertilized)
+#family = grep("grn",gt$ID, value=TRUE) %>%
+#  str_extract("[^_]+")  %>%
+#  unique()
+```
+
+## F1 male (0/0) x female (0/1)
+
+```{r}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  rownames_to_column("site") %>%
+  tidyr::pivot_longer(-site)  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  mutate(sex = case_when(
+   grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+  dplyr::filter(sex == "Male") %>%
+dplyr::mutate(site_status = case_when(
+    grepl("0/1", gt) ~ "Normal",
+    grepl("0/0", gt) ~ "Exception")) %>%
+  na.omit()
+}
+
+F2_male_00_01 = do.call("rbind", obs) %>%  dplyr::select(c("site","sample","site_status")) 
+
+### depth
+F2_male_00_01_depth = depth_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_00_01, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","mean_depth", "sample", "site_status")) 
+
+p_F2_male_00_01_depth_box = F2_male_00_01_depth %>% ggplot(aes(x = site_status, y = mean_depth)) +
+    geom_boxplot()+ggtitle("Variant depth in F2 males, of F1 cross 0/0 x 0/1")
+ 
+p_F2_male_00_01_depth_dens = F2_male_00_01_depth %>% ggplot(aes(mean_depth, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant depth in F2 males, of F1 cross 0/0 x 0/1")
+
+### quality
+F2_male_00_01_qual = qual_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_00_01, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","qual", "sample", "site_status")) 
+
+p_F2_male_00_01_qual_box = F2_male_00_01_qual %>% ggplot(aes(x = site_status, y = qual)) +
+    geom_boxplot() + ggtitle("Variant quality in F2 males, of F1 cross 0/0 x 0/1") + theme_light() 
+
+p_F2_male_00_01_qual = F2_male_00_01_qual %>% ggplot(aes(qual, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant quality in F2 males, of F1 cross 0/0 x 0/1")
+```
+
+## F1 male (1/1) x female (0/1)
+
+```{r}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "1/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "1/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  rownames_to_column("site") %>%
+  tidyr::pivot_longer(-site)  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  mutate(sex = case_when(
+   grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+  dplyr::filter(sex == "Male") %>%
+dplyr::mutate(site_status = case_when(
+    grepl("0/1", gt) ~ "Normal",
+    grepl("1/1", gt) ~ "Exception")) %>%
+  na.omit()
+}
+
+F2_male_11_01 = do.call("rbind", obs) %>%  dplyr::select(c("site","sample","site_status")) 
+
+### depth
+F2_male_11_01_depth = depth_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_11_01, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","mean_depth", "sample", "site_status")) 
+
+p_F2_male_11_01_depth_box = F2_male_11_01_depth %>% ggplot(aes(x = site_status, y = mean_depth)) +
+    geom_boxplot()+ggtitle("Variant depth in F2 males, of F1 cross 1/1 x 0/1")
+ 
+p_F2_male_11_01_depth_dens = F2_male_11_01_depth %>% ggplot(aes(mean_depth, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant depth in F2 males, of F1 cross 1/1 x 0/1")
+
+### quality
+F2_male_11_01_qual = qual_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_11_01, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","qual", "sample", "site_status")) 
+
+p_F2_male_11_01_qual_box = F2_male_11_01_qual %>% ggplot(aes(x = site_status, y = qual)) +
+    geom_boxplot() + ggtitle("Variant quality in F2 males, of F1 cross 1/1 x 0/1") + theme_light() 
+
+p_F2_male_11_01_qual = F2_male_11_01_qual %>% ggplot(aes(qual, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant quality in F2 males, of F1 cross 1/1 x 0/1")
+```
+
+## F1 male (0/1) x female (0/0)
+
+```{r}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
+  dplyr::select(contains("grn")) %>%
+  rownames_to_column("site") %>%
+  tidyr::pivot_longer(-site)  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  mutate(sex = case_when(
+   grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+  dplyr::filter(sex == "Male") %>%
+dplyr::mutate(site_status = case_when(
+    grepl("0/0", gt) ~ "Normal",
+    grepl("0/1", gt) ~ "Exception")) %>%
+  na.omit()
+}
+
+F2_male_01_00 = do.call("rbind", obs) %>%  dplyr::select(c("site","sample","site_status")) 
+
+### depth
+F2_male_01_00_depth = depth_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_01_00, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","mean_depth", "sample", "site_status")) 
+
+p_F2_male_01_00_depth_box = F2_male_01_00_depth %>% ggplot(aes(x = site_status, y = mean_depth)) +
+    geom_boxplot()+ggtitle("Variant depth in F2 males, of F1 cross 0/1 x 0/0")
+ 
+p_F2_male_01_00_depth_dens = F2_male_01_00_depth %>% ggplot(aes(mean_depth, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant depth in F2 males, of F1 cross 0/1 x 0/0")
+
+### quality
+F2_male_01_00_qual = qual_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_01_00, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","qual", "sample", "site_status")) 
+
+p_F2_male_01_00_qual_box = F2_male_01_00_qual %>% ggplot(aes(x = site_status, y = qual)) +
+    geom_boxplot() + ggtitle("Variant quality in F2 males, of F1 cross 0/1 x 0/0") + theme_light() 
+
+p_F2_male_01_00_qual = F2_male_01_00_qual %>% ggplot(aes(qual, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant quality in F2 males, of F1 cross 0/1 x 0/0")
+```
+
+## F1 male (0/1) x female (1/1)
+
+```{r}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+ 
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
+  dplyr::select(contains("grn")) %>%
+  rownames_to_column("site") %>%
+  tidyr::pivot_longer(-site)  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  mutate(sex = case_when(
+   grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+  dplyr::filter(sex == "Male") %>%
+dplyr::mutate(site_status = case_when(
+    grepl("1/1", gt) ~ "Normal",
+    grepl("0/1", gt) ~ "Exception")) %>%
+  na.omit()
+}
+
+F2_male_01_11 = do.call("rbind", obs) %>%  dplyr::select(c("site","sample","site_status")) 
+
+### depth
+F2_male_01_11_depth = depth_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_01_11, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","mean_depth", "sample", "site_status")) 
+
+p_F2_male_01_11_depth_box = F2_male_01_11_depth %>% ggplot(aes(x = site_status, y = mean_depth)) +
+    geom_boxplot()+ggtitle("Variant depth in F2 males, of F1 cross 0/1 x 1/1")
+ 
+p_F2_male_01_11_depth_dens = F2_male_01_11_depth %>% ggplot(aes(mean_depth, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant depth in F2 males, of F1 cross 0/1 x 1/1")
+
+### quality
+F2_male_01_11_qual = qual_sex %>% 
+  dplyr::filter(sex =="Male") %>% 
+  full_join(F2_male_01_11, by = "site") %>% 
+  na.omit() %>%
+  dplyr::select(c("site","qual", "sample", "site_status")) 
+
+p_F2_male_01_11_qual_box = F2_male_01_11_qual %>% ggplot(aes(x = site_status, y = qual)) +
+    geom_boxplot() + ggtitle("Variant quality in F2 males, of F1 cross 0/1 x 1/1") + theme_light() 
+
+p_F2_male_01_11_qual = F2_male_01_11_qual %>% ggplot(aes(qual, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant quality in F2 males, of F1 cross 0/1 x 1/1")
+```
+
+pool all sites together
+```{r}
+F2_male = rbind(mutate(F2_male_00_01_qual, cross = "male_00_01"),
+                mutate(F2_male_11_01_qual, cross = "male_11_01"), 
+                mutate(F2_male_01_00_qual, cross = "male_01_00"),
+                mutate(F2_male_01_11_qual, cross = "male_01_11")) %>%
+  dplyr::select(c("site", "qual", "site_status","cross"))
+
+F2_male %>% ggplot(aes(qual, fill = site_status)) +
+ geom_density(colour = "black", alpha = 0.5) + theme_light() +
+  ggtitle("Variant quality in F2 males") +
+  facet_wrap(~cross, ncol = 1,scales = "free_y" ) +
+ scale_x_continuous(n.breaks = 12) +
+    theme(axis.text.x=element_text(angle=90,hjust=1)) 
+
+
+
+
+```
+
+plot quality in each cross:
+```{r}
+legend <- get_legend(p_F2_male_00_01_qual)   # get the legend of the first one plot
+
+# here the plots in a grid
+prow <- plot_grid( p_F2_male_00_01_qual + theme(legend.position="none"),
+           # here you add the percentage
+           p_F2_male_11_01_qual + theme(legend.position="none")+ scale_y_continuous(),
+           p_F2_male_01_00_qual + theme(legend.position="none")+ scale_y_continuous(),
+          p_F2_male_01_11_qual + theme(legend.position="none")+ scale_y_continuous(),
+         align = 'v',
+           #labels = c("A", "B"),
+           hjust = -1,
+           nrow = 4)
+
+# here you add the legend
+plot_grid( prow, legend, rel_widths = c(1, .2))
+
+
+
+# Draw density plots
+grid.arrange(arrangeGrob(p_F2_male_00_01_qual, p_F2_male_11_01_qual, p_F2_male_01_00_qual, p_F2_male_01_11_qual,ncol = 1), heights = c(10, 1),top = grid::textGrob("all crosses", x = 0, hjust = 0))
+
+# Draw box plots
+grid.arrange(arrangeGrob(p_F2_male_00_01_qual_box, p_F2_male_11_01_qual_box, p_F2_male_01_00_qual_box, p_F2_male_01_11_qual_box ,ncol = 1), heights = c(10, 1),top = grid::textGrob("all crosses", x = 0, hjust = 0))
+```
+
+plot depth in each cross:
+```{r}
+# Draw density plots
+grid.arrange(arrangeGrob(p_F2_male_00_01_depth_dens, p_F2_male_11_01_depth_dens, p_F2_male_01_00_depth_dens, p_F2_male_01_11_depth_dens,ncol = 1), heights = c(10, 1),top = grid::textGrob("all crosses", x = 0, hjust = 0))
+
+# Draw box plots
+grid.arrange(arrangeGrob(p_F2_male_00_01_depth_box, p_F2_male_11_01_depth_box, p_F2_male_01_00_depth_box, p_F2_male_01_11_depth_box ,ncol = 1), heights = c(10, 1),top = grid::textGrob("all crosses", x = 0, hjust = 0))
+```
+
+## Individual based statistics
+As well as a our per variant statistics we generated earlier, we also calculated some individual metrics too. WE can look at the distribution of these to get an idea whether some of our individuals have not sequenced or mapped as well as others. This is good practice to do with a new dataset. A lot of these statistics can be compared to other measures generated from the data (i.e. principal components as a measure of population structure) to see if they drive any apparent patterns in the data.
+
+
+### Mean depth per individual
+First we will look at the distribution of mean depth among individuals. We read the data in with read_delim:
+```{r}
+# NO filtering
+ind_depth <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.idepth", delim = "\t",
+                        col_names = c("ind", "nsites", "depth"), skip = 1) %>%
+            mutate(sex = case_when(
+                   grepl("son", ind) ~ "Male",
+                   grepl("dat|fnd", ind) ~ "Female")) %>%
+            na.omit()
+
+ind_depth$ind <- sub("_[^_]+$", "", ind_depth$ind)
+
+#Then we plot the distribution as a histogram using ggplot and geom_hist.
+ggplot(ind_depth, aes(depth)) + geom_histogram(fill = "dodgerblue1", colour = "black", alpha = 0.3)+ 
+  theme_light()
+
+
+ggplot(ind_depth, aes(depth)) + geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3)+
+  theme_light()
+
+p_ind_depth = ind_depth %>% filter(grepl("grnson|grndat", ind)) %>%
+   ggplot(aes(y = depth, x = ind, color = sex, label = ind)) + geom_point() + 
+  theme_classic() +  theme(axis.text.x = element_blank())
+
+
+ggplotly(p_ind_depth)
+
+#p_ind_depth + 
+ # geom_label() +
+ # geom_text(angle = 45,hjust = 0, nudge_x = 0.05) 
+
+summary(ind_depth$depth)
+```
+individuals with high depth (>30)
+```{r}
+ind_depth %>% dplyr::filter(depth > 30) 
+```
+
+individuals with low depth (<10)
+```{r}
+ ind_depth %>% filter(depth < 10 ) 
+```
+
+### Proportion of missing data per individual
+Next we will look at the proportion of missing data per individual. We read in the data below:
+```{r}
+ind_miss  <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.imiss", delim = "\t", col_names = c("ind", "ndata", "nfiltered", "nmiss", "fmiss"), skip = 1) %>%
+mutate(sex = case_when(
+                   grepl("son", ind) ~ "Male",
+                   grepl("dat|fnd", ind) ~ "Female")) %>%
+            na.omit()
+
+ind_miss$ind <- sub("_[^_]+$", "", ind_miss$ind)
+
+
+p_ind_miss = ind_miss %>% filter(grepl("grnson|grndat", ind)) %>%
+  ggplot(aes(y = fmiss, x = ind, color = sex)) + geom_point() + theme_classic()
+ggplotly(p_ind_miss)
+
+summary(ind_miss$fmiss)
+```
+
+individuals with high missingness (>0.7)
+```{r}
+  ind_miss %>% dplyr::filter(fmiss > 0.7) 
+```
+
+individuals with low missingness (<0.15)
+```{r}
+  ind_miss %>% filter(fmiss < 0.15 ) 
+```
+
+### Sample yield
+
+```{r}
+sample_yield <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/sample_yield.csv", delim = ",") %>%
+mutate(sex = case_when(
+                   grepl("son", ind) ~ "Male",
+                   grepl("dat|fnd", ind) ~ "Female")) %>%
+            na.omit()
+
+p_sample_yield = sample_yield %>% filter(grepl("grnson|grndat", ind)) %>%
+   ggplot(aes(y = conc, x = ind, color = sex, label = ind)) + geom_point() + 
+  theme_classic() +  theme(axis.text.x = element_blank())
+
+ggplotly(p_sample_yield)
+
+ sample_yield %>% ggplot(aes(x = sex, y = conc)) +
+    geom_boxplot() + ggtitle("Sample yield")
+```
+males have lower yield compare to females
+
+
+### correlate sample yield with depth and missingness
+```{r}
+samples_param = sample_yield %>% left_join(ind_miss, by = "ind") %>% left_join(ind_depth, by ="ind") %>%
+  dplyr::select(c("ind", "sex", "Extraction_date","conc","fmiss","depth")) %>%
+  mutate(conc = as.numeric(conc)) %>%
+    mutate(fmiss = as.numeric(fmiss)) %>%
+      mutate(depth = as.numeric(depth))
+
+df = samples_param %>%
+  dplyr::select(c("conc","fmiss","depth"))
+
+pairs(~ conc + fmiss + depth, data = df, upper.panel = NULL)
+```
+No correlation between sample’s depth, or missingnes, 
+And the concentration upon extraction.
+
+```{r}
+ samples_param %>% ggscatter(x = "conc", y = "fmiss", color = "sex")
+ 
+ samples_param %>% ggscatter(x = "conc", y = "depth", color = "sex")
+```
+lower concentration for male samples
+
+## do abnormal males have lower DNA concentration?
+```{r}
+abnorm_males = tibble(ind = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "Male", normality = "abnormal")
+
+ sample_normality = samples_param %>%
+  left_join(abnorm_males, by = "ind") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE) 
+```
+
+```{r}
+#sample_normality %>% 
+#  dplyr::filter(sex =="Male") %>%
+ #pivot_longer(c(conc, fmiss, depth)) %>% 
+  #ggplot(aes( y = value, color = type )) +
+   # geom_boxplot()+
+  #ggtitle("Sample quality") + 
+ # facet_wrap(~name, scales = "free_y") +
+  #theme_bw() +
+  #theme(axis.text.x = element_blank()) 
+
+sample_normality %>% 
+ # dplyr::filter(sex =="Male") %>%
+ pivot_longer(c(conc, fmiss, depth)) %>% 
+  ggplot(aes( y = value, x = type, color = type )) +
+    geom_boxplot()+
+  ggtitle("Sample quality") + 
+  facet_wrap(~name, scales = "free_y") +
+  theme_bw() +
+  theme(axis.text.x = element_blank()) +theme(axis.text.x = element_blank(),
+        axis.title.x =element_blank() ) +
+  geom_jitter(alpha = 0.5)
+  
+p =  sample_normality %>% 
+  #dplyr::filter(sex =="Male") %>%
+   ggscatter(x = "depth", y = "fmiss", color = "type")
+
+ggplotly(p)
+```
+abnormal males dont have exceptional yield, depth or missingness.  
+
+## fraction of low coverage sites in abnormal males? They could have ok coverage on average but it may be uneven    
+```{r}
+dp = extract.gt(vcf, element = "DP", as.numeric =TRUE)
+
+dp <- as.data.frame(t(dp)) %>%
+    rownames_to_column("ind") 
+
+#clean the ID names
+dp$ind <- sub("_[^_]+$", "", dp$ind)
+
+table_dp <-  dp %>% 
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>% 
+  dplyr::select(contains(c("son", "dat", "fnd"))) # keep only adults of F0, F1 and F2 
+
+summary(depth_all$mean_depth)
+
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 14.65   17.92   19.09   19.39   20.51   40.85 
+```
+
+ 
+ based on the quantiles values of the mean depth of individuals, I count the sites with:  
+- "low coverage" (<Q1) 17.92.  
+- "high coverage" (>Q3) 20.51.   
+then we calculate the frequency of low and high coverage sites, per individual
+```{r}
+dp_df <- dp %>%
+  column_to_rownames("ind") %>%
+       mutate(total = rowSums(across(where(is.numeric)) > 0, na.rm = TRUE)) %>% 
+      mutate(low_dp = rowSums(across(where(is.numeric)) < 17.92, na.rm = TRUE)) %>%
+      mutate(high_dp = rowSums(across(where(is.numeric)) > 20.51, na.rm = TRUE)) %>% 
+       mutate(low_freq = low_dp/total) %>%
+       mutate(high_freq = high_dp/total) %>%
+    dplyr::select(-contains("NW")) %>%
+  rownames_to_column("ind") %>%
+  inner_join(sample_normality, by = "ind")
+
+p_box_low = dp_df %>%
+    # dplyr::filter(sex =="Male") %>%
+ ggplot(aes(x = type, y = low_freq, color = type ,text = ind)) +
+    geom_boxplot()+ggtitle("Frequency of low coverage sites")+  
+  theme(axis.text.x = element_blank(),
+        axis.title.x =element_blank() ) +
+  geom_jitter()+ theme_bw() 
+
+p_box_high = dp_df %>%
+    # dplyr::filter(sex =="Male") %>%
+ ggplot(aes(x = type, y = high_freq, color = type ,text = ind)) +
+    geom_boxplot()+ggtitle("Frequency of HIGH coverage sites")+  
+  theme(axis.text.x = element_blank(),
+        axis.title.x =element_blank() ) +
+  geom_jitter()  + theme_bw() 
+
+
+ggplotly(p_box_low, tooltip = "text")
+ggplotly(p_box_high, tooltip = "text")
+
+```
+
+correlation btw frequcny of  coverage sites, and mean_depth
+```{r}
+dp_df %>%
+       dplyr::filter(sex =="Male") %>%
+  ggscatter(x = "depth", y = "low_freq", color = "type")
+```

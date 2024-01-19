@@ -29,6 +29,9 @@ editor_options:
 The recombination frequency of *Varroa destructor*, a parasitic mite of honeybees was estimated for male and female adult mites. We used two analysis methods: manual calculation of exact recombination frequency, and computational estimation using a linkage mapping software, Lep-MAP3 (Rastas 2017). For both analyses we used as input a VCF file containing only the ‘Informative sites’. Informative sites are sites that are heterozygotic in the F1 female, and homozygotic for one allele in the F1 male, and his mother (F0 female). Only for these sites we can phase (determine the allele parental origin) the F2 generation genotypes, and follow the inheritance of specific sites through the generations (Fig __).  
 All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
 
+the following figure illustrates the workflow and calculations:  
+/Users/nuriteliash/My Drive/(1) OIST work/(2) Varroa linkage map/manual estimation of recombintaion-NEW.pptx.  
+
 ## load libraries
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library("tidyverse")
@@ -44,7 +47,13 @@ library("vcfR") # for extracting genotype data from a vcf file
 library("data.table")
 library("stringr")
 library("janitor")
-knitr::opts_chunk$set(echo = TRUE)
+library("plotly")
+library("kableExtra")
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                     fig.width = 10,
+                      fig.asp = 0.4,
+                      out.width = "100%")
 ```
 
 ## Load Variant Call Format (VCF) file.
@@ -63,26 +72,7 @@ gt <- as.data.frame(t(gt)) %>%
 #clean the ID names
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 ```
-
-We used the VCF file in two methods to estimate varroa mite recombination frequency:  
-- **Lep-MAP3, a linkage mapping software (Rastas 2017).**  script available in [lep-MAP3-varroa.Rmd](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/varroa_lepmap/script/lep-MAP3-varroa.Rmd)
-- **Manual estimation of the recombination rate**   
-
-***
-
-Here we show how to calculate the recombination rate from a VCF file:  
-
-# Manual estimation of the recombination rate
-
-See flowchart in Fig 1:    
-
-![](/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/recombintaion_freq_flowchart.png)
-
-Count the sites with each genotype in each family, per chromosome.  
-The counts must be per chromosome, as recombination can occur only
-between sites on the same chromosome.  
-# F1 cross of homozygote male and heterozygote female
-## Pooled data (cross 0/0 x 0/1)
+prepare data:
 ```{r}
 table <- gt %>% 
   t() %>%
@@ -103,13 +93,40 @@ for (chr in chromosomes) {
       }
 
 # set a vector of all 30 families:
-family = str_extract(gt$ID, "[^_]+") %>% unique()
+#family = str_extract(gt$ID, "[^_]+") %>% unique()
 
 # or, include only families with at least one adult F2
-#family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-#  str_extract("[^_]+")  %>%
-#  unique()
+family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
+  str_extract("[^_]+")  %>%
+  unique()
+```
 
+We used the VCF file in two methods to estimate varroa mite recombination frequency:   
+
+- **Lep-MAP3, a linkage mapping software (Rastas 2017).**  script available in [lep-MAP3-varroa.Rmd](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/varroa_lepmap/script/lep-MAP3-varroa.Rmd).  
+
+- **Manual estimation of the recombination rate**   
+
+***
+
+Here we show how to calculate the recombination rate from a VCF file:  
+
+# Manual estimation of the recombination rate
+
+See flowchart in Fig 1:    
+
+![](/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/varroa_lepmap/recombintaion_freq_flowchart.png)
+
+Count the sites with each genotype in each family, per chromosome.  
+The counts must be per chromosome, as recombination can occur only
+between sites on the same chromosome.  
+# Is there recombination in F1 females? 
+
+## F1 cross of homozygote male and heterozygote female
+
+## Pooled data (cross 0/0 x 0/1)
+
+```{r}
 # make a function to apply:
 fun <- function(df) {
   df %>%
@@ -145,16 +162,20 @@ for (fam in family) {
 #observed <- do.call("rbind", obs)
 ```
 
-visualize the sites, for one family (240), on the first chromosome
+visualize the sites, for one family (338), on the first chromosome
 (NW_019211454.1):
 ```{r}
-table %>%
+fam_338 = table %>%
   rownames_to_column("site") %>%
   dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) %>%
-    dplyr::select(starts_with(c("site", "110"))) %>%
+    dplyr::select(starts_with(c("site", "338"))) %>%
     dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
     dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>%  
   dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0"))
+
+knitr::kable(head(fam_338,  caption = 'sites, for one family (338), on the first chromosome
+(NW_019211454.1)')) %>%
+  kable_styling(full_width = T)
 ```
 
 ### Estimate recombintaion frequency
@@ -162,18 +183,13 @@ Next, calculate the recombination frequency, that is, the number of
 sites pairs, that are recombinant among the all possible pairs in each
 chromosome.  
 we do that by determining the 'recombinant' and 'parental' types of
-sites combinations, for males (parthenogenetically produced) and females
-(sexually produced) separately.  
-For the 0/0 x 0/1 cross, in both males and females F2, parental type
+sites combinations, for the F2 females
+(sexually produced)  
+For the 0/0 x 0/1 cross, parental type
 will have the same genotype in a pair of sites, while a recombinant type
 will have different genotype in a pair:  
-**F2 females:**  
 - Parental types: 0/1;0/1 and 0/0;0/0  
 - Recombinant types: 0/1;0/0
-
-**F2 males:**  
-- Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1  
-- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0  
 
 so all we need to do in order to count recombination events in a
 chromosome, is to count the pairs of **same** and **different**
@@ -182,18 +198,14 @@ genotypes out of the total pair count, and divide by the length of the chromosom
 Calculations:  
 -  **Sum of unique pairs** = *n(n-1)/2 x n* = number of genotyped sites
     (example\$total).  
--  **Male recombinant pairs** = *count of 0/1 sites x count of 0/0+1/1
     sites*.  
--  **Female recombinant pairs** = *count of 0/1 sites x count of 0/0
-    sites*.  
--  **Recombination frequency** = *recombinant pairs / sum of unique
-    pairs*.  
+-  **Recombinant pairs** = *count of 0/1 sites x count of 0/0 sites*.  
+-  **Recombination frequency** = *recombinant pairs / sum of unique pairs*.  
 -  **Normalized recombination freq** = *freq/chromosome length (bp)*  
 
-```{r eval=FALSE, include=FALSE}
+```{r}
 chr_length = tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
              bp = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147))
-
 
 # calculate recombination freq for each male and female sample
 # make a function to loop over all families, is each chromosome
@@ -203,8 +215,8 @@ func_recom <- function(df) {
   mutate(sum_pairs = total*(total-1)/2) %>%
   mutate(Chr = chr) %>%
   left_join(chr_length, by = "Chr") %>%
-  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
- #dplyr::filter(sex == c("female", "male")) %>% # keep only adult F2 (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
+ # mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+ dplyr::filter(sex == "female") %>% # keep only adult F2 females (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
   mutate(fam = str_extract(sample, "[^_]+")) %>%
   pivot_wider(names_from = gt, values_from = obs) }
 
@@ -214,7 +226,6 @@ recomb_freq <- list()
 for (chr in chromosomes) {
   for (fam in family) {
  recomb_freq[[chr]][[fam]] <- func_recom(obs[[fam]][[chr]]) } }
-
 # bind all element into one data frame (first bind each chromosome, then bind all chromosomes together)
 obs_df <- tibble()
 obs_dfAll <- tibble()
@@ -226,21 +237,39 @@ for (chr in chromosomes) {
 # calculate the recombinant pairs, and their proportion out of total unique pairs, per sample
  obs_dfAll <- obs_dfAll %>% 
    group_by(sample) %>%
-  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`, 
-                                   sex == "male" ~ (`0/0`+`1/1`) * `0/1`)) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`)) %>%
   mutate(freq = recomb_pairs/sum_pairs) %>%
   mutate(freq_cM_bp = freq/bp)
    
-head(obs_dfAll)
+#head(obs_dfAll)
+```
 
+```{r}
 # plot the median of recombination freq, per chromosome, filter out families with low number of sites
-ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
+#plotly:
+p_female_00_01_plotly = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, text = paste("Sample:", sample, "\n N sites:", total))) + 
     geom_boxplot() +
-    facet_wrap(~Chr, scale="free") +
-    theme_classic() +
-    theme(axis.text.x=element_blank()) +
-  ylab("Recombintaion frequency (cM/bp)") +
-  xlab(element_blank())
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 0)) +
+  ggtitle("Is there recombintaion in F1 FEMALES?
+Recombination frequency in F2 females,
+of F1 male 0/0 x F1 female 0/1 cross") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
+
+ggplotly(p_female_00_01_plotly, tooltip = "text")
+
+#regular plot
+p_female_00_01 = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp)) + 
+    geom_boxplot() +
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) +
+  ggtitle("Is there recombintaion in F1 FEMALES?
+Recombination frequency in F2 females, of F1 male 0/0 x F1 female 0/1 cross") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
 ```
 
 ## Pooled data (cross 1/1 x 0/1)
@@ -250,33 +279,6 @@ The counts must be per chromosome, as recombination can occur only
 between sites on the same chromosome.
 
 ```{r}
-table <- gt %>% 
-  t() %>%
-  as.data.frame() %>%
-  row_to_names(row_number = 1)
-
-# set chromosome variable 
-chromosomes = c("NW_019211454.1","NW_019211455.1","NW_019211456.1", "NW_019211457.1","NW_019211458.1","NW_019211459.1","NW_019211460.1")
-  
-# define a list to put all the data frames in
-chr_list <- list()
-
-# make a list with dataframes - each containing 1 chromosome
-for (chr in chromosomes) {
-  chr_list[[chr]] <- table %>%
-  rownames_to_column("site") %>%
-  dplyr::filter(stringr::str_detect(site,chr)) 
-      }
-
-# set a vector of all 30 families:
-family = str_extract(gt$ID, "[^_]+") %>% unique()
-
-# or, include only families with at least one adult F2
-#family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-#  str_extract("[^_]+")  %>%
-#  unique()
-
-
 # make a function to apply:
 fun <- function(df) {
   df %>%
@@ -327,11 +329,6 @@ will have different genotype in a pair:
 - Parental types: 0/1;0/1 and 0/0;0/0  
 - Recombinant types: 0/1;0/0
 
-**F2 males:**  
-- Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1  
-- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0 (depends on the type of
-parthenogenesis)
-
 so all we need to do in order to count recombination events in a
 chromosome, is to count the pairs of **same** and **different**
 genotypes, and divide by the length of the chromosome in bp.  
@@ -339,18 +336,14 @@ genotypes, and divide by the length of the chromosome in bp.
 Calculations:  
 -  **Sum of unique pairs** = *n(n-1)/2 x n* = number of genotyped sites
     (example\$total).  
--  **Male recombinant pairs** = *count of 0/1 sites x count of 0/0+1/1
     sites*.  
--  **Female recombinant pairs** = *count of 0/1 sites x count of 0/0
-    sites*.  
--  **Recombination frequency** = *recombinant pairs / sum of unique
-    pairs*.  
+-  **Recombinant pairs** = *count of 0/1 sites x count of 1/1 sites*.  
+-  **Recombination frequency** = *recombinant pairs / sum of unique pairs*.  
 -  **Normalized recombination freq** = *freq/chromosome length (bp)*  
 
 ```{r eval=FALSE, include=FALSE}
 chr_length = tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
              bp = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147))
-
 
 # calculate recombination freq for each male and female sample
 # make a function to loop over all families, is each chromosome
@@ -360,8 +353,8 @@ func_recom <- function(df) {
   mutate(sum_pairs = total*(total-1)/2) %>%
   mutate(Chr = chr) %>%
   left_join(chr_length, by = "Chr") %>%
-  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
- #dplyr::filter(sex == c("female", "male")) %>% # keep only adult F2 (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
+  #mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+ dplyr::filter(sex == "female") %>% # keep only adult F2 (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
   mutate(fam = str_extract(sample, "[^_]+")) %>%
   pivot_wider(names_from = gt, values_from = obs) }
 
@@ -383,27 +376,47 @@ for (chr in chromosomes) {
 # calculate the recombinant pairs, and their proportion out of total unique pairs, per sample
  obs_dfAll <- obs_dfAll %>% 
    group_by(sample) %>%
-  mutate(recomb_pairs = case_when(sex == "female" ~ `1/1` * `0/1`, 
-                                   sex == "male" ~ (`1/1`+`1/1`) * `0/1`)) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `1/1` * `0/1`)) %>%
   mutate(freq = recomb_pairs/sum_pairs) %>%
   mutate(freq_cM_bp = freq/bp)
-head(obs_dfAll)   
-# plot the median of recombination freq, per chromosome
-# filter out families with low number of sites
-ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
+  
+#head(obs_dfAll)  
+```
+
+```{r}
+# plot the median of recombination freq, per chromosome, filter out families with low number of sites
+#plotly:
+p_female_11_01_plotly = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, text = paste("Sample:", sample, "\n N sites:", total))) + 
     geom_boxplot() +
-    facet_wrap(~Chr, scale="free") +
-    theme_classic() +
-    theme(axis.text.x=element_blank()) +
-  ylab("Recombintaion frequency (cM/bp)") +
-  xlab(element_blank())
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 0)) +
+  ggtitle("Is there recombintaion in F1 FEMALES?
+Recombination frequency in F2 females,
+of F1 male 1/1 x F1 female 0/1 cross") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
+
+ggplotly(p_female_11_01_plotly, tooltip = "text")
+
+#regular plot
+p_female_00_01 = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp)) + 
+    geom_boxplot() +
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) +
+  ggtitle("Is there recombintaion in F1 FEMALES?
+Recombination frequency in F2 females, of F1 male 1/1 x F1 female 0/1 cross") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
 ```
 
 
-# F1 cross of heterozygote male and homozygote female
+# Is there recombination in F1 MALES? 
+
+## F1 cross of heterozygote male and homozygote female
 Assumption: 
-1. parthenogenetic males (get genes from mother only). 
-2. The 2 alleles in hetero male are distributed equally in the haploid sperm cells.  
+The 2 alleles in hetero male are distributed equally in the haploid sperm cells.  
 
 *Phasing:*  
 * The F0 mother must be hetero (0/1), because her son is hetero.  
@@ -411,40 +424,50 @@ Assumption:
 * Because we assume equal distribution of alleles in sperm cells, The expected recombinant types (as appear from the genotype of the F2 females), are just like in a cross between hetero female and a homo male.    
 
 ## Pooled data (cross 0/1 x 0/0)
-```{r}
-table <- gt %>% 
-  t() %>%
-  as.data.frame() %>%
-  row_to_names(row_number = 1)
-
-# set chromosome variable 
-chromosomes = c("NW_019211454.1","NW_019211455.1","NW_019211456.1", "NW_019211457.1","NW_019211458.1","NW_019211459.1","NW_019211460.1")
+יש בעייה בחלק הזה. בשלב של 
+> for (chr in chromosomes) {
++   obs_df <- bind_rows(recomb_freq [[chr]])
++   obs_dfAll <- rbind(obs_df, obs_dfAll) %>% replace(., is.na(.), 0)}
+Error in rbind(deparse.level, ...) : 
+  numbers of columns of arguments do not match
   
-# define a list to put all the data frames in
-chr_list <- list()
+כשאני לא מקבעת את הסבתא, 
+אז זה רץ סבבה
 
-# make a list with dataframes - each containing 1 chromosome
-for (chr in chromosomes) {
-  chr_list[[chr]] <- table %>%
-  rownames_to_column("site") %>%
-  dplyr::filter(stringr::str_detect(site,chr)) 
-      }
+כשאני מקבעת את סבתא - 0/0
+זה נתקע
 
-# set a vector of all 30 families:
-family = str_extract(gt$ID, "[^_]+") %>% unique()
+כשאני מקבעת את סבתא ל - 0/1
+זה נתקע
 
-# or, include only families with at least one adult F2
-#family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-#  str_extract("[^_]+")  %>%
-#  unique()
+כשאני מקבעת את סבתא ל - 1/1
+אז זה רץ, אבל אין מספיק אתרים כדי לצייר את זה. 
 
+______
+בקיצור, אין מספיק אתרים כדי לעשות את זה. 
+______
+
+ננסה, להניח שהנכדים הלא בוגרים - הם כולם נקבות. ואז אולי יהיו מספיק אתרים
+
+כשאני לא מקבעת את סבתא - אז יש מלא אתרים. אבל שונות פסיכית בין פרטים
+... 
+, כשאני מקבעת את סבתא על 0/1
+זה נתקע
+
+כשאני מקבעת את סבתא - 0/0
+זה נתקע
+
+כשאני מקבעת את סבתא ל - 1/1
+זה נתקע
+
+```{r}
 # make a function to apply, including only Informative Sites for the 0/1x0/0 cross
 fun <- function(df) {
   df %>%
   dplyr::select(starts_with(fam)) %>%
   dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
-  dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>%
+ #dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # im not sure how to phase the F1 male...
   dplyr::select(contains("grn")) %>% 
   tidyr::pivot_longer(everything())  %>% 
   #replace_na(list(value="1/1")) %>%
@@ -473,17 +496,22 @@ for (fam in family) {
 #observed <- do.call("rbind", obs)
 ```
 
-visualize the sites, for one family (240), on the first chromosome
+visualize the sites, for one family (338), on the first chromosome
 (NW_019211454.1):
-```{r}
-table %>%
+```{r eval=FALSE, include=FALSE}
+fam_338 = table %>%
   rownames_to_column("site") %>%
   dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) %>%
-    dplyr::select(starts_with(c("site", "110"))) %>%
+    dplyr::select(starts_with(c("site", "338"))) %>%
     dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>%  
-  dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1"))
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0"))# %>%  
+ # dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1"))
+
+knitr::kable(fam_338,  caption = 'sites, for one family (240), on the first chromosome
+(NW_019211454.1)') %>%
+  kable_styling(full_width = T)
 ```
+
 
 ### Estimate recombintaion frequency
 Next, calculate the recombination frequency, that is, the number of
@@ -499,10 +527,6 @@ will have different genotype in a pair:
 - Parental types: 0/1;0/1 and 0/0;0/0  
 - Recombinant types: 0/1;0/0
 
-**F2 males:**  
-- Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1  
-- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0  
-
 so all we need to do in order to count recombination events in a
 chromosome, is to count the pairs of **same** and **different**
 genotypes out of the total pair count, and divide by the length of the chromosome in bp.  
@@ -510,9 +534,7 @@ genotypes out of the total pair count, and divide by the length of the chromosom
 Calculations:  
 -  **Sum of unique pairs** = *n(n-1)/2 x n* = number of genotyped sites
     (example\$total).  
--  **Male recombinant pairs** = *count of 0/1 sites x count of 0/0+1/1
-    sites*.  
--  **Female recombinant pairs** = *count of 0/1 sites x count of 0/0
+-  **Recombinant pairs** = *count of 0/1 sites x count of 0/0
     sites*.  
 -  **Recombination frequency** = *recombinant pairs / sum of unique
     pairs*.  
@@ -522,7 +544,6 @@ Calculations:
 chr_length = tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
              bp = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147))
 
-
 # calculate recombination freq for each male and female sample
 # make a function to loop over all families, is each chromosome
 func_recom <- function(df) {
@@ -531,8 +552,8 @@ func_recom <- function(df) {
   mutate(sum_pairs = total*(total-1)/2) %>%
   mutate(Chr = chr) %>%
   left_join(chr_length, by = "Chr") %>%
-  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
- #dplyr::filter(sex == c("female", "male")) %>% # keep only adult F2 (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
+  #mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+ dplyr::filter(sex == "female") %>% # keep only adult F2 females (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
   mutate(fam = str_extract(sample, "[^_]+")) %>%
   pivot_wider(names_from = gt, values_from = obs) }
 
@@ -549,66 +570,98 @@ obs_dfAll <- tibble()
 
 for (chr in chromosomes) {
   obs_df <- bind_rows(recomb_freq [[chr]])
-  obs_dfAll <- rbind(obs_df, obs_dfAll) %>% replace(., is.na(.), 0)}
+  obs_dfAll <- rbind(obs_df, obs_dfAll) %>% replace(., is.na(.), 0)} # theres a problem in here :Error in rbind(deparse.level, ...) : numbers of columns of arguments do not match
 
 # calculate the recombinant pairs, and their proportion out of total unique pairs, per sample
  obs_dfAll <- obs_dfAll %>% 
    group_by(sample) %>%
-  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`, 
-                                   sex == "male" ~ (`0/0`+`1/1`) * `0/1`)) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `0/0` * `0/1`)) %>% 
   mutate(freq = recomb_pairs/sum_pairs) %>%
   mutate(freq_cM_bp = freq/bp)
    
-head(obs_dfAll)
+#head(obs_dfAll)
+```
 
+```{r}
 # plot the median of recombination freq, per chromosome, filter out families with low number of sites
-ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
+#plotly:
+p_female_01_00_F0_plotly = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, text = paste("Sample:", sample, "\n N sites:", total))) + 
     geom_boxplot() +
-    facet_wrap(~Chr, scale="free") +
-    theme_classic() +
-    theme(axis.text.x=element_blank()) +
-  ylab("Recombintaion frequency (cM/bp)") +
-  xlab(element_blank())
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 0)) +
+  ggtitle("Is there recombintaion in F1 MALES?
+Recombination frequency in F2 females, of F1 male 0/1 x F1 female 0/0 cross. F0 not fixed") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
+
+ggplotly(p_female_01_00_F0_plotly, tooltip = "text")
+
+#regular plot
+p_female_00_01 = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp)) + 
+    geom_boxplot() +
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) +
+  ggtitle("Is there recombintaion in F1 FEMALES?
+Recombination frequency in F2 females, of F1 male 1/1 x F1 female 0/1 cross") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
+```
+
+
+```{r}
+# plot the median of recombination freq, per chromosome
+# filter out families with low number of sites
+
 
 # 17/4/2023: there's a problem with the final func, because in some families not all genotypes appear, and so it cannot bind based on "gt"... i need to find a way to force all three genotypes, and count "zero" when there are no variants.
 ```
 
 
 ## Pooled data (cross 0/1 x 1/1)
-```{r}
-table <- gt %>% 
-  t() %>%
-  as.data.frame() %>%
-  row_to_names(row_number = 1)
 
-# set chromosome variable 
-chromosomes = c("NW_019211454.1","NW_019211455.1","NW_019211456.1", "NW_019211457.1","NW_019211458.1","NW_019211459.1","NW_019211460.1")
+יש בעייה בחלק הזה. בשלב של 
+> for (chr in chromosomes) {
++   obs_df <- bind_rows(recomb_freq [[chr]])
++   obs_dfAll <- rbind(obs_df, obs_dfAll) %>% replace(., is.na(.), 0)}
+Error in rbind(deparse.level, ...) : 
+  numbers of columns of arguments do not match
   
-# define a list to put all the data frames in
-chr_list <- list()
+כשאני לא מקבעת את הסבתא,
+==
 
-# make a list with dataframes - each containing 1 chromosome
-for (chr in chromosomes) {
-  chr_list[[chr]] <- table %>%
-  rownames_to_column("site") %>%
-  dplyr::filter(stringr::str_detect(site,chr)) 
-      }
+כשאני מקבעת את סבתא - 0/0
+==
+כשאני מקבעת את סבתא ל - 0/1
+רץ סבבה
 
-# set a vector of all 30 families:
-family = str_extract(gt$ID, "[^_]+") %>% unique()
+==
+כשאני מקבעת את סבתא ל - 1/1
+==
+______
+בקיצור, אין מספיק אתרים כדי לעשות את זה. 
+______
 
-# or, include only families with at least one adult F2
-#family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
-#  str_extract("[^_]+")  %>%
-#  unique()
+ננסה, להניח שהנכדים הלא בוגרים - הם כולם נקבות. ואז אולי יהיו מספיק אתרים
 
+כשאני לא מקבעת את סבתא -
+רץ סבבה
+
+, כשאני מקבעת את סבתא על 0/1
+==
+כשאני מקבעת את סבתא - 0/0
+==
+כשאני מקבעת את סבתא ל - 1/1
+==
+```{r}
 # make a function to apply, including only Informative Sites for the 0/1x0/0 cross
 fun <- function(df) {
   df %>%
   dplyr::select(starts_with(fam)) %>%
   dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>% 
-  dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>%
+ # dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>%
   dplyr::select(contains("grn")) %>% 
   tidyr::pivot_longer(everything())  %>% 
   #replace_na(list(value="1/1")) %>%
@@ -637,17 +690,22 @@ for (fam in family) {
 #observed <- do.call("rbind", obs)
 ```
 
-visualize the sites, for one family (240), on the first chromosome
+visualize the sites, for one family (338), on the first chromosome
 (NW_019211454.1):
-```{r}
-table %>%
+```{r eval=FALSE, include=FALSE}
+fam_338 = table %>%
   rownames_to_column("site") %>%
   dplyr::filter(stringr::str_detect(site,"NW_019211454.1")) %>%
-    dplyr::select(starts_with(c("site", "110"))) %>%
+    dplyr::select(starts_with(c("site", "338"))) %>%
     dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
     dplyr::filter_at(vars(matches("_dat")), all_vars(. == "1/1")) %>%  
   dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1"))
+
+knitr::kable(fam_338,  caption = 'sites, for one family (338), on the first chromosome
+(NW_019211454.1)') %>%
+  kable_styling(full_width = T)
 ```
+
 
 ### Estimate recombintaion frequency
 Next, calculate the recombination frequency, that is, the number of
@@ -663,11 +721,6 @@ will have different genotype in a pair:
 - Parental types: 0/1;0/1 and 1/1;1/1  
 - Recombinant types: 0/1;1/1
 
-צריך לכתוב את זה מחדש *******
-**F2 males:**  
-- Parental types: 0/1;0/1, 0/0;0/0 and 1/1;1/1  
-- Recombinant types: 0/1;0/0, 0/1;1/1 and 1/1;0/0  
-
 so all we need to do in order to count recombination events in a
 chromosome, is to count the pairs of **same** and **different**
 genotypes out of the total pair count, and divide by the length of the chromosome in bp.  
@@ -675,9 +728,7 @@ genotypes out of the total pair count, and divide by the length of the chromosom
 Calculations:  
 -  **Sum of unique pairs** = *n(n-1)/2 x n* = number of genotyped sites
     (example\$total).  
--  **Male recombinant pairs** = *count of 0/1 sites x count of 0/0+1/1
-    sites*.  
--  **Female recombinant pairs** = *count of 0/1 sites x count of 0/0
+-  **Recombinant pairs** = *count of 0/1 sites x count of 0/0
     sites*.  
 -  **Recombination frequency** = *recombinant pairs / sum of unique
     pairs*.  
@@ -687,7 +738,6 @@ Calculations:
 chr_length = tibble(Chr = c("NW_019211454.1", "NW_019211455.1", "NW_019211456.1", "NW_019211457.1", "NW_019211458.1", "NW_019211459.1", "NW_019211460.1"),
              bp = c(76960006, 60513814,58583513,52932055,42024542,32556157,39431147))
 
-
 # calculate recombination freq for each male and female sample
 # make a function to loop over all families, is each chromosome
 func_recom <- function(df) {
@@ -696,8 +746,8 @@ func_recom <- function(df) {
   mutate(sum_pairs = total*(total-1)/2) %>%
   mutate(Chr = chr) %>%
   left_join(chr_length, by = "Chr") %>%
-  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
- #dplyr::filter(sex == c("female", "male")) %>% # keep only adult F2 (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
+#  mutate(sex = replace_na(sex, "female")) %>% # assume all F2 nymphs are females
+ dplyr::filter(sex == "female") %>% # keep only adult F2 (exclude nymphs and eggs)--> if I do that, I dont have enough sites to calculate the recombination freq... 
   mutate(fam = str_extract(sample, "[^_]+")) %>%
   pivot_wider(names_from = gt, values_from = obs) }
 
@@ -719,19 +769,37 @@ for (chr in chromosomes) {
 # calculate the recombinant pairs, and their proportion out of total unique pairs, per sample
  obs_dfAll <- obs_dfAll %>% 
    group_by(sample) %>%
-  mutate(recomb_pairs = case_when(sex == "female" ~ `1/1` * `0/1`, 
-                                   sex == "male" ~ (`1/1`+`1/1`) * `0/1`)) %>%
+  mutate(recomb_pairs = case_when(sex == "female" ~ `1/1` * `0/1`)) %>%
   mutate(freq = recomb_pairs/sum_pairs) %>%
   mutate(freq_cM_bp = freq/bp)
-head(obs_dfAll)   
+#head(obs_dfAll)   
+
 # plot the median of recombination freq, per chromosome
 # filter out families with low number of sites
-ggplot(filter(obs_dfAll, total > 30), aes(x=Chr, y=freq_cM_bp, fill=sex)) + 
+p_female_01_11_F0_01 = ggplot(filter(obs_dfAll, total > 10), aes(x=Chr, y=freq_cM_bp, text = paste("Sample:", sample, "\n N sites:", total))) + 
     geom_boxplot() +
-    facet_wrap(~Chr, scale="free") +
-    theme_classic() +
-    theme(axis.text.x=element_blank()) +
-  ylab("Recombintaion frequency (cM/bp)") +
-  xlab(element_blank())
+    geom_jitter(width=0.1, size=2) + 
+  theme_classic() +
+  theme(axis.text.x=element_text(angle = 45, hjust = 0)) +
+  ggtitle("Is there recombintaion in F1 MALES?
+Recombination frequency in F2 females, of F1 male 0/1 x F1 female 1/1 cross. F0 fixed to 0/1") +
+  xlab("Chromosome") +  
+  ylab("Recombintaion frequency (cM/bp)") 
+
+ggplotly(p_female_01_11_F0_01, tooltip = "text")
 ```
+
+# In conclusion, 3/1/24
+the calculation is running for F1 females no problem,  
+but for F1 male - there are not enough sites.  
+
+
+After discussing with Sasha, we decided to leave this analysis and not include it in the final MS.  
+Because:  
+
+1. The motivation for the recombination analysis from the first place, was to get another indirect evidence for diploidy in males. The logic was, that evidence for recombination in offspring of males, is an evidence for meiosis , which is an evidence for diploidy in the parent. 
+As we have a lot of other indirect (genomic pedigree) and direct (flow-cytometry and karyotyping) evidence for diploidy in males, this another indirect evidence is not a substantial result.   
+
+2. At the same time, although it would have been nice to have an estimation of recombination frequency for other purposes and for the building of a linkage map, it is now obvious that our data has high missingness.  
+That is, many sites have high percentage of sites that had low coverage, and we cannot determine their genotype with high certainty.   
 

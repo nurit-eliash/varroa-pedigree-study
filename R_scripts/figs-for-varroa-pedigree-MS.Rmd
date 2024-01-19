@@ -658,7 +658,8 @@ count_bee_RNA = ind_het_bee_RNA %>%
 ```
 
 ## Supp Figure 2. Heterozygosity rates in mites and bees
-```{r}
+```{r, fig.width = 10, fig.asp = 0.8, out.width = "100%"}
+                      
 #grid.arrange(top= grid::textGrob("Proportion of heterozygotic sites in varroa and honeybee", gp=grid::gpar(fontsize=20)), p_bee_DNA, p_var_DNA, 
  #            p_bee_RNA, p_var_RNA, nrow = 2, ncol = 2, lege)
 plot_4 = ggarrange(p_bee_DNA, p_var_DNA, 
@@ -672,7 +673,8 @@ annotate_figure(plot_4,
 ## Supp Table 1. Heterozygosity rates in mites and bees
 ```{r}
 #bind together all data for RNA and DNA , for varroa and bees
-count_all = rbind(count_bee_DNA,count_bee_RNA, count_varroa_DNA, count_varroa_RNA)
+count_all = rbind(count_bee_DNA,count_bee_RNA, count_varroa_DNA, count_varroa_RNA) %>% 
+  mutate_if(is.numeric, ~round(., 2))
 
 knitr::kable(count_all,  caption = 'Heterozygosity proportion in varroa and honeybee DNA and RNA') %>%
   kable_styling(full_width = T)
