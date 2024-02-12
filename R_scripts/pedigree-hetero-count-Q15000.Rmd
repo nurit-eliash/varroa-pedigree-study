@@ -1,5 +1,5 @@
 ---
-title: "pedigree-hetero-count"
+title: "pedigree-hetero-count-Q15000"
 editor_options: 
   chunk_output_type: console
 author: "Nurit Eliash"
@@ -51,10 +51,15 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
 #fig.width = 6,fig.asp = 0.8,out.width = "100%"
 ```
 
+the VCF was filtered :  
+```{r eval=FALSE}
+vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 15000 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
+```
+
 ## Load Variant Call Format (VCF) file.
 
 ```{r}
-vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
 vcf
 # extract the genotype for each site in each individual
 gt <- extract.gt(vcf, element = "GT") 
@@ -740,6 +745,7 @@ F2_male %>%
           subtitle = paste("F2 female = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", male =", filter(pooled_obs_count, sex == 'male')$count_sample))
 
 # plot all 4 croses together:
+# only males
 F2_male %>% 
     dplyr::filter(sex=="male") %>%  
   dplyr::filter(total>=10) %>%  
@@ -755,9 +761,44 @@ in F2 males",
     theme(legend.position="none")
    # scale_fill_discrete(limits=c("maternal","Paternal"), name = "Site's origin:", labels = c("Maternal", "Paternal")) +
  
-# facet_wrap(~cross, nrow = 4)
+
+# both males and females
+F2_male %>% 
+  #  dplyr::filter(sex=="male") %>%  
+  dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal") %>%
+ ggplot(aes(prop, fill = sex)) +
+    geom_histogram(binwidth=.04, alpha=.7, position="identity") + theme_light() +
+  ggtitle("Proportion of maternal genotype
+in F2 mites",
+          subtitle = paste("Females = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", Males =", filter(pooled_obs_count, sex == 'male')$count_sample)) +
+        xlab("Site's proportion") + 
+      ylab("Count") +
+    theme(legend.position="bottom") +
+     scale_fill_discrete(name = "Sex:", labels = c("Female", "Male"))
+
+# both sex, but wrap
+F2_male %>% 
+  #  dplyr::filter(sex=="male") %>%  
+  dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal") %>%
+ ggplot(aes(prop, fill = sex)) +
+    geom_histogram(binwidth=.04, alpha=.8, position="identity") + theme_light() +
+  ggtitle("Proportion of maternal genotype
+in F2 mites",
+          subtitle = paste("Females = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", Males =", filter(pooled_obs_count, sex == 'male')$count_sample)) +
+        xlab("Site's proportion") + 
+      ylab("Count") +
+      theme(legend.position="none") +
+ facet_wrap(~sex, nrow = 2, scales = "free")
+
+# who are the abnormal males? set the threshold for maternal genotype proportion to 0.75
+F2_male %>%  
+  dplyr::filter(sex=="male") %>%  
+  dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal") %>% 
+  dplyr::filter(prop<=0.75) %>%
+  unique(sample) %>% view()
 
 #write_csv(F2_male, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/F2_male_gt_prop.csv")
 ```
-
-

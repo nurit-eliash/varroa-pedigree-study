@@ -407,18 +407,22 @@ F2_male = rbind(mutate(F2_male_00_01_qual, cross = "male_00_01"),
 
 F2_male %>% ggplot(aes(qual, fill = site_status)) +
  geom_density(colour = "black", alpha = 0.5) + theme_light() +
-  ggtitle("Variant quality in F2 males") +
+  ggtitle("Site quality in F2 males") +
   facet_wrap(~cross, ncol = 1,scales = "free_y" ) +
  scale_x_continuous(n.breaks = 12) +
-    theme(axis.text.x=element_text(angle=90,hjust=1)) 
-
-
+    theme(axis.text.x=element_text(angle=90,hjust=1)) +
+      xlab("Site quality") + 
+      ylab("Density") +
+    scale_fill_discrete(limits=c("Normal","Exception"), name = "Site's inheritance mode:", labels = c("Automictic", "Not-
+automictic")) +
+  theme(legend.position="bottom")+
+   geom_vline(xintercept = 15000, color = "red")
 
 
 ```
 
 plot quality in each cross:
-```{r}
+```{r eval=FALSE, include=FALSE}
 legend <- get_legend(p_F2_male_00_01_qual)   # get the legend of the first one plot
 
 # here the plots in a grid
