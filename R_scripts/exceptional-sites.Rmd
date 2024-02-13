@@ -124,13 +124,19 @@ qual_male <-read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/d
   
 qual_sex = rbind(qual_fem,qual_male) %>% unite(site, c("chr", "pos"))
   
-ggplot(qual_sex, aes(qual, fill = sex)) + geom_density(colour = "black", alpha = 0.5) + theme_light() +
-  ggtitle("Variant quality, by sex")
+#ggplot(qual_sex, aes(qual)) + geom_density(colour = "black", alpha = 0.5) + theme_light() +
+ # ggtitle("Variant quality")
 
-summary(qual_male$qual)
+  ggplot(qual_sex, aes(qual)) +
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + theme_classic2() +
+  ggtitle("Variant quality distribution") +
+ scale_x_continuous(n.breaks = 12) +
+    theme(axis.text.x=element_text(angle=90,hjust=1)) +
+      xlab("Variant quality") + 
+      ylab("Density") +
+   geom_vline(xintercept = 15000, color = "red")
 
-summary(qual_fem$qual)
-
+  summary(qual_male$qual)
 ```
  the quality is same for individuals, - its already normalized.
 
@@ -418,7 +424,15 @@ automictic")) +
   theme(legend.position="bottom")+
    geom_vline(xintercept = 15000, color = "red")
 
-
+# to find the minQ threshold, 
+F2_male %>% ggplot(aes(qual)) +
+ geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + theme_classic2() +
+  ggtitle("Site quality in F2 males") +
+ scale_x_continuous(n.breaks = 12) +
+    theme(axis.text.x=element_text(angle=90,hjust=1)) +
+      xlab("Site quality") + 
+      ylab("Density") +
+   geom_vline(xintercept = 15000, color = "red")
 ```
 
 plot quality in each cross:

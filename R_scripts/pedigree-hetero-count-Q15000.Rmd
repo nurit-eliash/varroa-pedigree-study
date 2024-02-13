@@ -752,15 +752,15 @@ F2_male %>%
 #  dplyr::filter(parent %in% c("maternal","paternal")) %>% #include both parental origins
   dplyr::filter(parent == "maternal") %>%
  ggplot(aes(prop, fill = parent)) +
-    geom_histogram(binwidth=.04, alpha=.8, position="identity") + theme_light() +
+    geom_histogram(binwidth=.04, alpha=.8, position="identity", fill = "blue") + theme_light() +
   ggtitle("Proportion of maternal genotype
 in F2 males",
           subtitle = paste("Samples = ", filter(pooled_obs_count, sex == 'male')$count_sample, ", sites =", filter(pooled_obs_count, sex == 'male')$sites)) +
         xlab("Site's proportion") + 
       ylab("Count") +
-    theme(legend.position="none")
-   # scale_fill_discrete(limits=c("maternal","Paternal"), name = "Site's origin:", labels = c("Maternal", "Paternal")) +
- 
+    theme(legend.position="none") +
+   geom_vline(xintercept = 0.75, color = "red")
+
 
 # both males and females
 F2_male %>% 
@@ -795,10 +795,9 @@ in F2 mites",
 # who are the abnormal males? set the threshold for maternal genotype proportion to 0.75
 F2_male %>%  
   dplyr::filter(sex=="male") %>%  
-  dplyr::filter(total>=10) %>%  
+ # dplyr::filter(total>=10) %>%  
   dplyr::filter(parent == "maternal") %>% 
-  dplyr::filter(prop<=0.75) %>%
-  unique(sample) %>% view()
+  dplyr::filter(prop<=0.1) %>%view()
 
 #write_csv(F2_male, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/F2_male_gt_prop.csv")
 ```

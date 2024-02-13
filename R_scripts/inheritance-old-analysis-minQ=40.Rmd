@@ -1,5 +1,5 @@
 ---
-title: "Varroa mite mode of inheritance"
+title: "Varroa mite mode of inheritance - old analysis, minQ=40"
 author: "Nurit Eliash"
 date: "1/24/2022"
 output:
@@ -67,6 +67,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
 ## Load Variant Call Format (VCF) file.
 
 Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).
+
+the VCF was filtered :  
+```{r eval=FALSE}
+vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 40 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
+```
 
 ```{r}
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
@@ -596,6 +601,8 @@ pooled_obs_count
 ```
 
 ------------------------------------------------------------------------
+
+## 'Informative crosses': at least one of the parents is heterozygous (crosses 5-9)
 
 ## Crossing homozygotic male, with heterozygotic female
 

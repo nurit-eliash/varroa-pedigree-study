@@ -391,8 +391,7 @@ Flow-cytometry") +
 
 #### Figure 4B. Karyotyping
 
-original Rmd: \~/Documents/GitHub/varroa-karyotyping/varroa
-karyotyping.Rmd
+original Rmd: \~/Documents/GitHub/varroa-karyotyping/varroa karyotyping.Rmd
 
 ```{r}
 dat <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/karyo_varroa.csv")
@@ -474,6 +473,28 @@ ggarrange(p_ploidy_hist, p_karyo_hist, labels = c("A", "B"),
 ```
 
 # Supp figures
+
+
+## Determnie the variant quality threshold
+original Rmd: ~/Documents/GitHub/varroa-linkage-map/R_scripts/exceptional-sites.Rmd
+
+The first metric we will look at is the (Phred encoded) site quality. This is a measure of how much confidence we have in our variant calls. First of all, we read in the site quality report we generated using vcftools. We will use the read_delim command from the readr package (part of the the tidyverse) because it is more efficient for reading in large datafiles. It also allows us to set our own column names.
+
+```{r}
+qual_var <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
+           col_names = c("chr", "pos", "qual"), skip = 1) %>%
+   unite(site, c("chr", "pos"))
+
+  ggplot(qual_var, aes(qual)) +
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + theme_classic2() +
+  ggtitle("Variant quality distribution") +
+ scale_x_continuous(n.breaks = 12) +
+    theme(axis.text.x=element_text(angle=90,hjust=1)) +
+      xlab("Variant quality") + 
+      ylab("Density") +
+   geom_vline(xintercept = 15000, color = "red")
+```
+ the quality is same for individuals, - its already normalized.
 
 ## Supp Figure 1. all F2 mites genotypes
 The remaining males (~25%) inherit alleles from mother and father, suggesting sexual reproduction   
