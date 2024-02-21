@@ -43,7 +43,7 @@ library("rstatix")
 library("freqtables")
 library("cowplot")
 library("patchwork") # for gathering the plots
-#library("ggthemes") # for more colors in the ggplot
+library("pastecs") # for stats stat.desc()
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
                       fig.asp = 0.9,
@@ -744,7 +744,7 @@ F2_male %>%
   ggtitle("F2 maternal genotype prop, F1 female 0/1",
           subtitle = paste("F2 female = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", male =", filter(pooled_obs_count, sex == 'male')$count_sample))
 
-# plot all 4 croses together:
+# plot all 4 crosses together:
 # only males
 F2_male %>% 
     dplyr::filter(sex=="male") %>%  
@@ -779,25 +779,53 @@ in F2 mites",
 
 # both sex, but wrap
 F2_male %>% 
-  #  dplyr::filter(sex=="male") %>%  
+  mutate(sex = factor(sex, levels = c("male", "female"))) %>%
   dplyr::filter(total>=10) %>%  
   dplyr::filter(parent == "maternal") %>%
- ggplot(aes(prop, fill = sex)) +
-    geom_histogram(binwidth=.04, alpha=.8, position="identity") + theme_light() +
+ ggplot(aes(prop)) +
+   geom_histogram(aes( fill=sex), binwidth = 0.04, color = "black") +
+ theme_classic2() +  
   ggtitle("Proportion of maternal genotype
 in F2 mites",
           subtitle = paste("Females = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", Males =", filter(pooled_obs_count, sex == 'male')$count_sample)) +
-        xlab("Site's proportion") + 
-      ylab("Count") +
+        xlab("Maternal genotype proportion") + 
+      ylab("F2 Mite count") +
       theme(legend.position="none") +
- facet_wrap(~sex, nrow = 2, scales = "free")
+ facet_wrap(~sex, nrow = 2, scales = "free", labeller = labeller(sex = c(`female` = "Females",`male` = "Males"))) +scale_fill_manual(values=c("black","white")) 
+
 
 # who are the abnormal males? set the threshold for maternal genotype proportion to 0.75
 F2_male %>%  
   dplyr::filter(sex=="male") %>%  
- # dplyr::filter(total>=10) %>%  
+  dplyr::filter(total>=10) %>%  
   dplyr::filter(parent == "maternal") %>% 
-  dplyr::filter(prop<=0.1) %>%view()
+  dplyr::filter(prop<=0.75) 
+
+# median, quantiles and avarage 
+F2_male %>%
+  dplyr::filter(sex=="male") %>%  
+   dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal") %>% stat.desc()
+
+F2_male %>%
+  dplyr::filter(sex=="female") %>%  
+  dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal") %>% stat.desc()
+
+# check normality:
+fem_maternal_prop = F2_male %>%
+  dplyr::filter(sex=="female") %>%  
+  dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal")
+
+  shapiro.test(fem_maternal_prop$prop)
+  
+  male_maternal_prop = F2_male %>%
+  dplyr::filter(sex=="male") %>%  
+  dplyr::filter(total>=10) %>%  
+  dplyr::filter(parent == "maternal")
+
+  shapiro.test(male_maternal_prop$prop)
 
 #write_csv(F2_male, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/F2_male_gt_prop.csv")
 ```

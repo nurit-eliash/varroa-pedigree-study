@@ -40,6 +40,7 @@ library("janitor")
 library("splitstackshape")
 library("plotly")
 library("kableExtra")
+library("pastecs") # for stats stat.desc()
 
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
@@ -47,10 +48,15 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                       out.width = "100%")
 ```
 
+the VCF was filtered :  
+```{r eval=FALSE}
+vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 15000 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
+```
+
 ### load VCF file
 
 ```{r}
-vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE )
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
 vcf
 # extract the genotype for each site in each individual
 gt <- extract.gt(vcf, element = "GT") 
@@ -73,10 +79,10 @@ family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
 
 # Main figures
 
-## Figure 2. Pedigree genomics
+## Figure 2. F1 male (0/0) x Female (0/1)
 
-Crossing homozygotic male, with heterozygotic female (5) F1 male (0/0) x
-female (0/1) original Rmd:
+Crossing homozygotic male, with heterozygotic Female (5) F1 male (0/0) x
+Female (0/1) original Rmd:
 \~/Documents/GitHub/varroa-linkage-map/R_scripts/explore_vcf_F1_F2.Rmd
 
 ```{r}
@@ -87,7 +93,7 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 female to be homo, like her son
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/0")) %>% # force F0 Female to be homo, like her son
   dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/0")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/1")) %>% 
   dplyr::select(contains("grn")) %>%
@@ -108,7 +114,10 @@ observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
   
 # define the group of abnormal males
-abnorm_males = tibble(sample = c( "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "Male", normality = "abnormal")
+abnorm_males = tibble(sample = c("412_413a_grnson", "400_401a_grnson", "458_459a_grnson", "240_241c_grnson", "426_427b_grnson",  "300_301a_grnson"), sex = "Male", normality = "abnormal")
+
+# or only the males that are abnormal for this cross (00x01): matrnal prop<0.75
+#abnorm_males = tibble(sample = c("412_413a_grnson", "400_401a_grnson", "458_459a_grnson"), sex = "Male", normality = "abnormal")
 
 samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "Male",
@@ -138,25 +147,26 @@ samples_obs_forPlot = samples_obs %>%
   dplyr::filter(total>=10) %>%
   mutate(class = "Observed") %>%
   dplyr::filter(normality == "normal") %>%
-  select(c("sample","gt", "total", "sex","prop","class")) %>%
+  select(c("sample","gt", "n","total", "sex","prop","class")) %>%
   rename(type = sex)
   
 modes_forPlot = modes %>% 
   mutate(class = "Expected") %>%
     rename(type = mode)
 
-pooled_obs_count =  samples_obs %>% 
+pooled_obs_count_00_01 =  samples_obs %>% 
     dplyr::filter(total>=10) %>%
     dplyr::filter(normality == "normal") %>%
     filter(gt =="0/0") %>%
     group_by(sex) %>% 
     mutate(sites = sum(total)) %>% 
-    select(c(sex,sites)) %>% 
+   mutate(count_sample = n_distinct(sample)) %>%
+   select(c(sex,sites,count_sample)) %>% 
     unique()
 
-pooled_obs_count
+pooled_obs_count_00_01
 
-df = rbind(samples_obs_forPlot, modes_forPlot) 
+df_00_01 = rbind(samples_obs_forPlot, modes_forPlot) 
 ```
 
 plot
@@ -164,7 +174,7 @@ plot
 ```{r}
 # (1) 
 # order the x axis text 
-df$type <- factor(df$type, level=c("Haploid" ,"Sexual","Automixis","Female","Male"))
+df_00_01$type <- factor(df_00_01$type, level=c("Haploid" ,"Sexual","Automixis","Female","Male"))
 
 # change the labales 
 my_strip_labels <- as_labeller(c(
@@ -175,8 +185,8 @@ pooled sites"))
 
 # (2) or reverse plot: 
 # order the x axis text 
-df$type <- factor(df$type, level=c("Female","Male","Sexual","Automixis", "Haploid"))
-df$class <- factor(df$class, level=c("Observed","Expected"))
+df_00_01$type <- factor(df_00_01$type, level=c("Female","Male","Sexual","Automixis", "Haploid"))
+df_00_01$class <- factor(df_00_01$class, level=c("Observed","Expected"))
 
 # change the labales 
 my_strip_labels <- as_labeller(c(
@@ -185,10 +195,10 @@ my_strip_labels <- as_labeller(c(
 "Expected" = "B. Expected proportions, 
     hypothesized inheritance modes"))
 
-df %>% ggplot(aes(fill=gt, y=prop, x=type)) + 
+df_00_01 %>% ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
     ylab("Genotype proportion") +
-   # labs(title = "Offspring genotype, crossing (0/0) male x (0/1) female") +    
+    labs(title = "Offspring genotype, crossing (0/0) male x (0/1) Female") +    
     labs(fill = "Genotype") + 
     theme_classic() +
     theme(axis.title.x = element_blank(),
@@ -196,9 +206,9 @@ df %>% ggplot(aes(fill=gt, y=prop, x=type)) +
           axis.text.y = element_text(size=12),
           strip.text.x = element_text(size = 12)) +
    scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
-   scale_x_discrete(labels=c("Female" = "19 females 
-5,243 sites", "Male" = "14 males
-5,747 sites",
+   scale_x_discrete(labels=c("Female" = "15 Females 
+4,942 sites", "Male" = "12 males
+5,561 sites",
 "Haploid" = "Haploid 
 parthenogenesis", 
 "Sexual" = "Sexual
@@ -209,12 +219,52 @@ parthenogenesis
             strip.text.x = element_text(angle = 0, hjust = 0)) +
    facet_grid(.~class, scales = 'free',space = 'free',drop = F,
               labeller = my_strip_labels) # add labels 
+
+#only observed
+df_00_01 %>% dplyr::filter(class == "Observed") %>%
+ggplot(aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    ylab("Genotype proportion") +
+    labs(title = "Offspring genotype, crossing (0/0) male x (0/1) Female") +    
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12),
+          strip.text.x = element_text(size = 12)) +
+   scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4"))+
+   scale_x_discrete(breaks=c("Female","Male"),
+        labels=c(paste(filter(pooled_obs_count_00_01, sex == 'Female')$count_sample, " Females,\n",
+filter(pooled_obs_count_00_01, sex == 'Female')$sites, "sites"), 
+paste(filter(pooled_obs_count_00_01, sex == 'Male')$count_sample, " males,\n",
+filter(pooled_obs_count_00_01, sex == 'Male')$sites, "sites")))
+
+# what is the percentage of maternal genoytpe in the pooled data?
+stat_00_01 = df_00_01 %>% dplyr::filter(class == "Observed") %>% 
+  dplyr::filter(type == "Male") %>% dplyr::filter(gt == "0/1") %>% 
+  stat.desc() %>%
+  rownames_to_column("parameter") %>% 
+  dplyr::filter(parameter == "sum") %>%
+  dplyr::mutate(prop = n/total)
+  
+
+# plot distribution of prop
+#df_00_01 %>% dplyr::filter(class == "Observed") %>%
+ # ggplot(aes(x = type, y = prop, colour = gt)) + 
+  #geom_boxplot(outlier.shape = NA, coef=0 ) +
+  #geom_jitter(width=0.1, size=2) +
+  #scale_color_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  #theme_bw() +
+#scale_shape_manual(values=c(1,19)) +
+ # ggtitle('F2 offspring of F1 male (0/0) x Female (0/1)') +
+  #  facet_wrap( ~gt)  +  guides(color = "none") +
+ #theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
-## Figure 3. Pedigree genomics
+## Figure 3. F1 male (0/1) x Female (0/0)
 
-Crossing homozygotic male, with heterozygotic female (7) F1 male (0/1) x
-female (0/0) original Rmd:
+Crossing homozygotic male, with heterozygotic Female (7) F1 male (0/1) x
+Female (0/0) original Rmd:
 \~/Documents/GitHub/varroa-linkage-map/R_scripts/explore_vcf_F1_F2.Rmd
 
 ```{r}
@@ -225,7 +275,7 @@ for (fam in family) {
  
 obs[[fam]] <- table %>%
   dplyr::select(starts_with(fam)) %>%
-    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 female to be homo, like her son
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "0/1")) %>% # force F0 Female to be homo, like her son
   dplyr::filter_at(vars(matches("_son")), all_vars(. == "0/1")) %>%
   dplyr::filter_at(vars(matches("_dat")), all_vars(. == "0/0")) %>% 
   dplyr::select(contains("grn")) %>%
@@ -245,8 +295,10 @@ obs[[fam]] <- table %>%
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
   
-# define the group of abnormal males
-abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson", "478_479-1a_grnson"), sex = "Male", normality = "abnormal")
+# define the group of abnormal males based on the overall analsys: (~/Documents/GitHub/varroa-linkage-map/R_scripts/pedigree-hetero-count-Q15000.Rmd)
+abnorm_males = tibble(sample = c("412_413a_grnson",  "400_401a_grnson", "458_459a_grnson", "240_241c_grnson", "426_427b_grnson",  "300_301a_grnson"), sex = "Male", normality = "abnormal")
+
+# for this specific cross, there are no abnormal males: matrnal prop<0.75
 
 samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
     grepl("son", sample) ~ "Male",
@@ -283,20 +335,23 @@ modes_forPlot = modes %>%
   mutate(class = "Expected") %>%
     rename(type = mode)
 
-pooled_obs_count =  samples_obs %>% 
+pooled_obs_count_01_00 =  samples_obs %>% 
     dplyr::filter(total>=10) %>%
     dplyr::filter(normality == "normal") %>%
     filter(gt =="0/0") %>%
     group_by(sex) %>% 
-    mutate(count = sum(total)) %>% 
-    select(c(sex,count)) %>% 
+    mutate(sites = sum(total)) %>% 
+   mutate(count_sample = n_distinct(sample)) %>%
+   select(c(sex,sites,count_sample)) %>% 
     unique()
 
-df = rbind(samples_obs_forPlot, modes_forPlot) 
+pooled_obs_count_01_00
+
+df_01_00 = rbind(samples_obs_forPlot, modes_forPlot) 
 
 # order the x axis text 
-df$type <- factor(df$type, level=c("Haploid" ,"Sexual","Automixis","Female","Male"))
-df$class <- factor(df$class, level=c("Observed","Expected"))
+df_01_00$type <- factor(df_01_00$type, level=c("Haploid" ,"Sexual","Automixis","Female","Male"))
+df_01_00$class <- factor(df_01_00$class, level=c("Observed","Expected"))
 
 # change the labales 
 my_strip_labels <- as_labeller(c(
@@ -305,10 +360,10 @@ my_strip_labels <- as_labeller(c(
 "Expected" = "B. Expected proportions, 
      hypothesized inheritance modes"))
 
-df %>% ggplot(aes(fill=gt, y=prop, x=type)) + 
+df_01_00 %>% ggplot(aes(fill=gt, y=prop, x=type)) + 
     geom_bar(position="fill", stat="identity", ) +
     ylab("Genotype proportion") +
-   # labs(title = "Offspring genotype, crossing (0/0) male x (0/1) female") +    
+   # labs(title = "Offspring genotype, crossing (0/1) male x (0/0) Female") +    
     labs(fill = "Genotype") + 
     theme_classic() +
     theme(axis.title.x = element_blank(),
@@ -321,13 +376,32 @@ parthenogenesis",
 "Sexual" = "Sexual
 reproduction","Automixis" = "Diploid
 parthenogenesis 
-(Automixis)", "Female" = "19 females 
-2,811 sites", "Male" = "14 males
-2,105 sites")) + # change the x axis text to be more informative:
+(Automixis)", "Female" = "14 Females 
+2,465 sites", "Male" = "14 males
+1,949 sites")) + # change the x axis text to be more informative:
    theme(legend.position = "right",
           strip.text.x = element_text(angle = 0, hjust = 0)) +
    facet_grid(.~class, scales = 'free',space = 'free',drop = F,
               labeller = my_strip_labels) # add labels 
+
+#only observed
+df_01_00 %>% dplyr::filter(class == "Observed") %>%
+  ggplot(aes(fill=gt, y=prop, x=type)) + 
+    geom_bar(position="fill", stat="identity", ) +
+    ylab("Genotype proportion") +
+  # labs(title = "F2 genotype, crossing (0/1) male x (0/0) Female") +    
+    labs(fill = "Genotype") + 
+    theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_text(size=12),
+          axis.text.y = element_text(size=12),
+          strip.text.x = element_text(size = 12)) +
+   scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+   scale_x_discrete(breaks=c("Female","Male"),
+        labels=c(paste(filter(pooled_obs_count_01_00, sex == 'Female')$count_sample, " Females,\n",
+filter(pooled_obs_count_01_00, sex == 'Female')$sites, "sites"), 
+paste(filter(pooled_obs_count_01_00, sex == 'Male')$count_sample, " males,\n",
+filter(pooled_obs_count_01_00, sex == 'Male')$sites, "sites")))
 ```
 
 #### Figure 4A. Flow-cytometry
@@ -397,9 +471,9 @@ original Rmd: \~/Documents/GitHub/varroa-karyotyping/varroa karyotyping.Rmd
 dat <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/karyo_varroa.csv")
 summary(dat)
 
-# how many males and females?
+# how many males and Females?
 mite_counts = tibble(males = n_distinct(filter(dat, Sex=="male")$ID), 
-           females = n_distinct(filter(dat, Sex=="female")$ID)) 
+           Females = n_distinct(filter(dat, Sex=="Female")$ID)) 
 
 mite_counts
 
@@ -514,18 +588,18 @@ malesHet.Rmd
 ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
            col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
 
-# find all 'female' and 'male' 
-male <- grep("son",ind_het$ind)
-female <- grep("dat|fn|sis",ind_het$ind)
+# find all 'Female' and 'male' 
+Male<- grep("son",ind_het$ind)
+Female <- grep("dat|fn|sis",ind_het$ind)
 
 ind_het_sex <- ind_het %>%
-  mutate(sex = ifelse(row_number() %in% female, "female", ifelse(row_number() %in% male, "male", "not-determined"))) %>%
+  mutate(sex = ifelse(row_number() %in% Female, "Female", ifelse(row_number() %in% male, "Male", "not-determined"))) %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
   mutate(het_prop = (nsites-homo_ob)/nsites) %>%
 #keep only adult mites, for which sex is absolutly determined (exclude nymphs and eggs ("not determined"))
- dplyr::filter(sex %in% c("male", "female"))
+ dplyr::filter(sex %in% c("Male", "Female"))
 
- # is there a significant difference in the proportion of heterozygotic sites between males and females?5
+ # is there a significant difference in the proportion of heterozygotic sites between males and Females?5
 wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het_sex)
 t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het_sex)
 # no significant different (both wilcoxone and welch-test)
@@ -535,12 +609,14 @@ p_var_DNA <- ggplot(ind_het_sex) +
     geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + 
     scale_y_continuous(expand=c(0,0), limits = c(0, 1)) +
     theme_classic() +
-    labs(title = "Varroa mite DNA") +
+    labs(title = "A. Varroa DNA") +
   ylab("Proportion of heterozygotic sites") +
   theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "none")
+          axis.title.y = element_blank(),
+        legend.position = "none",
+        legend.title = element_blank(), 
+        axis.ticks.x=element_blank()) +scale_fill_manual(values=c("white","black")) 
 
 # get the median and avarage values for the proportions
 count_varroa_DNA = ind_het_sex %>%
@@ -561,7 +637,10 @@ ind_het_bee <- read_delim("/Users/nuriteliash/Documents/GitHub/Variant_Calling_b
            col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
 
 # add the sex of each sample, and the proportion of homosyzgotic and hetero sites
-sex <- read.csv("/Users/nuriteliash/Documents/GitHub/Variant_Calling_bees/data/meta.csv")
+sex <- read.csv("/Users/nuriteliash/Documents/GitHub/Variant_Calling_bees/data/meta.csv") %>%
+  mutate(sex = replace(sex, sex == "female", "Female")) %>%
+    mutate(sex = replace(sex, sex == "male", "Male"))
+
 ind_het_bee <- left_join(ind_het_bee,sex, by ="ind") %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
   mutate(het_prop = (nsites-homo_ob)/nsites)
@@ -571,14 +650,16 @@ p_bee_DNA <- ggplot(ind_het_bee) +
     geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + 
     theme_classic() +
      scale_y_continuous(expand=c(0,0), limits = c(0, 1)) +
- labs(title = "Honeybee DNA") +
+ labs(title = "C. Honeybee DNA") +
   ylab("Proportion of heterozygotic sites") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_blank(),
           axis.title.y = element_blank(),
-         legend.position = "none")
+        legend.position = "none",
+        legend.title = element_blank(), 
+        axis.ticks.x=element_blank())+scale_fill_manual(values=c("white","black")) 
 
-# is there a significant difference in the proportion of heterozygotic sites between males and females?5
+# is there a significant difference in the proportion of heterozygotic sites between males and Females?5
 wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het_bee)
 t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het_bee)
 
@@ -605,28 +686,34 @@ ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/Variant_Calling_Varro
 
 # add the sex of each sample, and the proportion of homosyzgotic and hetero sites
 info <- read.csv("/Users/nuriteliash/Documents/GitHub/Variant_Calling_VarroaRNA/data/meta.csv")
-ind_het <- left_join(ind_het,info, by ="ind") %>%
+ind_het_var_RNA <- left_join(ind_het,info, by ="ind") %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
-  mutate(het_prop = (nsites-homo_ob)/nsites)
+  mutate(het_prop = (nsites-homo_ob)/nsites) %>%
+mutate(sex = ifelse(row_number() %in% female, "Female", ifelse(row_number() %in% male, "Male", "not-determined"))) 
+
 
 # plot heterozygosity proportion, in each sex
-p_var_RNA = ggplot(ind_het) +
+p_var_RNA = ind_het_var_RNA %>%
+  dplyr::filter(sex %in% c("Female","Male")) %>% 
+  ggplot() +
     geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + 
     theme_classic() +
   scale_y_continuous(expand=c(0,0), limits = c(0, 1)) +
-   labs(title = "Varroa mite RNA") +
+   labs(title = "B. Varroa RNA") +
   ylab("Proportion of heterozygotic sites") +
   theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "none")
+          axis.title.y = element_blank(),
+        legend.position = "none",
+        legend.title = element_blank(), 
+        axis.ticks.x=element_blank())+scale_fill_manual(values=c("white","black")) 
 
-# is there a significant difference in the proportion of heterozygotic sites between males and females?5
+# is there a significant difference in the proportion of heterozygotic sites between males and Females?5
 wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het)
 t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het)
 
 # get the median and avarage values for the proportions
-count_varroa_RNA = ind_het %>%
+count_varroa_RNA = ind_het_var_RNA %>%
   group_by(sex) %>%
   summarise(median = median(het_prop), mean = mean(het_prop), n = n(), sd = sd(het_prop)) %>%
   mutate(organism = "varroa") %>%
@@ -642,28 +729,35 @@ count_varroa_RNA = ind_het %>%
 RNAseq data from BioProject PRJNA689223
 
 ```{r}
-ind_het_bee_RNA <- read_delim("/Users/nuriteliash/Documents/GitHub/Variant_calling_BeeRNA/data/Q40BIALLDP16_40mis.5maf0.2Chr/Q40BIALLDP16_40mis.5maf0.2Chr.het", delim = "\t",
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/Variant_calling_BeeRNA/data/Q40BIALLDP16_40mis.5maf0.2Chr/Q40BIALLDP16_40mis.5maf0.2Chr.het", delim = "\t",
            col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
 
 # add the sex of each sample, and the proportion of homosyzgotic and hetero sites
 info <- read.csv("/Users/nuriteliash/Documents/GitHub/Variant_calling_BeeRNA/data/meta_14.csv")
-ind_het_bee_RNA <- left_join(ind_het_bee_RNA,info, by ="ind") %>%
+ind_het_bee_RNA <- left_join(ind_het,info, by ="ind") %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
-  mutate(het_prop = (nsites-homo_ob)/nsites)
+  mutate(het_prop = (nsites-homo_ob)/nsites) %>%
+  mutate(sex = ifelse(row_number() %in% female, "Female", ifelse(row_number() %in% male, "Male", "not-determined"))) %>%
+    dplyr::filter(sex %in% c("Female","Male")) 
+
  
 # plot heterozygosity proportion, in each sex
-p_bee_RNA = ggplot(ind_het_bee_RNA) +
+p_bee_RNA = ind_het_bee_RNA %>%
+ # dplyr::filter(sex %in% c("Female","Male")) %>% 
+  ggplot() +
     geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + 
     theme_classic() + 
     scale_y_continuous(expand=c(0,0), limits = c(0, 1)) +
-    labs(title = "Honeybee RNA") +
+    labs(title = "D. Honeybee RNA") +
   ylab("Proportion of heterozygotic sites") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_blank(),
           axis.title.y = element_blank(),
-        legend.position = "none")
+        legend.position = "none",
+        legend.title = element_blank(), 
+        axis.ticks.x=element_blank())+scale_fill_manual(values=c("white","black")) 
 
-# is there a significant difference in the proportion of heterozygotic sites between males and females?5
+# is there a significant difference in the proportion of heterozygotic sites between males and Females?5
 wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het_bee_RNA)
 t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het_bee_RNA)
 
@@ -675,7 +769,6 @@ count_bee_RNA = ind_het_bee_RNA %>%
   mutate(organism = "bee") %>%
   mutate(data = "RNA") %>%
   mutate(pvalue = format(round(wil_var$p.value, digits=3)))
-
 ```
 
 ## Supp Figure 2. Heterozygosity rates in mites and bees
@@ -683,9 +776,11 @@ count_bee_RNA = ind_het_bee_RNA %>%
                       
 #grid.arrange(top= grid::textGrob("Proportion of heterozygotic sites in varroa and honeybee", gp=grid::gpar(fontsize=20)), p_bee_DNA, p_var_DNA, 
  #            p_bee_RNA, p_var_RNA, nrow = 2, ncol = 2, lege)
-plot_4 = ggarrange(p_bee_DNA, p_var_DNA, 
-             p_bee_RNA, p_var_RNA, nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"),
+
+plot_4 = ggarrange(p_var_DNA, p_var_RNA, 
+             p_bee_DNA, p_bee_RNA, nrow = 2, ncol = 2, #labels = c("A", "B", "C", "D"),
   common.legend = TRUE, legend = "bottom")
+
 
 annotate_figure(plot_4,
                 left = text_grob("Proportion of heterozygotic sites", rot = 90))
@@ -699,7 +794,6 @@ count_all = rbind(count_bee_DNA,count_bee_RNA, count_varroa_DNA, count_varroa_RN
 
 knitr::kable(count_all,  caption = 'Heterozygosity proportion in varroa and honeybee DNA and RNA') %>%
   kable_styling(full_width = T)
-
 ```
 
 
@@ -751,11 +845,11 @@ theme(axis.title.x = element_blank(),
 plots
 
 ## Supp Figure 3 a. Ploidy assessment, development stages
-```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%",  fig.cap="all developmental stages, males and females, whole body"}
+```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%",  fig.cap="all developmental stages, males and Females, whole body"}
 ggplotly(p_fam_body)
 ```
 
 ## Supp Figure 3 b. Ploidy assessment, body parts 
-```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%",  fig.cap="all developmental stages, males and females, in different body parts"}
+```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%",  fig.cap="all developmental stages, males and Females, in different body parts"}
 ggplotly(p_family_adults)
 ```
