@@ -48,8 +48,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                       out.width = "100%")
 ```
 
-the VCF was filtered :  
-```{r eval=FALSE}
+the VCF was filtered with the following parameters:  
+```{r eval=FALSE, echo=TRUE}
 vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 15000 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
 ```
 
@@ -219,7 +219,9 @@ parthenogenesis
             strip.text.x = element_text(angle = 0, hjust = 0)) +
    facet_grid(.~class, scales = 'free',space = 'free',drop = F,
               labeller = my_strip_labels) # add labels 
+```
 
+```{r eval=FALSE, include=FALSE}
 #only observed
 df_00_01 %>% dplyr::filter(class == "Observed") %>%
 ggplot(aes(fill=gt, y=prop, x=type)) + 
@@ -383,7 +385,9 @@ parthenogenesis
           strip.text.x = element_text(angle = 0, hjust = 0)) +
    facet_grid(.~class, scales = 'free',space = 'free',drop = F,
               labeller = my_strip_labels) # add labels 
+```
 
+```{r eval=FALSE, include=FALSE}
 #only observed
 df_01_00 %>% dplyr::filter(class == "Observed") %>%
   ggplot(aes(fill=gt, y=prop, x=type)) + 
@@ -415,6 +419,16 @@ data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_ploidy/data/ploidy.
   dplyr::mutate(stage_mature = case_when(
     grepl("adult", Stage) ~ "Mature",
     !grepl("adult", Stage) ~ "Imature")) 
+
+# count the mites in each stage and sex
+ploidy_summary = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+    group_by(Sex, stage_mature) %>% 
+     mutate(count_sample = n_distinct(record_number)) %>% #count each smaple once
+select(c(Sex,stage_mature,count_sample)) %>% 
+    unique()
+
+ploidy_summary
 
 # change the labales 
 my_strip_labels <- as_labeller(c(
@@ -461,13 +475,43 @@ p_ploidy_dens_rug = data %>% dplyr::filter(body.part == "Body") %>%
 Flow-cytometry") +
     facet_grid(.~stage_mature, space = 'free',drop = F,
               labeller = my_strip_labels) # add labels 
+
+# or , plot only mature mites (with a help from ChatGPT)
+data %>% 
+  dplyr::filter(body.part == "Body") %>%
+  dplyr::filter(stage_mature == "Mature") %>%
+  ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+  geom_density(alpha=.2) +
+  geom_rug(aes(x=Ploidy,color = Sex), alpha=0.9, size=1.5,length = unit(0.05, "npc"))+
+  ylab("Density") +
+  theme_classic2() +
+  theme(legend.position = "bottom") +
+  ggtitle("Varroa mite ploidy flow-cytometry") +
+  geom_vline(xintercept = 2.25, color = "red", linetype = "dashed") + # Make this dashed
+  geom_vline(xintercept = 1.63, color = "blue", linetype = "dashed") + # Make this dashed
+  scale_fill_manual(values = c("red", "blue"), 
+                    labels = c("Females (14)", "Males (10)")) +
+  scale_color_manual(values = c("red", "blue"), 
+                     labels = c("Females (14)", "Males (10)")) +
+  guides(fill = guide_legend(title = NULL, reverse = TRUE), 
+         color = guide_legend(title = NULL, reverse = TRUE))
+
+ploidy_avg = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+  dplyr::filter(stage_mature == "Mature") %>%
+  group_by(Sex) %>% 
+     mutate(avg = mean(Ploidy)) %>% #count each smaple once
+select(c(Sex,avg)) %>% 
+    unique()
+  
+ploidy_avg
 ```
 
 #### Figure 4B. Karyotyping
 
 original Rmd: \~/Documents/GitHub/varroa-karyotyping/varroa karyotyping.Rmd
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 dat <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/karyo_varroa.csv")
 summary(dat)
 
@@ -593,7 +637,7 @@ Male<- grep("son",ind_het$ind)
 Female <- grep("dat|fn|sis",ind_het$ind)
 
 ind_het_sex <- ind_het %>%
-  mutate(sex = ifelse(row_number() %in% Female, "Female", ifelse(row_number() %in% male, "Male", "not-determined"))) %>%
+  mutate(sex = ifelse(row_number() %in% Female, "Female", ifelse(row_number() %in% Male, "Male", "not-determined"))) %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
   mutate(het_prop = (nsites-homo_ob)/nsites) %>%
 #keep only adult mites, for which sex is absolutly determined (exclude nymphs and eggs ("not determined"))
@@ -689,7 +733,8 @@ info <- read.csv("/Users/nuriteliash/Documents/GitHub/Variant_Calling_VarroaRNA/
 ind_het_var_RNA <- left_join(ind_het,info, by ="ind") %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
   mutate(het_prop = (nsites-homo_ob)/nsites) %>%
-mutate(sex = ifelse(row_number() %in% female, "Female", ifelse(row_number() %in% male, "Male", "not-determined"))) 
+mutate(sex = ifelse(row_number() %in% Female, "Female", ifelse(row_number() %in% Male, "Male", "not-determined"))) %>%
+  filter(sex %in% c("Male","Female"))
 
 
 # plot heterozygosity proportion, in each sex
@@ -709,8 +754,8 @@ p_var_RNA = ind_het_var_RNA %>%
         axis.ticks.x=element_blank())+scale_fill_manual(values=c("white","black")) 
 
 # is there a significant difference in the proportion of heterozygotic sites between males and Females?5
-wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het)
-t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het)
+wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het_var_RNA)
+t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het_var_RNA)
 
 # get the median and avarage values for the proportions
 count_varroa_RNA = ind_het_var_RNA %>%
@@ -737,7 +782,7 @@ info <- read.csv("/Users/nuriteliash/Documents/GitHub/Variant_calling_BeeRNA/dat
 ind_het_bee_RNA <- left_join(ind_het,info, by ="ind") %>%
   mutate(hom_prop =  homo_ob/nsites) %>%
   mutate(het_prop = (nsites-homo_ob)/nsites) %>%
-  mutate(sex = ifelse(row_number() %in% female, "Female", ifelse(row_number() %in% male, "Male", "not-determined"))) %>%
+  mutate(sex = ifelse(row_number() %in% Female, "Female", ifelse(row_number() %in% Male, "Male", "not-determined"))) %>%
     dplyr::filter(sex %in% c("Female","Male")) 
 
  
