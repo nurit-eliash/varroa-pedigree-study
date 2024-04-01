@@ -496,12 +496,37 @@ data %>%
   guides(fill = guide_legend(title = NULL, reverse = TRUE), 
          color = guide_legend(title = NULL, reverse = TRUE))
 
+# or , plot only mature mites, in hist
+p_ploidy_hist_adults = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+  dplyr::filter(stage_mature == "Mature") %>%
+  ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) +  
+  geom_histogram(position="dodge") +
+   geom_density(alpha=.2) +
+  ylab("Count") +
+theme_classic2() +
+  theme(legend.position = "bottom") +
+  ggtitle("Varroa mite ploidy flow-cytometry") +
+  geom_vline(xintercept = 2.25, color = "red", linetype = "dashed") + # Make this dashed
+  geom_vline(xintercept = 1.63, color = "blue", linetype = "dashed") + # Make this dashed
+  scale_fill_manual(values = c("red", "blue"), 
+                    labels = c("Females (14)", "Males (10)")) +
+  scale_color_manual(values = c("red", "blue"), 
+                     labels = c("Females (14)", "Males (10)")) +
+  guides(fill = guide_legend(title = NULL, reverse = TRUE), 
+         color = guide_legend(title = NULL, reverse = TRUE))
+
+
+
 ploidy_avg = data %>% 
   dplyr::filter(body.part == "Body") %>%
   dplyr::filter(stage_mature == "Mature") %>%
   group_by(Sex) %>% 
      mutate(avg = mean(Ploidy)) %>% #count each smaple once
-select(c(Sex,avg)) %>% 
+     mutate(median = median(Ploidy)) %>% 
+     mutate(min = min(Ploidy)) %>% 
+     mutate(max = max(Ploidy)) %>% 
+select(c(Sex,avg,median,min,max)) %>% 
     unique()
   
 ploidy_avg
