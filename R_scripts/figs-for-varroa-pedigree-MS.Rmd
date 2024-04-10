@@ -408,6 +408,29 @@ paste(filter(pooled_obs_count_01_00, sex == 'Male')$count_sample, " males,\n",
 filter(pooled_obs_count_01_00, sex == 'Male')$sites, "sites")))
 ```
 
+
+```{r eval=FALSE, include=FALSE}
+# just plot the legend at the bottom, for the figure
+df_01_00 %>% 
+  dplyr::filter(class == "Observed") %>%
+  ggplot(aes(fill=gt, y=prop, x=type)) + 
+  geom_bar(position="fill", stat="identity") +
+  ylab("Genotype proportion") +
+  labs(fill = "Genotype") + 
+  theme_classic() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(size=12),
+        axis.text.y = element_text(size=12),
+        strip.text.x = element_text(size = 12),
+        legend.position = "bottom") +  # move legend to the bottom
+  scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
+  scale_x_discrete(breaks=c("Female","Male"),
+                   labels=c(paste(filter(pooled_obs_count_01_00, sex == 'Female')$count_sample, " Females,\n",
+                                  filter(pooled_obs_count_01_00, sex == 'Female')$sites, "sites"), 
+                            paste(filter(pooled_obs_count_01_00, sex == 'Male')$count_sample, " males,\n",
+                                  filter(pooled_obs_count_01_00, sex == 'Male')$sites, "sites")))
+```
+
 #### Figure 4A. Flow-cytometry
 
 original Rmd:
