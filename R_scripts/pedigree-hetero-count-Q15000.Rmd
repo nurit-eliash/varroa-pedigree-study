@@ -776,7 +776,10 @@ in F2 mites",
       ylab("Count") +
     theme(legend.position="bottom") +
      scale_fill_discrete(name = "Sex:", labels = c("Female", "Male"))
+```
 
+### Figure 2A. Proportion of maternal genotype in F2 mites
+```{r}
 # both sex, but wrap
 F2_male %>% 
   mutate(sex = factor(sex, levels = c("male", "female"))) %>%
@@ -793,8 +796,10 @@ in F2 mites",
       theme(legend.position="none") +
  facet_wrap(~sex, nrow = 2, scales = "free", labeller = labeller(sex = c(`female` = "Females",`male` = "Males"))) +scale_fill_manual(values=c("black","white")) 
 
+```
 
-# who are the abnormal males? set the threshold for maternal genotype proportion to 0.75
+### who are the abnormal males? set the threshold for maternal genotype proportion to 0.75
+```{r}
 F2_male %>%  
   dplyr::filter(sex=="male") %>%  
   dplyr::filter(total>=10) %>%  

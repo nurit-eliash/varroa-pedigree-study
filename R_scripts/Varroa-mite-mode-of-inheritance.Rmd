@@ -21,11 +21,11 @@ editor_options:
 }
 </style>
 ```
-In this study we explored the mode of genetic inheritance of *Varroa destructor*, a parasitic mite of honeybees, so far known as a haplodiploid species with a arrhenotokous parthenogenesis reproductive mode. The mite shows contrasting phenomena of highly inbreeding life style (sib-mating), yet maintaining relatively high genetic variation.
+In this study we explored the mode of genetic inheritance of *Varroa destructor*, a parasitic mite of honeybees, so far known as a haplodiploid species with an arrhenotokous reproductive mode. The mite shows contrasting phenomena of highly inbreeding life style (sib-mating), yet maintaining relatively high genetic variation.
 
 The experimental setup consisted of a three-generational pedigree.  
 Sample size: 30 families, total of 223 individuals.  
-3 different colonies, from OIST apiary.  
+Three *Apis mellifera liguistica* colonies, located at Okinawa Institute of Acience and Technology (OIST) experimental apiary.  
 For details of mite collection and pedigree construction, please see the original [manuscript](Update%20this).  
 All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/).  
 All data are available and reproducible from the [GitHub page](https://github.com/nurit-eliash/varroa-linkage-map).  

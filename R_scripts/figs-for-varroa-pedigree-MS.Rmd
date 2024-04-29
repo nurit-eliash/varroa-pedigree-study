@@ -79,7 +79,12 @@ family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
 
 # Main figures
 
-## Figure 2. F1 male (0/0) x Female (0/1)
+### Figure 2A. Proportion of maternal genotype in F2 mites
+the original figure can be re-run in here:  
+~/Documents/GitHub/varroa-linkage-map/R_scripts/pedigree-hetero-count-Q15000.Rmd
+
+
+### Figure 2B. F1 male (0/0) x Female (0/1)
 
 Crossing homozygotic male, with heterozygotic Female (5) F1 male (0/0) x
 Female (0/1) original Rmd:
@@ -263,7 +268,7 @@ stat_00_01 = df_00_01 %>% dplyr::filter(class == "Observed") %>%
  #theme(plot.margin = margin(1, 1, 1, 1, "cm"))
 ```
 
-## Figure 3. F1 male (0/1) x Female (0/0)
+### Figure 2C. F1 male (0/1) x Female (0/0)
 
 Crossing homozygotic male, with heterozygotic Female (7) F1 male (0/1) x
 Female (0/0) original Rmd:
@@ -411,265 +416,48 @@ filter(pooled_obs_count_01_00, sex == 'Male')$sites, "sites")))
 
 ```{r eval=FALSE, include=FALSE}
 # just plot the legend at the bottom, for the figure
-df_01_00 %>% 
+#To change the legend labels from "0/0", "0/1", and "1/1" to "A/A", "A/B", and "B/B" respectively, you can use the `labels` argument within the `scale_fill_manual()` function. Here's how you can modify your code to achieve this:
+
+df_01_00 %>%
   dplyr::filter(class == "Observed") %>%
-  ggplot(aes(fill=gt, y=prop, x=type)) + 
-  geom_bar(position="fill", stat="identity") +
+  ggplot(aes(fill = gt, y = prop, x = type)) + 
+  geom_bar(position = "fill", stat = "identity") +
   ylab("Genotype proportion") +
-  labs(fill = "Genotype") + 
+  labs(fill = "Genotype:") + 
   theme_classic() +
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_text(size=12),
-        axis.text.y = element_text(size=12),
-        strip.text.x = element_text(size = 12),
-        legend.position = "bottom") +  # move legend to the bottom
-  scale_fill_manual(values=c("#ffbf00", "#66b032","#1982c4")) +
-  scale_x_discrete(breaks=c("Female","Male"),
-                   labels=c(paste(filter(pooled_obs_count_01_00, sex == 'Female')$count_sample, " Females,\n",
-                                  filter(pooled_obs_count_01_00, sex == 'Female')$sites, "sites"), 
-                            paste(filter(pooled_obs_count_01_00, sex == 'Male')$count_sample, " males,\n",
-                                  filter(pooled_obs_count_01_00, sex == 'Male')$sites, "sites")))
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    legend.position = "right"
+  ) +  
+  scale_fill_manual(
+    values = c("#ffbf00", "#66b032", "#1982c4"),
+    labels = c("AA", "AB", "BB"),
+    guide = guide_legend(label.position = "right")  # Position legend labels on top of the colored squares
+  ) +
+  scale_x_discrete(
+    breaks = c("Female", "Male"),
+    labels = c(
+      paste(
+        filter(pooled_obs_count_01_00, sex == 'Female')$count_sample,
+        " Females,\n",
+        filter(pooled_obs_count_01_00, sex == 'Female')$sites,
+        "sites"
+      ),
+      paste(
+        filter(pooled_obs_count_01_00, sex == 'Male')$count_sample,
+        " males,\n",
+        filter(pooled_obs_count_01_00, sex == 'Male')$sites,
+        "sites"
+      )
+    )
+  )
+
 ```
 
-#### Figure 4A. Flow-cytometry
-
-original Rmd:
-\~/Documents/GitHub/varroa_ploidy/R_scripts/varroa-ploidy.Rmd
-
-```{r}
-data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_ploidy/data/ploidy.csv") %>%
-  dplyr::mutate(Family = as.character(Family)) %>%
-  dplyr::mutate(stage_mature = case_when(
-    grepl("adult", Stage) ~ "Mature",
-    !grepl("adult", Stage) ~ "Imature")) 
-
-# count the mites in each stage and sex
-ploidy_summary = data %>% 
-  dplyr::filter(body.part == "Body") %>%
-    group_by(Sex, stage_mature) %>% 
-     mutate(count_sample = n_distinct(record_number)) %>% #count each smaple once
-select(c(Sex,stage_mature,count_sample)) %>% 
-    unique()
-
-ploidy_summary
-
-# change the labales 
-my_strip_labels <- as_labeller(c(
-  "Imature" = "Imature mites
-n = 37",
-  "Mature" = "Mature mites
-n = 38"))
-
-# histogram plot:
-p_ploidy_hist = data %>% dplyr::filter(body.part == "Body") %>%
- ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
-  geom_histogram(position="dodge") +
-   geom_density(alpha=.2) +
-  ylab("Count") +
-theme_classic2() +
-     theme(legend.position = "none") +
-ggtitle("Varroa mite ploidy count
-Flow-cytometry") +
-   facet_grid(.~stage_mature, space = 'free',drop = F,
-              labeller = my_strip_labels) # add labels 
-
-# density plot:
-p_ploidy_dens = data %>% dplyr::filter(body.part == "Body") %>%
- ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
- # geom_histogram(position="dodge") +
-   geom_density(alpha=.2) +
-    ylab("Density") +
-theme_classic2() +
-     theme(legend.position = "none") +
-ggtitle("Varroa mite ploidy
-Flow-cytometry") +
-   facet_grid(.~stage_mature, space = 'free',drop = F,
-              labeller = my_strip_labels) # add labels 
-
-#density plot with rug
-p_ploidy_dens_rug = data %>% dplyr::filter(body.part == "Body") %>%
-    ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
-   geom_density(alpha=.2) +
-   geom_rug(aes(x=Ploidy,color = Sex), alpha=0.9, size=1.5,length = unit(0.05, "npc"))+
-      ylab("Density") +
-      theme_classic2() +
-      theme(legend.position = "none") +
-      ggtitle("Varroa mite ploidy
-Flow-cytometry") +
-    facet_grid(.~stage_mature, space = 'free',drop = F,
-              labeller = my_strip_labels) # add labels 
-
-# or , plot only mature mites (with a help from ChatGPT)
-data %>% 
-  dplyr::filter(body.part == "Body") %>%
-  dplyr::filter(stage_mature == "Mature") %>%
-  ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
-  geom_density(alpha=.2) +
-  geom_rug(aes(x=Ploidy,color = Sex), alpha=0.9, size=1.5,length = unit(0.05, "npc"))+
-  ylab("Density") +
-  theme_classic2() +
-  theme(legend.position = "bottom") +
-  ggtitle("Varroa mite ploidy flow-cytometry") +
-  geom_vline(xintercept = 2.25, color = "red", linetype = "dashed") + # Make this dashed
-  geom_vline(xintercept = 1.63, color = "blue", linetype = "dashed") + # Make this dashed
-  scale_fill_manual(values = c("red", "blue"), 
-                    labels = c("Females (14)", "Males (10)")) +
-  scale_color_manual(values = c("red", "blue"), 
-                     labels = c("Females (14)", "Males (10)")) +
-  guides(fill = guide_legend(title = NULL, reverse = TRUE), 
-         color = guide_legend(title = NULL, reverse = TRUE))
-
-# or , plot only mature mites, in hist
-p_ploidy_hist_adults = data %>% 
-  dplyr::filter(body.part == "Body") %>%
-  dplyr::filter(stage_mature == "Mature") %>%
-  ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) +  
-  geom_histogram(position="dodge") +
-   geom_density(alpha=.2) +
-  ylab("Count") +
-theme_classic2() +
-  theme(legend.position = "bottom") +
-  ggtitle("Varroa mite ploidy flow-cytometry") +
-  geom_vline(xintercept = 2.25, color = "red", linetype = "dashed") + # Make this dashed
-  geom_vline(xintercept = 1.63, color = "blue", linetype = "dashed") + # Make this dashed
-  scale_fill_manual(values = c("red", "blue"), 
-                    labels = c("Females (14)", "Males (10)")) +
-  scale_color_manual(values = c("red", "blue"), 
-                     labels = c("Females (14)", "Males (10)")) +
-  guides(fill = guide_legend(title = NULL, reverse = TRUE), 
-         color = guide_legend(title = NULL, reverse = TRUE))
-
-
-
-ploidy_avg = data %>% 
-  dplyr::filter(body.part == "Body") %>%
-  dplyr::filter(stage_mature == "Mature") %>%
-  group_by(Sex) %>% 
-     mutate(avg = mean(Ploidy)) %>% #count each smaple once
-     mutate(median = median(Ploidy)) %>% 
-     mutate(min = min(Ploidy)) %>% 
-     mutate(max = max(Ploidy)) %>% 
-select(c(Sex,avg,median,min,max)) %>% 
-    unique()
-  
-ploidy_avg
-```
-
-#### Figure 4B. Karyotyping
-
-original Rmd: \~/Documents/GitHub/varroa-karyotyping/varroa karyotyping.Rmd
-
-```{r eval=FALSE, include=FALSE}
-dat <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/karyo_varroa.csv")
-summary(dat)
-
-# how many males and Females?
-mite_counts = tibble(males = n_distinct(filter(dat, Sex=="male")$ID), 
-           Females = n_distinct(filter(dat, Sex=="Female")$ID)) 
-
-mite_counts
-
-dat_karyo = dat %>% 
-   dplyr::mutate(chromo_number = as.numeric(chromo_number)) %>%
-  expandRows("cell_count", drop = FALSE) %>% 
-  dplyr::mutate(Indx = row_number(cell_count)) %>%
-  group_by(ID) %>%
-dplyr::mutate(median_count = median(chromo_number)) %>%
-    dplyr::mutate(stage_mature = "Imature mites
-n = 17")
-
-# change the labales 
-#my_strip_labels <- as_labeller("Imature" = "Imature mites
-#n = 17")
-
-p_kar_dens = dat_karyo %>% 
- ggplot(aes(x=chromo_number, color = Sex, fill = Sex)) + 
- # geom_histogram(position="dodge") +
-  geom_density(alpha=.2) +
-    ylab("Density") +
-    xlab("Chromosome count") +
-theme_classic2() +
-     theme(legend.position = "none") +
-ggtitle("Varroa mite chromosome count
-Karyotyping") +
-    facet_grid(.~stage_mature, space = 'free',drop = F)
-  
-
-#density plot with rug
-p_karyo_dens_rug = dat_karyo %>% 
- ggplot(aes(x=chromo_number, color = Sex, fill = Sex)) + 
-   geom_rug(aes(x=chromo_number,color = Sex), alpha=0.9, size=1.5,  length = unit(0.05, "npc"))+
-  geom_density(alpha=.2) +
-    ylab("Density") +
-    xlab("Chromosome count") +
-theme_classic2() +
-     theme(legend.position = "none") +
-ggtitle("Varroa mite chromosome count
-Karyotyping") +
-    facet_grid(.~stage_mature, space = 'free',drop = F)
-
-# or histogram:
-p_karyo_hist = dat_karyo %>% 
- ggplot(aes(x=chromo_number, color = Sex, fill = Sex)) + 
- geom_density(alpha=.2) +
-   geom_histogram(position="dodge", binwidth = 1) +
-  ylab("Count") +
-    xlab("Chromosome count") +
-theme_classic2() +
-     theme(legend.position = "none") +
-ggtitle("Varroa mite chromosome count
-Karyotyping") 
-```
-
-plot Karyotyping and flow cytometry together
-
-## Figure 4. Ploidy assessment 
-```{r}
-ggarrange(p_ploidy_dens_rug, p_karyo_dens_rug, labels = c("A", "B"),
-  common.legend = TRUE, legend = "bottom",  widths = c(1, 0.65))
-```
-
-other possible plots for Figure 4
-```{r}
-ggarrange(p_ploidy_dens, p_kar_dens, labels = c("A", "B"),
-  common.legend = TRUE, legend = "bottom")
-
-ggarrange(p_ploidy_hist, p_karyo_hist, labels = c("A", "B"),
-  common.legend = TRUE, legend = "bottom")
-```
-
-# Supp figures
-
-
-## Determnie the variant quality threshold
-original Rmd: ~/Documents/GitHub/varroa-linkage-map/R_scripts/exceptional-sites.Rmd
-
-The first metric we will look at is the (Phred encoded) site quality. This is a measure of how much confidence we have in our variant calls. First of all, we read in the site quality report we generated using vcftools. We will use the read_delim command from the readr package (part of the the tidyverse) because it is more efficient for reading in large datafiles. It also allows us to set our own column names.
-
-```{r}
-qual_var <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
-           col_names = c("chr", "pos", "qual"), skip = 1) %>%
-   unite(site, c("chr", "pos"))
-
-  ggplot(qual_var, aes(qual)) +
-  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + theme_classic2() +
-  ggtitle("Variant quality distribution") +
- scale_x_continuous(n.breaks = 12) +
-    theme(axis.text.x=element_text(angle=90,hjust=1)) +
-      xlab("Variant quality") + 
-      ylab("Density") +
-   geom_vline(xintercept = 15000, color = "red")
-```
- the quality is same for individuals, - its already normalized.
-
-## Supp Figure 1. all F2 mites genotypes
-The remaining males (~25%) inherit alleles from mother and father, suggesting sexual reproduction   
-
-** in progress
-
-------- 
-
-Heterozygosity per individual, DNA
+## Heterozygosity rates in mites and bees
 
 #### varroa mite DNA
 
@@ -745,7 +533,7 @@ p_bee_DNA <- ggplot(ind_het_bee) +
  labs(title = "C. Honeybee DNA") +
   ylab("Proportion of heterozygotic sites") +
   theme(axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
+       # axis.text.x = element_blank(),
           axis.title.y = element_blank(),
         legend.position = "none",
         legend.title = element_blank(), 
@@ -844,7 +632,7 @@ p_bee_RNA = ind_het_bee_RNA %>%
     labs(title = "D. Honeybee RNA") +
   ylab("Proportion of heterozygotic sites") +
   theme(axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
+        #axis.text.x = element_blank(),
           axis.title.y = element_blank(),
         legend.position = "none",
         legend.title = element_blank(), 
@@ -853,7 +641,6 @@ p_bee_RNA = ind_het_bee_RNA %>%
 # is there a significant difference in the proportion of heterozygotic sites between males and Females?5
 wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het_bee_RNA)
 t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het_bee_RNA)
-
 
 # get the median and avarage values for the proportions
 count_bee_RNA = ind_het_bee_RNA %>%
@@ -864,7 +651,7 @@ count_bee_RNA = ind_het_bee_RNA %>%
   mutate(pvalue = format(round(wil_var$p.value, digits=3)))
 ```
 
-## Supp Figure 2. Heterozygosity rates in mites and bees
+### Figure 3. Heterozygosity rates in mites and bees
 ```{r, fig.width = 10, fig.asp = 0.8, out.width = "100%"}
                       
 #grid.arrange(top= grid::textGrob("Proportion of heterozygotic sites in varroa and honeybee", gp=grid::gpar(fontsize=20)), p_bee_DNA, p_var_DNA, 
@@ -872,14 +659,14 @@ count_bee_RNA = ind_het_bee_RNA %>%
 
 plot_4 = ggarrange(p_var_DNA, p_var_RNA, 
              p_bee_DNA, p_bee_RNA, nrow = 2, ncol = 2, #labels = c("A", "B", "C", "D"),
-  common.legend = TRUE, legend = "bottom")
+  common.legend = TRUE, legend = "none")
 
 
 annotate_figure(plot_4,
                 left = text_grob("Proportion of heterozygotic sites", rot = 90))
 ```
 
-## Supp Table 1. Heterozygosity rates in mites and bees
+### Table S3. Heterozygosity rates in mites and bees
 ```{r}
 #bind together all data for RNA and DNA , for varroa and bees
 count_all = rbind(count_bee_DNA,count_bee_RNA, count_varroa_DNA, count_varroa_RNA) %>% 
@@ -889,9 +676,158 @@ knitr::kable(count_all,  caption = 'Heterozygosity proportion in varroa and hone
   kable_styling(full_width = T)
 ```
 
+# Suplementary data
 
-Ploidy supp
+#### Figure S2. Variant quality distribution
 
+original Rmd: ~/Documents/GitHub/varroa-linkage-map/R_scripts/exceptional-sites.Rmd
+
+The first metric we will look at is the (Phred encoded) site quality. This is a measure of how much confidence we have in our variant calls. First of all, we read in the site quality report we generated using vcftools. We will use the read_delim command from the readr package (part of the the tidyverse) because it is more efficient for reading in large datafiles. It also allows us to set our own column names.
+
+```{r}
+qual_var <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
+           col_names = c("chr", "pos", "qual"), skip = 1) %>%
+   unite(site, c("chr", "pos"))
+
+  ggplot(qual_var, aes(qual)) +
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + theme_classic2() +
+  ggtitle("Variant quality distribution") +
+ scale_x_continuous(n.breaks = 12) +
+    theme(axis.text.x=element_text(angle=90,hjust=1)) +
+      xlab("Variant quality") + 
+      ylab("Density") +
+   geom_vline(xintercept = 15000, color = "red")
+```
+ the quality is same for individuals, - its already normalized.
+
+
+#### Flow-cytometry
+
+original Rmd:
+\~/Documents/GitHub/varroa_ploidy/R_scripts/varroa-ploidy.Rmd
+
+```{r}
+data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_ploidy/data/ploidy.csv") %>%
+  dplyr::mutate(Family = as.character(Family)) %>%
+  dplyr::mutate(stage_mature = case_when(
+    grepl("adult", Stage) ~ "Mature",
+    !grepl("adult", Stage) ~ "Imature")) 
+
+# count the mites in each stage and sex
+ploidy_summary = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+    group_by(Sex, stage_mature) %>% 
+     mutate(count_sample = n_distinct(record_number)) %>% #count each smaple once
+select(c(Sex,stage_mature,count_sample)) %>% 
+    unique()
+
+ploidy_summary
+
+# change the labales 
+my_strip_labels <- as_labeller(c(
+  "Imature" = "Imature mites
+n = 37",
+  "Mature" = "Mature mites
+n = 38"))
+
+# histogram plot:
+p_ploidy_hist = data %>% dplyr::filter(body.part == "Body") %>%
+ ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+  geom_histogram(position="dodge") +
+   geom_density(alpha=.2) +
+  ylab("Count") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite ploidy count
+Flow-cytometry") +
+   facet_grid(.~stage_mature, space = 'free',drop = F,
+              labeller = my_strip_labels) # add labels 
+
+# density plot:
+p_ploidy_dens = data %>% dplyr::filter(body.part == "Body") %>%
+ ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+ # geom_histogram(position="dodge") +
+   geom_density(alpha=.2) +
+    ylab("Density") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite ploidy
+Flow-cytometry") +
+   facet_grid(.~stage_mature, space = 'free',drop = F,
+              labeller = my_strip_labels) # add labels 
+
+#density plot with rug
+p_ploidy_dens_rug = data %>% dplyr::filter(body.part == "Body") %>%
+    ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+   geom_density(alpha=.2) +
+   geom_rug(aes(x=Ploidy,color = Sex), alpha=0.9, size=1.5,length = unit(0.05, "npc"))+
+      ylab("Density") +
+      theme_classic2() +
+      theme(legend.position = "none") +
+      ggtitle("Varroa mite ploidy
+Flow-cytometry") +
+    facet_grid(.~stage_mature, space = 'free',drop = F,
+              labeller = my_strip_labels) # add labels 
+
+# or , plot only mature mites (with a help from ChatGPT)
+data %>% 
+  dplyr::filter(body.part == "Body") %>%
+  dplyr::filter(stage_mature == "Mature") %>%
+  ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+  geom_density(alpha=.2) +
+  geom_rug(aes(x=Ploidy,color = Sex), alpha=0.9, size=1.5,length = unit(0.05, "npc"))+
+  ylab("Density") +
+  theme_classic2() +
+  theme(legend.position = "bottom") +
+  ggtitle("Varroa mite ploidy flow-cytometry") +
+  geom_vline(xintercept = 2.25, color = "red", linetype = "dashed") + # Make this dashed
+  geom_vline(xintercept = 1.63, color = "blue", linetype = "dashed") + # Make this dashed
+  scale_fill_manual(values = c("red", "blue"), 
+                    labels = c("Females (14)", "Males (10)")) +
+  scale_color_manual(values = c("red", "blue"), 
+                     labels = c("Females (14)", "Males (10)")) +
+  guides(fill = guide_legend(title = NULL, reverse = TRUE), 
+         color = guide_legend(title = NULL, reverse = TRUE))
+
+ploidy_avg = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+  dplyr::filter(stage_mature == "Mature") %>%
+  group_by(Sex) %>% 
+     mutate(avg = mean(Ploidy)) %>% #count each smaple once
+     mutate(median = median(Ploidy)) %>% 
+     mutate(min = min(Ploidy)) %>% 
+     mutate(max = max(Ploidy)) %>% 
+select(c(Sex,avg,median,min,max)) %>% 
+    unique()
+  
+ploidy_avg
+```
+
+### Figure S4. Varroa mite ploidy flow-cytometry
+```{r}
+# or , plot only mature mites, in hist
+p_ploidy_hist_adults = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+  dplyr::filter(stage_mature == "Mature") %>%
+  ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) +  
+  geom_histogram(position="dodge") +
+   geom_density(alpha=.2) +
+  ylab("Count") +
+theme_classic2() +
+  theme(legend.position = "bottom") +
+  ggtitle("Varroa mite ploidy flow-cytometry") +
+  geom_vline(xintercept = 2.25, color = "red", linetype = "dashed") + # Make this dashed
+  geom_vline(xintercept = 1.63, color = "blue", linetype = "dashed") + # Make this dashed
+  scale_fill_manual(values = c("red", "blue"), 
+                    labels = c("Females (14)", "Males (10)")) +
+  scale_color_manual(values = c("red", "blue"), 
+                     labels = c("Females (14)", "Males (10)")) +
+  guides(fill = guide_legend(title = NULL, reverse = TRUE), 
+         color = guide_legend(title = NULL, reverse = TRUE))
+
+```
+
+## Ploidy assessment, Flow cytometry
 load data
 ```{r, warning=FALSE}
 data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_Ploidy/data/Ploidy.csv") %>%
@@ -937,12 +873,99 @@ theme(axis.title.x = element_blank(),
 
 plots
 
-## Supp Figure 3 a. Ploidy assessment, development stages
+### Figure S5 a. Ploidy assessment, development stages
 ```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%",  fig.cap="all developmental stages, males and Females, whole body"}
 ggplotly(p_fam_body)
 ```
 
-## Supp Figure 3 b. Ploidy assessment, body parts 
+### Figure S5 b. Ploidy assessment, body parts 
 ```{r,  echo=FALSE, fig.asp = 0.5, fig.width = 7, out.width="100%",  fig.cap="all developmental stages, males and Females, in different body parts"}
 ggplotly(p_family_adults)
 ```
+
+
+# ...other old plots:
+
+#### Karyotyping
+
+original Rmd: \~/Documents/GitHub/varroa-karyotyping/varroa karyotyping.Rmd
+
+```{r eval=FALSE, include=FALSE}
+dat <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/karyo_varroa.csv")
+summary(dat)
+
+# how many males and Females?
+mite_counts = tibble(males = n_distinct(filter(dat, Sex=="male")$ID), 
+           Females = n_distinct(filter(dat, Sex=="Female")$ID)) 
+
+mite_counts
+
+dat_karyo = dat %>% 
+   dplyr::mutate(chromo_number = as.numeric(chromo_number)) %>%
+  expandRows("cell_count", drop = FALSE) %>% 
+  dplyr::mutate(Indx = row_number(cell_count)) %>%
+  group_by(ID) %>%
+dplyr::mutate(median_count = median(chromo_number)) %>%
+    dplyr::mutate(stage_mature = "Imature mites
+n = 17")
+
+# change the labales 
+#my_strip_labels <- as_labeller("Imature" = "Imature mites
+#n = 17")
+
+p_kar_dens = dat_karyo %>% 
+ ggplot(aes(x=chromo_number, color = Sex, fill = Sex)) + 
+ # geom_histogram(position="dodge") +
+  geom_density(alpha=.2) +
+    ylab("Density") +
+    xlab("Chromosome count") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite chromosome count
+Karyotyping") +
+    facet_grid(.~stage_mature, space = 'free',drop = F)
+  
+
+#density plot with rug
+p_karyo_dens_rug = dat_karyo %>% 
+ ggplot(aes(x=chromo_number, color = Sex, fill = Sex)) + 
+   geom_rug(aes(x=chromo_number,color = Sex), alpha=0.9, size=1.5,  length = unit(0.05, "npc"))+
+  geom_density(alpha=.2) +
+    ylab("Density") +
+    xlab("Chromosome count") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite chromosome count
+Karyotyping") +
+    facet_grid(.~stage_mature, space = 'free',drop = F)
+
+# or histogram:
+p_karyo_hist = dat_karyo %>% 
+ ggplot(aes(x=chromo_number, color = Sex, fill = Sex)) + 
+ geom_density(alpha=.2) +
+   geom_histogram(position="dodge", binwidth = 1) +
+  ylab("Count") +
+    xlab("Chromosome count") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite chromosome count
+Karyotyping") 
+```
+
+plot Karyotyping and flow cytometry together
+
+### Figure 4. Ploidy assessment 
+```{r}
+ggarrange(p_ploidy_dens_rug, p_karyo_dens_rug, labels = c("A", "B"),
+  common.legend = TRUE, legend = "bottom",  widths = c(1, 0.65))
+```
+
+other possible plots for Figure 4
+```{r}
+ggarrange(p_ploidy_dens, p_kar_dens, labels = c("A", "B"),
+  common.legend = TRUE, legend = "bottom")
+
+ggarrange(p_ploidy_hist, p_karyo_hist, labels = c("A", "B"),
+  common.legend = TRUE, legend = "bottom")
+```
+
