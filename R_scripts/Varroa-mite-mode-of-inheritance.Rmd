@@ -66,7 +66,7 @@ vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 -
 
 ## Load Variant Call Format (VCF) file.
 
-Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/meta_data_223.xlsx).
+Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/Table%20S1.%20Biosamples%20detalis.xlsx).
 
 ```{r}
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
