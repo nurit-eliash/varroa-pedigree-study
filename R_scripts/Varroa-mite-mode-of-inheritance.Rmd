@@ -28,7 +28,7 @@ Sample size: 30 families, total of 223 individuals.
 Three *Apis mellifera liguistica* colonies, located at Okinawa Institute of Acience and Technology (OIST) experimental apiary.  
 For details of mite collection and pedigree construction, please see the original [manuscript](Update%20this).  
 All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/).  
-All data are available and reproducible from the [GitHub page](https://github.com/nurit-eliash/varroa-linkage-map).  
+All data are available and reproducible from the [GitHub page](https://github.com/nurit-eliash/varroa-pedigree-study).  
 
 ### load libraries
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
@@ -66,10 +66,10 @@ vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 -
 
 ## Load Variant Call Format (VCF) file.
 
-Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-linkage-map/blob/main/data/Table%20S1.%20Biosamples%20detalis.xlsx).
+Extract genotypes for each site and individual. The metadata for all samples can be found in [here](https://github.com/nurit-eliash/varroa-pedigree-study/blob/main/data/Table_S1_Biosamples_detalis.xlsx).
 
 ```{r}
-vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
 vcf
 # extract the genotype for each site in each individual
 gt <- extract.gt(vcf, element = "GT") 
@@ -134,7 +134,7 @@ Each individual, is genotyped for each site with one of the three genotypes:
 -   Homozygote for the alternate allele = **1/1**
 -   "NA" = site genotype not determined
 
-For more information about the mapping, variant calling and variant filtration, please see the Snakemake pipeline in [here](https://github.com/nurit-eliash/varroa-linkage-map).
+For more information about the mapping, variant calling and variant filtration, please see the Snakemake pipeline in [here](https://github.com/nurit-eliash/varroa-pedigree-study).
 
 ------------------------------------------------------------------------
 
@@ -918,7 +918,7 @@ plot_grid( prow, legend, rel_widths = c(1, .2))
 Based on the "informative crosses" we observe that while most F2 males inherit only maternal genotypes, suggesting a parthenogenetic mode of inheritance, a few males carry also paternal genotypes.  
 We then plot the distribution of F2 males' proportion of maternal sites, for all 4 "informative crosses". based on this visualization, we set the threshold for "normal" males at 0.75, as it includes 14 out of 23 males.   That is in "normal" males, at least 75% of the genotypes are maternal.  The rest of the males, are considered "abnormal", and were not included in the final analysis.  
 
-![](/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/pictures/Maternal_genotype_distribution.jpg)
+![](/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/pictures/Maternal_genotype_distribution.jpg)
 
 
 The "abnormal" males are:

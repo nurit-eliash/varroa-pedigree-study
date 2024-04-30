@@ -59,7 +59,7 @@ vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 -
 ## Load Variant Call Format (VCF) file.
 
 ```{r}
-vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
 vcf
 # extract the genotype for each site in each individual
 gt <- extract.gt(vcf, element = "GT") 
@@ -425,7 +425,7 @@ p_00_01_hist = samples_obs_00_01 %>%
   ggtitle("F1 cross: male (0/0) x female (0/1)",
           subtitle = paste("F2 female = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", male =", filter(pooled_obs_count, sex == 'male')$count_sample))
 
-#write_csv(samples_obs_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/samples_prop_00_01.csv")
+#write_csv(samples_obs_00_01, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/samples_prop_00_01.csv")
 ```
 
 step-by-step filtering shows that the filtering of the F1 as 0/1 reduces most of the sites.  
@@ -527,7 +527,7 @@ p_11_01_hist = samples_obs_11_01 %>%
           subtitle = paste("F2 female = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", male =", filter(pooled_obs_count, sex == 'male')$count_sample))
 
 # save as csv to send to sasha
-#write_csv(samples_obs_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/samples_prop_11_01.csv")
+#write_csv(samples_obs_11_01, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/samples_prop_11_01.csv")
 ```
 
 #### F0 female, (0/1); F1 male (0/1); F1 female (0/0)
@@ -603,7 +603,7 @@ p_01_00_hist = samples_obs_01_00 %>%
           subtitle = paste("F2 female = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", male =", filter(pooled_obs_count, sex == 'male')$count_sample))
 
 # save as csv to send to sasha
-#write_csv(samples_obs_01_00, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/samples_prop_01_00.csv")
+#write_csv(samples_obs_01_00, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/samples_prop_01_00.csv")
 ```
 
 #### F0 female, (0/1); F1 male (0/1); F1 female (1/1)
@@ -679,7 +679,7 @@ p_01_11_hist = samples_obs_01_11 %>%
           subtitle = paste("F2 female = ", filter(pooled_obs_count, sex == 'female')$count_sample, ", male =", filter(pooled_obs_count, sex == 'male')$count_sample))
 
 # save as csv to send to sasha
-#write_csv(samples_obs_01_11, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/samples_prop_01_11.csv")
+#write_csv(samples_obs_01_11, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/samples_prop_01_11.csv")
 ```
 
 ## can we see two seperate populations of F2 males? based on their genotype
@@ -832,5 +832,5 @@ fem_maternal_prop = F2_male %>%
 
   shapiro.test(male_maternal_prop$prop)
 
-#write_csv(F2_male, "/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/F2_male_gt_prop.csv")
+#write_csv(F2_male, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/F2_male_gt_prop.csv")
 ```

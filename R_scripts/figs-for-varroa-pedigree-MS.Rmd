@@ -56,7 +56,7 @@ vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 -
 ### load VCF file
 
 ```{r}
-vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
 vcf
 # extract the genotype for each site in each individual
 gt <- extract.gt(vcf, element = "GT") 
@@ -81,14 +81,14 @@ family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
 
 ### Figure 2A. Proportion of maternal genotype in F2 mites
 the original figure can be re-run in here:  
-~/Documents/GitHub/varroa-linkage-map/R_scripts/pedigree-hetero-count-Q15000.Rmd
+~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd
 
 
 ### Figure 2B. F1 male (0/0) x Female (0/1)
 
 Crossing homozygotic male, with heterozygotic Female (5) F1 male (0/0) x
 Female (0/1) original Rmd:
-\~/Documents/GitHub/varroa-linkage-map/R_scripts/explore_vcf_F1_F2.Rmd
+\~/Documents/GitHub/varroa-pedigree-study/R_scripts/explore_vcf_F1_F2.Rmd
 
 ```{r}
 # define a list to put all the data frames in
@@ -272,7 +272,7 @@ stat_00_01 = df_00_01 %>% dplyr::filter(class == "Observed") %>%
 
 Crossing homozygotic male, with heterozygotic Female (7) F1 male (0/1) x
 Female (0/0) original Rmd:
-\~/Documents/GitHub/varroa-linkage-map/R_scripts/explore_vcf_F1_F2.Rmd
+\~/Documents/GitHub/varroa-pedigree-study/R_scripts/explore_vcf_F1_F2.Rmd
 
 ```{r}
 # define a list to put all the data frames in
@@ -302,7 +302,7 @@ obs[[fam]] <- table %>%
 observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
 samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("0/0", "0/1", "1/1")))
   
-# define the group of abnormal males based on the overall analsys: (~/Documents/GitHub/varroa-linkage-map/R_scripts/pedigree-hetero-count-Q15000.Rmd)
+# define the group of abnormal males based on the overall analsys: (~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd)
 abnorm_males = tibble(sample = c("412_413a_grnson",  "400_401a_grnson", "458_459a_grnson", "240_241c_grnson", "426_427b_grnson",  "300_301a_grnson"), sex = "Male", normality = "abnormal")
 
 # for this specific cross, there are no abnormal males: matrnal prop<0.75
@@ -461,11 +461,11 @@ df_01_00 %>%
 
 #### varroa mite DNA
 
-originally from \~/Documents/GitHub/varroa-linkage-map/R_scripts/LinkMap
+originally from \~/Documents/GitHub/varroa-pedigree-study/R_scripts/LinkMap
 malesHet.Rmd
 
 ```{r}
-ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
            col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
 
 # find all 'Female' and 'male' 
@@ -680,12 +680,12 @@ knitr::kable(count_all,  caption = 'Heterozygosity proportion in varroa and hone
 
 #### Figure S2. Variant quality distribution
 
-original Rmd: ~/Documents/GitHub/varroa-linkage-map/R_scripts/exceptional-sites.Rmd
+original Rmd: ~/Documents/GitHub/varroa-pedigree-study/R_scripts/exceptional-sites.Rmd
 
 The first metric we will look at is the (Phred encoded) site quality. This is a measure of how much confidence we have in our variant calls. First of all, we read in the site quality report we generated using vcftools. We will use the read_delim command from the readr package (part of the the tidyverse) because it is more efficient for reading in large datafiles. It also allows us to set our own column names.
 
 ```{r}
-qual_var <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
+qual_var <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", delim = "\t",
            col_names = c("chr", "pos", "qual"), skip = 1) %>%
    unite(site, c("chr", "pos"))
 
