@@ -856,14 +856,14 @@ p_family_adults = data %>% dplyr::filter(body.part %in% c("Body", "Ovary","Teste
             axis.text.x = element_blank(),
             axis.ticks = element_blank(),
     panel.border=element_rect(colour="black",size=1, fill = NA))+
-ggtitle('Mite ploidy in differnet body parts') +  ylim(0, 3)
+ggtitle('Mite ploidy in different body parts') +  ylim(0, 3)
 
 p_fam_body = data %>% dplyr::filter(body.part == "Body") %>%
  dplyr::filter(Stage %in% c("Larvae", "Protonymph", "Deuteronymph", "adult")) %>%
   ggplot(aes(y=Ploidy, x=Sex, fill = Sex, lable = Stage)) + 
  geom_boxplot(outlier.shape = NA, coef=0 ) +  theme_classic() +  geom_jitter(width=0.1, size=2) +
 facet_wrap(~Stage, nrow = 1 ) + 
-  ggtitle('Mite Ploidy in whole body, in differnet developmental stage') +
+  ggtitle('Mite Ploidy in whole body, in different developmental stage') +
 theme(axis.title.x = element_blank(),
             axis.text.x = element_blank(),
             axis.ticks = element_blank(),
@@ -947,7 +947,7 @@ p_karyo_hist = dat_karyo %>%
   ylab("Count") +
     xlab("Chromosome count") +
 theme_classic2() +
-     theme(legend.position = "none") +
+   #  theme(legend.position = "none") +
 ggtitle("Varroa mite chromosome count
 Karyotyping") 
 ```
