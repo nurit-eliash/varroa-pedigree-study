@@ -1,0 +1,999 @@
+---
+title: "figures-for-varroa-pedigree-MS"
+date: "2023-02-20"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: yes
+      df_print: paged
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+```{=html}
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+```
+
+### load libraries
+```{r include=FALSE}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("ggpubr")
+library("scales")
+library("ggpubr")
+library("gridExtra")
+library("grid")
+library("GGally")
+library("vcfR") # for extracting genotype data from a vcf file
+library("janitor")
+library("splitstackshape")
+library("plotly")
+library("kableExtra")
+library("pastecs") # for stats stat.desc()
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                     fig.width = 10,
+                      fig.asp = 0.4,
+                      out.width = "100%")
+```
+
+the VCF was filtered with the following parameters:  
+```{r eval=FALSE, echo=TRUE}
+vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 15000 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
+```
+
+### load VCF file
+
+```{r}
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
+vcf
+# extract the genotype for each site in each individual
+gt <- extract.gt(vcf, element = "GT") 
+gt <- as.data.frame(t(gt)) %>%
+  rownames_to_column("ID")
+#clean the ID names
+gt$ID <- sub("_[^_]+$", "", gt$ID)
+
+table <- gt %>%
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>%
+  dplyr::select(contains(c("son", "dat", "fnd"))) %>%  # Keep only F0, F1, and F2 adults
+  # 🔹 Remove columns containing specific substrings
+  dplyr::select(-matches("sis|479-2|565-2|535_1|535_3")) %>%
+  # 🔹 Convert GT values from numbers to letters
+  mutate(across(everything(), ~ case_when(
+    . == "0/0" ~ "AA",
+    . == "0/1" ~ "AB",
+    . == "1/1" ~ "BB",
+    TRUE ~ .  # Keep other values unchanged
+  )))
+```
+
+# Main figures
+
+## Figure 2A. Proportion of maternal genotype in F2 mites
+the original figure can be re-run in here:  
+~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd
+
+~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
+
+## Figure 2B. F1 male (AA) x Female (AB)
+```{r}
+
+```
+
+### Analysis of all sites
+Crossing homozygotic male, with heterozygotic Female (5) F1 male (AA) x Female (AB)
+
+```{r all-sites-analysis}
+# Set the families (include only families with at least one adult F2)
+family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
+  str_extract("[^_]+") %>%
+  unique()
+
+# Define a list to store all data frames per family
+obs <- list()
+
+for (fam in family) {
+  obs[[fam]] <- table %>%
+    dplyr::select(starts_with(fam)) %>%
+    # Add site and chromosome information
+    rownames_to_column("site") %>%
+    mutate(chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
+    # Filter for the genotype patterns we want
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AA")) %>%  # F0 Female must be AA
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "AA")) %>%  # Sons must be AA
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AB")) %>%  # Daughters must be AB
+    # Select only the grandchildren columns and keep site/chrom info
+    dplyr::select(site, chrom, contains("grn")) %>%
+    # Reshape the data
+    tidyr::pivot_longer(cols = -c(site, chrom)) %>%
+    dplyr::rename(Sample = name, gt = value) %>%
+    # Count genotypes
+    dplyr::count(Sample, gt, chrom, .drop = FALSE) %>%
+    dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
+    mutate(n = as.numeric(n)) %>%
+    group_by(Sample) %>%
+    mutate(total = as.numeric(sum(n))) %>%
+    mutate(sex = case_when(
+      grepl("son", Sample) ~ "Male",
+      grepl("dat", Sample) ~ "Female"
+    )) %>%
+    # Add family column
+    mutate(family = fam)
+}
+
+# Bind all families together into a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% 
+  mutate(Sample = as.character(Sample))
+
+# Create samples dataframe
+samples <- data.frame(
+  Sample = rep(unique(observed$Sample), each = 3), 
+  gt = rep(c("AA", "AB", "BB"))
+) %>%   
+  mutate(family = str_extract(Sample, "^[0-9]+"))
+
+# Join and create final dataset
+samples_obs_all <- left_join(samples, observed, by = c("family", "Sample", "gt")) %>% 
+  mutate(sex = case_when(
+    grepl("son", Sample) ~ "Male",
+    grepl("dat", Sample) ~ "Female"
+  )) %>%
+  group_by(Sample, chrom) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::mutate(prop = n/total) %>%
+  na.omit()
+```
+
+now we count only the filtered sites, based on VAF and QAF values     
+
+rule:       
+  group_by(family, site, Sample) %>%  # Keep sites grouped by family    
+  filter(   
+    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)    
+    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)   
+    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB))     
+
+### Analysis of filtered sites (site quality QAF and VAF)
+The analysis was done in "~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd"
+
+```{r filtered-sites-analysis}
+# Load the pre-filtered sites per family and sample
+filtered_sites <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv") %>%
+    mutate(family = as.character(family),
+           Sample = as.character(Sample),
+           # Extract Chromosome from the site column
+           chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>% rename(gt = GT)
+
+# Set the families (include only families with at least one adult F2)
+family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
+  str_extract("[^_]+") %>%
+  unique()
+
+# Define a list to store all data frames per family
+obs <- list()
+
+for (fam in family) {
+  obs[[fam]] <- table %>%
+    dplyr::select(starts_with(fam)) %>%
+    # Add site and chromosome information
+    rownames_to_column("site") %>%
+    mutate(chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
+    # Then filter for the genotype patterns we want
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AA")) %>%  # F0 Female must be AA
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "AA")) %>%  # Sons must be AA
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AB")) %>%  # Daughters must be AB
+    # Select only the grandchildren columns and keep site/chrom info
+    dplyr::select(site, chrom, contains("grn")) %>%
+    # Reshape the data
+    tidyr::pivot_longer(cols = -c(site, chrom)) %>%
+    dplyr::rename(Sample = name, gt = value) %>%
+    # filter for sites 
+     left_join(filtered_sites, by = c("site", "chrom", "Sample",  "gt")) %>% #view()
+    na.omit() %>% # Count genotypes
+    dplyr::count(Sample, gt, chrom, .drop = FALSE) %>%
+    dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
+    mutate(n = as.numeric(n)) %>%
+    group_by(Sample) %>%
+    mutate(total = as.numeric(sum(n))) %>%
+    mutate(sex = case_when(
+      grepl("son", Sample) ~ "Male",
+      grepl("dat", Sample) ~ "Female"
+    )) %>%
+    # Add family column
+    mutate(family = fam)
+}
+
+# Bind all families together into a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% 
+  mutate(Sample = as.character(Sample))
+
+# Create samples dataframe
+Sample <- data.frame(
+  Sample = rep(unique(observed$Sample), each = 3), 
+  gt = rep(c("AA", "AB", "BB"))
+) %>%   
+  mutate(family = str_extract(Sample, "^[0-9]+"))
+
+# Join and create final dataset
+samples_obs_filtered <- left_join(Sample, observed, by = c("family", "Sample", "gt")) %>% 
+  mutate(sex = case_when(
+    grepl("son", Sample) ~ "Male",
+    grepl("dat", Sample) ~ "Female"
+  )) %>%
+  group_by(Sample, chrom) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  dplyr::mutate(prop = n/total) %>%
+  na.omit()
+```
+
+### Comparison of all sites vs filtered sites
+```{r compare-datasets}
+# Create a table showing sites filtered per sample
+cat("\nSites filtered per sample:\n")
+sites_per_sample <- table %>%
+  rownames_to_column("site") %>%
+  tidyr::pivot_longer(cols = -site, names_to = "Sample", values_to = "gt") %>%
+  # Filter out NA values before counting
+  filter(!is.na(gt)) %>%
+  group_by(Sample) %>%
+  summarise(
+    total_sites = n(),
+    .groups = 'drop'
+  )
+
+filtered_sites_per_sample <- filtered_sites %>%
+  group_by(Sample) %>%
+  summarise(
+    filtered_sites = n(),
+    .groups = 'drop'
+  )
+
+# Join and calculate differences
+sites_comparison <- sites_per_sample %>%
+  left_join(filtered_sites_per_sample, by = "Sample") %>%
+  mutate(
+    filtered_sites = replace_na(filtered_sites, 0),
+    sites_removed = total_sites - filtered_sites,
+    percent_removed = round((sites_removed / total_sites) * 100, 2)
+  ) %>%
+  arrange(desc(sites_removed))
+
+# Display the table
+knitr::kable(sites_comparison %>%
+  select(Sample, total_sites, filtered_sites, sites_removed, percent_removed) %>%
+  rename(
+    "Sample" = Sample,
+    "Total Sites" = total_sites,
+    "Sites Kept" = filtered_sites,
+    "Sites Removed" = sites_removed,
+    "% Removed" = percent_removed
+  ),
+  digits = 2,
+  caption = "Number of sites filtered per sample") %>%
+  kable_styling(full_width = TRUE)
+
+```
+
+### Filtered for QAF and VAF, minimum sites per sample = 10
+```{r comparing-all-and-filtered-data-sites_min10}
+site_threshold = as.numeric(10)
+
+## all sites
+# First, create the summary dataframe for labels
+summary_df_all <- samples_obs_all %>%
+  group_by(chrom, sex) %>%
+  summarise(
+    num_samples = length(unique(Sample)),
+    total_sites = sum(total, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# plot pulled data
+ggplot(samples_obs_all %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+  #facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+All sites, sites per sample => 10", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+
+# plot facet data
+ggplot(samples_obs_all %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+  facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+All sites, sites per sample => 10", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+
+## filtered sites
+
+# First, create the summary dataframe for labels
+summary_df_filtered <- samples_obs_filtered %>%
+  group_by(chrom, sex) %>%
+  summarise(
+    num_samples = length(unique(Sample)),
+    total_sites = sum(total, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# plot pulled data 
+ggplot(samples_obs_filtered %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+ # facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+ Filtered sites, sites per sample => 10", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+
+# plot facet data 
+ggplot(samples_obs_filtered %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+  facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+ Filtered sites, sites per sample => 10", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+## Box plots
+# All sites box plot
+ggplot(samples_obs_all %>% 
+       filter(total >= site_threshold) %>%
+       filter(gt == "AA"), 
+       aes(x = factor(sex, levels = c("Female", "Male")), y = prop, color = sex)) +
+  geom_boxplot(fill = "grey80", outlier.shape = NA, color = "black") +
+  geom_point(position = position_jitter(width = 0.2), size = 2, alpha = 0.7) +
+  facet_wrap(~chrom, nrow = 2) +
+  ylab("Proportion of AA Genotype") +
+  xlab("Sex") +
+  labs(title = "Distribution of AA Genotype Proportion per Chromosome
+All sites, sites per sample => 10") +
+  theme_classic() +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
+  ) +
+  scale_color_manual(values = c("Female" = "red", "Male" = "blue")) +
+  coord_cartesian(ylim = c(0, 1))
+
+# Filtered sites box plot
+ggplot(samples_obs_filtered %>% 
+       filter(total >= site_threshold) %>%
+       filter(gt == "AA"), 
+       aes(x = factor(sex, levels = c("Female", "Male")), y = prop, color = sex)) +
+  geom_boxplot(fill = "grey80", outlier.shape = NA, color = "black") +
+  geom_point(position = position_jitter(width = 0.2), size = 2, alpha = 0.7) +
+  facet_wrap(~chrom, nrow = 2) +
+  ylab("Proportion of AA Genotype") +
+  xlab("Sex") +
+  labs(title = "Distribution of AA Genotype Proportion per Chromosome
+Filtered sites, sites per sample => 10") +
+  theme_classic() +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
+  ) +
+  scale_color_manual(values = c("Female" = "red", "Male" = "blue")) +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+
+### Filtered for QAF and VAF, minimum sites per sample = 40
+```{r comparing-all-and-filtered-data-sites_min40}
+site_threshold = as.numeric(40)
+
+## all sites
+# First, create the summary dataframe for labels
+summary_df_all <- samples_obs_all %>%
+  group_by(chrom, sex) %>%
+  summarise(
+    num_samples = length(unique(Sample)),
+    total_sites = sum(total, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# plot pulled data
+ggplot(samples_obs_all %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+  #facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+All sites, sites per sample => 40", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+
+# plot facet data
+ggplot(samples_obs_all %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+  facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+All sites, sites per sample => 40", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_all,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+
+## filtered sites
+
+# First, create the summary dataframe for labels
+summary_df_filtered <- samples_obs_filtered %>%
+  group_by(chrom, sex) %>%
+  summarise(
+    num_samples = length(unique(Sample)),
+    total_sites = sum(total, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# plot pulled data 
+ggplot(samples_obs_filtered %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+ # facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+ Filtered sites, sites per sample => 40", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+
+# plot facet data 
+ggplot(samples_obs_filtered %>% filter(total >= site_threshold), 
+       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
+  geom_bar(position = "fill", stat = "identity", width = 0.5) +  # Made bars narrower (changed from 0.7 to 0.5)
+  facet_wrap(~chrom, nrow = 1) +
+  ylab("Genotype Proportion") +
+  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
+ Filtered sites, sites per sample => 40", 
+       fill = "Genotype") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    strip.text.x = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),  # Reduced panel spacing (changed from 2 to 1)
+    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
+  ) +
+  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
+  # Add sample count labels
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.03,
+                label = paste0(num_samples, " ", sex, "s")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 1) +
+  # Add sites count labels with comma formatting
+  geom_text(data = summary_df_filtered,
+            aes(x = sex, 
+                y = -0.18,
+                label = paste0(format(total_sites, big.mark = ","), " sites")),
+            inherit.aes = FALSE,
+            size = 2.8,
+            vjust = 0.5)
+## Box plots
+# All sites box plot
+ggplot(samples_obs_all %>% 
+       filter(total >= site_threshold) %>%
+       filter(gt == "AA"), 
+       aes(x = factor(sex, levels = c("Female", "Male")), y = prop, color = sex)) +
+  geom_boxplot(fill = "grey80", outlier.shape = NA, color = "black") +
+  geom_point(position = position_jitter(width = 0.2), size = 2, alpha = 0.7) +
+  facet_wrap(~chrom, nrow = 2) +
+  ylab("Proportion of AA Genotype") +
+  xlab("Sex") +
+  labs(title = "Distribution of AA Genotype Proportion per Chromosome
+All sites, sites per sample => 40") +
+  theme_classic() +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
+  ) +
+  scale_color_manual(values = c("Female" = "red", "Male" = "blue")) +
+  coord_cartesian(ylim = c(0, 1))
+
+# Filtered sites box plot
+ggplot(samples_obs_filtered %>% 
+       filter(total >= site_threshold) %>%
+       filter(gt == "AA"), 
+       aes(x = factor(sex, levels = c("Female", "Male")), y = prop, color = sex)) +
+  geom_boxplot(fill = "grey80", outlier.shape = NA, color = "black") +
+  geom_point(position = position_jitter(width = 0.2), size = 2, alpha = 0.7) +
+  facet_wrap(~chrom, nrow = 2) +
+  ylab("Proportion of AA Genotype") +
+  xlab("Sex") +
+  labs(title = "Distribution of AA Genotype Proportion per Chromosome
+Filtered sites, sites per sample => 40") +
+  theme_classic() +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    panel.spacing = unit(1, "lines"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
+  ) +
+  scale_color_manual(values = c("Female" = "red", "Male" = "blue")) +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+---
+
+# Archived Code for Future Reference
+*The following code sections are preserved for future analysis but are not currently active in the main analysis.*
+
+```{r filtered-sites-analysis-archived}
+# Load the pre-filtered sites per family and sample
+filtered_sites <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv") %>%
+    mutate(family = as.character(family),
+           Sample = as.character(Sample),
+           # Extract Chromosome from the site column
+           chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>% rename(gt = GT)
+
+# Define a list to store all data frames per family
+obs_count <- list()
+
+for (fam in family) {
+  obs_count[[fam]] <- table %>%
+    dplyr::select(starts_with(fam)) %>%
+    # Add site and chromosome information
+    rownames_to_column("site") %>%
+    mutate(chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
+    # Filter for the genotype patterns we want
+    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AA")) %>%  # F0 Female must be AA
+    dplyr::filter_at(vars(matches("_son")), all_vars(. == "AA")) %>%  # Sons must be AA
+    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AB")) %>%  # Daughters must be AB
+    # Select only the grandchildren columns and keep site/chrom info
+    dplyr::select(site, chrom, contains("grn")) %>%
+    # Reshape the data
+    tidyr::pivot_longer(cols = -c(site, chrom)) %>%
+    dplyr::rename(Sample = name, gt = value) %>% 
+   na.omit() %>% 
+     mutate(sex = case_when(
+      grepl("son", Sample) ~ "Male",
+      grepl("dat", Sample) ~ "Female"
+    )) %>%
+    # Add family column
+    mutate(family = fam) %>% #view()
+    left_join(filtered_sites, by = c("site", "chrom", "Sample", "family", "gt")) %>% #view()
+    na.omit() # %>% view()
+  }
+
+# Bind all families together into a final data frame containing all observed counts
+observed_count <- do.call("rbind", obs_count) %>% 
+  mutate(Sample = as.character(Sample))
+```
+
+
+## F1 male (AB) x Female (AB)
+```{r eval=FALSE, include=FALSE}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+  
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+   # dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AB")) %>% # force F0 Female to be hetero, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "AB")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AB")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female"))
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
+samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("AA", "AB", "BB")))
+   
+# define the group of abnormal males based on the overall analsys: (~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd)
+abnorm_males = tibble(sample = c("412_413a_grnson",  "400_401a_grnson", "458_459a_grnson", "240_241c_grnson", "426_427b_grnson",  "300_301a_grnson"), sex = "Male", normality = "abnormal")
+
+# for this specific cross, there are no abnormal males: matrnal prop<0.75
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+    group_by(sample) %>%
+    replace(is.na(.), 0) %>%
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
+
+# make a table with the expected proportions for the different modes of reproduction:
+Haploid = data.frame(mode = "Haploid", gt = c("AA", "AB", "BB"),prop = c(0.5, 0, 0.5))
+Automixis = data.frame(mode = "Automixis", gt = c("AA", "AB", "BB"),prop = c(0, 0.5, 0))
+Sexual = data.frame(mode = "Sexual",gt = c("AA", "AB", "BB"),prop = c(0.25, 0.5, 0.25))
+
+modes = rbind(Haploid,Automixis,Sexual)
+```
+
+## F1 male (AB) x Female (AA)
+```{r eval=FALSE, include=FALSE}
+# define a list to put all the data frames in
+obs <- list()
+
+for (fam in family) {
+  
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
+     dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AB")) %>% # force F0 Female to be homo, like her son
+  dplyr::filter_at(vars(matches("_son")), all_vars(. == "AB")) %>%
+  dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AA")) %>% 
+  dplyr::select(contains("grn")) %>%
+  tidyr::pivot_longer(everything())  %>% 
+  dplyr::rename(sample = name, gt = value) %>%
+  dplyr::count(sample, gt, .drop = FALSE) %>% 
+  dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
+  mutate(n = as.numeric(n)) %>%
+  group_by(sample) %>%
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female"))
+}
+
+# bind all families together, to a final data frame containing all observed counts
+observed <- do.call("rbind", obs) %>% mutate(sample = as.character(sample))
+samples <- data.frame(sample = rep(unique(observed$sample), each =3), gt = rep(c("AA", "AB", "BB")))
+   
+# define the group of abnormal males based on the overall analsys: (~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd)
+abnorm_males = tibble(sample = c("412_413a_grnson",  "400_401a_grnson", "458_459a_grnson", "240_241c_grnson", "426_427b_grnson",  "300_301a_grnson"), sex = "Male", normality = "abnormal")
+
+# for this specific cross, there are no abnormal males: matrnal prop<0.75
+
+samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex = case_when(
+    grepl("son", sample) ~ "Male",
+    grepl("dat", sample) ~ "Female")) %>%
+    group_by(sample) %>%
+    replace(is.na(.), 0) %>%
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    left_join(abnorm_males, by = "sample") %>% 
+    dplyr::select(-sex.y) %>% 
+    replace(is.na(.), "normal") %>%
+    dplyr::rename(sex = sex.x) %>%
+    unite("type", sex,normality, remove = FALSE)
+
+# make a table with the expected proportions for the different modes of reproduction:
+Haploid = data.frame(mode = "Haploid", gt = c("AA", "AB", "BB"),prop = c(1, 0, 0))
+Automixis = data.frame(mode = "Automixis", gt = c("AA", "AB", "BB"),prop = c(1, 0, 0))
+Sexual = data.frame(mode = "Sexual",gt = c("AA", "AB", "BB"),prop = c(0.5, 0.5, 0))
+
+modes = rbind(Haploid,Automixis,Sexual)
+```
+
+## Heterozygosity Analysis
+```{r eval=FALSE, include=FALSE}
+### varroa mite DNA
+ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
+           col_names = c("ind","homo_ob", "homo_ex", "nsites", "f"), skip = 1)
+
+# find all 'Female' and 'male' 
+Male<- grep("son",ind_het$ind)
+Female <- grep("dat|fn|sis",ind_het$ind)
+
+ind_het_sex <- ind_het %>%
+  mutate(sex = ifelse(row_number() %in% Female, "Female", ifelse(row_number() %in% Male, "Male", "not-determined"))) %>%
+  mutate(hom_prop =  homo_ob/nsites) %>%
+  mutate(het_prop = (nsites-homo_ob)/nsites) %>%
+ #keep only adult mites, for which sex is absolutly determined (exclude nymphs and eggs ("not determined"))
+  dplyr::filter(sex %in% c("Male", "Female"))
+
+# is there a significant difference in the proportion of heterozygotic sites between males and Females?5
+wil_var <- wilcox.test(het_prop ~ sex, alternative = "two.sided", data = ind_het_sex)
+t_test <- t.test(asin(sqrt(het_prop)) ~ sex, alternative = "two.sided", data = ind_het_sex)
+# no significant different (both wilcoxone and welch-test)
+
+# plot heterozygosity proportion, in each sex
+p_var_DNA <- ggplot(ind_het_sex) +
+    geom_boxplot(aes(x = sex, y = het_prop, fill = sex)) + 
+    scale_y_continuous(expand=c(0,0), limits = c(0, 1)) +
+    theme_classic() +
+    labs(title = "A. Varroa DNA") +
+  ylab("Proportion of heterozygotic sites") +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+          axis.title.y = element_blank(),
+        legend.position = "none",
+        legend.title = element_blank(), 
+        axis.ticks.x=element_blank()) +scale_fill_manual(values=c("white","black")) 
+
+# get the median and avarage values for the proportions
+count_varroa_DNA = ind_het_sex %>%
+  group_by(sex) %>%
+  summarise(median = median(het_prop), mean = mean(het_prop), n = n(), sd = sd(het_prop)) %>%
+  mutate(organism = "varroa") %>%
+  mutate(data = "DNA") %>%
+  mutate(pvalue = format(round(wil_var$p.value, digits=3)))
+```
+
+## Ploidy Analysis
+```{r eval=FALSE, include=FALSE}
+### Flow-cytometry
+data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_ploidy/data/ploidy.csv") %>%
+  dplyr::mutate(Family = as.character(Family)) %>%
+  dplyr::mutate(stage_mature = case_when(
+    grepl("adult", Stage) ~ "Mature",
+    !grepl("adult", Stage) ~ "Imature")) 
+
+# count the mites in each stage and sex
+ploidy_summary = data %>% 
+  dplyr::filter(body.part == "Body") %>%
+    group_by(Sex, stage_mature) %>% 
+     mutate(count_sample = n_distinct(record_number)) %>% #count each smaple once
+select(c(Sex,stage_mature,count_sample)) %>% 
+    unique()
+
+ploidy_summary
+
+# change the labales 
+my_strip_labels <- as_labeller(c(
+  "Imature" = "Imature mites
+n = 37",
+  "Mature" = "Mature mites
+n = 38"))
+
+# histogram plot:
+p_ploidy_hist = data %>% dplyr::filter(body.part == "Body") %>%
+ ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+   geom_histogram(position="dodge") +
+    geom_density(alpha=.2) +
+   ylab("Count") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite ploidy count
+Flow-cytometry") +
+   facet_grid(.~stage_mature, space = 'free',drop = F,
+              labeller = my_strip_labels) # add labels 
+
+# density plot:
+p_ploidy_dens = data %>% dplyr::filter(body.part == "Body") %>%
+ ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+  # geom_histogram(position="dodge") +
+    geom_density(alpha=.2) +
+     ylab("Density") +
+theme_classic2() +
+     theme(legend.position = "none") +
+ggtitle("Varroa mite ploidy
+Flow-cytometry") +
+   facet_grid(.~stage_mature, space = 'free',drop = F,
+              labeller = my_strip_labels) # add labels 
+
+#density plot with rug
+p_ploidy_dens_rug = data %>% dplyr::filter(body.part == "Body") %>%
+    ggplot(aes(x=Ploidy, color = Sex, fill = Sex)) + 
+   geom_density(alpha=.2) +
+   geom_rug(aes(x=Ploidy,color = Sex), alpha=0.9, size=1.5,length = unit(0.05, "npc"))+
+      ylab("Density") +
+      theme_classic2() +
+      theme(legend.position = "none") +
+      ggtitle("Varroa mite ploidy
+Flow-cytometry") +
+    facet_grid(.~stage_mature, space = 'free',drop = F,
+               labeller = my_strip_labels) # add labels 
+```
