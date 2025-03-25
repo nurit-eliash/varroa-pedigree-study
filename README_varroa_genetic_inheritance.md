@@ -1,15 +1,23 @@
 # Varroa-pedigree-study
+## Nurit Eliash, Nurit Eliash, Xia Hua, Endo Tetsuya, J. Spencer Johnston, Maeva A. Techer, Valerie R. Holmes, Juliana Rangel, Huoqing Zheng, Evan P. Economo and Alexander S. Mikheyev 
 
-This project aims to construct a three-generation pedigree of <i>Varroa destructor</i> genome.
-We used genomes of 223 varroa mite samples, belonging to 30 families, obtained from 3 honey bee colonies (<i> Apis mellifera</i> ).
+*Corresponding author: Nurit Eliash, nurite@gri.org.il
+### DOI: https://doi.org/10.1101/2024.05.10.593493
+
+### Supplementary material that includes code, original figures and tables can be found [here](https://rpubs.com/Nurit_Eliash/1288713).
+
+### Abstract
+This project aims to investigate <i>Varroa destructor</i> mode of genetic inheritance. 
+For that, we constructed a three-generation pedigree of the varroa mite's genome.
+We used genomes of 223 varroa mite samples, belonging to 30 families, obtained from three honey bee colonies (<i> Apis mellifera</i> ).
 Each mite family consists of 3 generations, and contains at least:
-- foundress female mite (F0)
-- son and daughter (F1)
-- at least one adult grandchild, male/female (F2) 
+- Foundress female mite (F0)
+- Son and daughter (F1)
+- At least one adult grandchild, male/female (F2) 
 
 A small family of mites, from left to right: daughter's molt, daughter (immobile), foundress mother (marked in pink), and the son. ![](pictures/family1.jpg)
 
-All mites were collected at the experimental apiary of OIST (Okinawa Institute of Science and Technology), between July and October 2020. For a detailed description, please see the Method section in the paper.  
+All mites were collected from the experimental apiary of OIST (Okinawa Institute of Science and Technology), between July and October 2020. For a detailed description, please see the Method section in the paper.  
 
 ## Available data
 ### Varroa genome sequences 
