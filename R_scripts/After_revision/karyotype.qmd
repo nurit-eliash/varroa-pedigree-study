@@ -1,9 +1,0 @@
----
-title: "Karyotyping"
-format: html
----
-
-```{r}
-library(tidyverse)
-read_csv("data/kay")
-```

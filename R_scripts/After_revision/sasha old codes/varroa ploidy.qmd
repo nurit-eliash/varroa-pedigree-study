@@ -1,0 +1,1096 @@
+---
+title: "Varroa ploidy check"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load libraries}
+library(vcfR)
+library(tidyverse)
+library(ggokabeito) 
+library(RcppRoll)
+library(ggalluvial)
+
+```
+
+```{r load data}
+# Load the metadata CSV file into a data frame 'dat', and keep only one F1 female per family. 
+dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/meta_data_223.csv") %>%  
+  filter(!str_detect(name, "sis")) %>% # remove sisters and aunties, F1s without offspring
+  filter(!str_detect(name, "479-2")) %>%   # in family 478, i kept 479-1
+    filter(!str_detect(name, "565-2")) %>%   # in Family 564, I kept 565-1
+    filter(!str_detect(name, "535_1")) %>%   # in Family 534, I kept 535-2
+    filter(!str_detect(name, "535_3"))  # in Family 534, I kept 535-2
+
+
+# Read the VCF file into an object 'vcf' using the vcfR library; 'verbose = FALSE' suppresses extra output
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.recode.vcf", verbose = FALSE)
+
+# Display a summary of the VCF object (basic details about the VCF data)
+vcf
+
+# Extract the allele depth (AD) information for each variant and sample from the VCF file
+ad <- extract.gt(vcf, element = 'AD')
+
+# Create a small table displaying selected rows (1, 2, 11, 30) and columns (1 to 4) of the allele depth matrix
+knitr::kable(ad[c(1:2,11,30),1:4])
+
+# Extract the genotype (GT) information from the VCF file; this contains information about the genotype calls (e.g., 0/0, 0/1, 1/1)
+gt <- extract.gt(vcf, element = 'GT')
+
+# Rename the column names of the genotype matrix ('vcf@gt'):
+# 1. Use `sub()` to modify the column names by removing trailing substrings.
+# 2. The pattern "_S\\d+$" matches:
+#    - An underscore ("_"),
+#    - Followed by an "S",
+#    - Followed by one or more digits ("\\d+"),
+#    - At the end of the string ("$").
+# 3. Replace these substrings with an empty string (""), effectively removing them.
+
+colnames(vcf@gt) <- sub("_S\\d+$", "", colnames(vcf@gt)) 
+```
+
+Combine information on allele depth, heterozygosity and family structure 
+```{r}
+is_het <- as.data.frame(is_het(gt)) %>% rownames_to_column(var = "site") %>% pivot_longer(-site, names_to = "id", values_to = "het") 
+
+ad2 <- as.data.frame(ad) %>% rownames_to_column(var = "site") %>% pivot_longer(-site, names_to = "id", values_to = "ad") %>% separate("ad", into = c("ref","alt"), sep = ",") 
+
+ad2 <- select(dat, generation, sex, family, id = sample) %>% left_join(ad2) %>%  mutate(chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) 
+
+ad2 <- left_join(is_het, ad2)
+ad2 <- ad2 %>% mutate(ref = as.numeric(ref), alt = as.numeric(alt)) 
+ad2 <- mutate(ad2, chrom = factor(chrom, levels = unique(chrom), labels = seq_len(7)))  
+```
+
+
+Plot average allele frequencies for females
+```{r}
+ad2 %>% filter(het == T & (sex == "female" | sex == "male") & (ref + alt) > 30) %>% 
+    mutate(ratio = ref/(ref+alt)) %>% group_by(sex, id, chrom) %>% 
+    summarise(ratio = mean(ratio)) %>% 
+    ggplot(aes(x = ratio, fill = chrom)) + geom_histogram() + scale_x_continuous(breaks = c(0, 0.25,  0.5, 0.75, 1), labels = c("0", "1/4",  "1/2",  "3/4", "1"), limits = c(0.25, 0.75)) + theme_bw() + scale_fill_okabe_ito() + facet_grid(sex~., scale = "free_y")
+
+```
+
+```{r}
+ad2 %>% filter(het == T & (sex == "female" | sex == "male") & (ref + alt) > 30) %>% 
+    mutate(AD = ref+alt) %>% group_by(sex, id, chrom) %>% 
+    summarise(AD= mean(AD)) %>% 
+    ggplot(aes(x = AD, fill = chrom)) + geom_histogram() +  theme_bw() + scale_fill_okabe_ito() + facet_grid(sex~chrom, scale = "free_y") + xlab("mean allele depth")
+```
+
+# Look at heterozygosity by family
+
+## Find the foundressees with the best overall coverage of 0/0 sites
+
+For these sites we know that the male contributed either 1/0, or less likely 1/1
+### make a function to extract GT and DP for subset of samples
+```{r helper_fun}
+# Function to extract genotype (GT) and depth of coverage (DP) data for a subset of samples
+    # and attach associated metadata from the metadata file.
+
+pull_gt <- function(individual_ids) {
+    # given a list of names, pull genotypes and attach metadata
+    sample_names <- colnames(vcf@gt)[-1]
+    subset_ids <- individual_ids[individual_ids %in% sample_names]
+    vcf_subset <- vcf[, c(TRUE, colnames(vcf@gt)[-1] %in% subset_ids)]
+
+    # Extract GT (Genotype) and DP (Depth of Coverage) values
+    gt_matrix <- extract.gt(vcf_subset, element = "GT")
+    dp_matrix <- extract.gt(vcf_subset, element = "DP", as.numeric = TRUE)
+
+    # Prepare data by converting matrices to data frames
+    gt_df <- as.data.frame(gt_matrix)
+    gt_df$Position <- rownames(gt_df)
+    dp_df <- as.data.frame(dp_matrix)
+    dp_df$Position <- rownames(dp_df)
+
+    # Create a long-format data frame with GT and DP
+    gt_long <- gt_df %>%
+    pivot_longer(cols = -Position, names_to = "Sample", values_to = "GT")
+    dp_long <- dp_df %>%
+    pivot_longer(cols = -Position, names_to = "Sample", values_to = "DP")
+
+    # Join the long-format data frames
+    long_data <- inner_join(gt_long, dp_long, by = c("Position", "Sample")) %>% left_join(dat, by = c("Sample" = "name")) %>% filter(!is.na(GT)) %>% separate(Position, sep = ".1_", into = c("chrom", "pos"))
+
+    return(long_data)
+}
+
+```
+
+i cannot run this code, as the long_data is missing...
+```{r}
+individual_ids <- filter(dat, generation == "F0" | generation == "F1" & sex == "female") %>% pull(name)
+
+# Filter to include only 0/0 genotypes
+filtered_data <- long_data %>%
+  filter((GT == "0/0" & generation == "F0") | (GT == "0/1" & generation == "F1")) %>% 
+  drop_na(DP)
+
+# Create the violin plot using ggplot2
+ggplot(filtered_data, aes(x = Sample, y = DP, fill = generation)) +
+  geom_boxplot() +
+  labs(title = "Violin Plot of Depth of Coverage (DP) for 0/0 Genotypes",
+       x = "Sample",
+       y = "Depth of Coverage (DP)") +
+  theme_minimal() + theme(axis.text.x = element_text(angle=45)) + ylim(15,40) 
+```
+
+
+Take a family and plot a rolling 
+```{r}
+#Extract families based on specific generations and conditions:
+#Generation F0 (all individuals).
+#Generation F1 (only males).
+ 
+families <- pull_gt(filter(dat, generation == "F0" | (generation == "F1" & sex == "male")) %>% pull(name))
+
+# Identify heterozygous sites for mothers (F0 generation)
+mom_het_sites <- families %>% filter(generation == "F0" & GT == "0/1") 
+
+# Determine if all individuals within a family have the same genotype at each position, then average this consistency across all families for a given chromosomal position.
+fam2 <- families  %>% group_by(family, chrom, pos) %>% reframe(all_same = all(GT == first(GT))) %>% mutate(pos = as.numeric(pos)) %>% group_by(chrom, pos) %>% reframe(all_same = mean(all_same))
+
+# Define a function to calculate the rolling mean based on physical distances
+rolling_mean_distance_step <- function(pos, value, window_size, step_size) {
+  roll_mean <- rep(NA, length(pos))
+  for (i in seq(1, length(pos), by = step_size)) {
+    lower_bound <- pos[i] - window_size / 2
+    upper_bound <- pos[i] + window_size / 2
+    in_window <- which(pos >= lower_bound & pos <= upper_bound)
+    roll_mean[in_window] <- mean(value[in_window], na.rm = TRUE)
+  }
+  return(roll_mean)
+}
+
+#  rolling average of genotype consistency (all_same) across genomic positions for each chromosome, providing a smoothed representation of how genotype consistency varies along the genome.
+
+window_size <- 10000 # Adjust window size as needed
+step_size <- 1000 # Adjust step size as needed
+fam3 <- fam2 %>% select(chrom, pos, all_same) %>%
+  group_by(chrom) %>%
+  arrange(pos) %>%
+  mutate(rolling_avg = rolling_mean_distance_step(pos, all_same, window_size, step_size))
+
+ggplot(fam3, aes(x = pos, y = as.numeric(all_same), color = all_same)) +
+  geom_point(alpha = 0.5) +
+  geom_line(aes(y = rolling_avg), color = "red", size = 1) +
+  facet_wrap(~ chrom, scales = "free_x") +
+  labs(title = "Rolling Average of TRUE/FALSE Probability by Chromosome",
+       x = "Position",
+       y = "TRUE/FALSE",
+       color = "All Same") +
+  theme_minimal()
+
+# i think this code is for one family?..
+#mom_het_sites %>% select(chrom, pos) %>% left_join(fnd_110) %>% 
+# group_by(chrom, pos) %>% reframe(all_same = all(GT == first(GT))) %>%
+# ggplot(aes(chrom, pos, color = all_same)) + geom_point() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) 
+
+
+#fnd_110 %>% ggplot(aes(chrom, pos, color = GT)) + geom_point() + facet_grid(sex~generation, space = "free") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+```
+
+
+# Plot a family
+
+Identify families that will be good for plotting. Filter sites that are homozygous 0/0 in the grandmother, which allows us to infer that the 1 alleles in the mother are from the (unknown) father, and also to phase the alleles in mother and father.
+
+```{r}
+# identify families in the dataset (dat) that have all required members across generations (F0, F1, F2) and sexes (male, female).
+
+all_members <- dat %>%
+  group_by(family) %>%
+  summarize(
+    all_members = all(
+      sum(generation == "F0" & sex == "female") > 0,
+      sum(generation == "F1" & sex == "male") > 0,
+      sum(generation == "F1" & sex == "female") > 0,
+      sum(generation == "F2" & sex == "male") > 0,
+      sum(generation == "F2" & sex == "female") > 0
+    )
+  ) %>% filter(all_members == TRUE) %>% pull(family)
+
+#Subset Genotype Data for Mothers
+mothers <- dat %>% filter(family %in% all_members) %>% filter((generation == "F0" | generation == "F1") & sex == "female") %>% pull(name)
+
+#Retains only data for the largest chromosome (NW_019211454).
+mothers <- pull_gt(mothers) %>% filter(chrom == "NW_019211454")
+
+# Filter Families with High Genotype Counts
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 1000 & grandmother > 1000) 
+```
+
+## find the threshold for eligible families
+in overall analysis, it looks like there are specific families with different inheritance mode.   
+when we look closer on site quality , and depth, it seems that these sites are mostly ok, but the main cause for these families deviation is that there only a few sites that pass on from one generation to the next.    
+in order to filter out these families, we need to set a threshold for minimum sites, and apply it per family.   
+to determine the threshold, we will look at sites on the largest chromosome (*NW_019211454*), and on informative sites, sites that are homozygote (0/0) in the  foundress grandmother (F0 female), and heterozygotic (0/1) in her daughter (F1 female).    
+we will check which families pass the threshold.    
+```{r}
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 1000 & grandmother > 1000) 
+# 1,000 sites: 5 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 700 & grandmother > 700) 
+# 700 sites: 5 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 600 & grandmother > 600) 
+# 600 sites: 5 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 500 & grandmother > 500) 
+# 500 sites: 9 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 400 & grandmother > 400) 
+# 400 sites: 9 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 300 & grandmother > 300) 
+# 300 sites: 10 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 200 & grandmother > 200) 
+# 200 sites: 12 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 150 & grandmother > 150) 
+# 150 sites: 13 families
+
+mothers %>% group_by(family) %>% summarise(grandmother = sum(generation == "F0" & GT == "0/0"), mother = sum(generation == "F1" & GT == "0/1")) %>% filter(mother > 100 & grandmother > 100) 
+# 100 sites: 15 families
+
+# plot the correlation btw the site count filter, and the number of eligible families
+
+# Create data frame
+data <- data.frame(
+  Threshold = c(1000, 700, 600, 500, 400, 300, 200, 150, 100),
+  Families = c(5, 5, 5, 9, 9, 10, 12, 13, 15))
+
+# Create dot plot
+ggplot(data, aes(x = Threshold, y = Families)) +
+  geom_point(size = 3, alpha = 0.8) +  # Add dots
+  geom_line(alpha = 0.6, linetype = "dashed") +  # Connect dots with dashed lines
+  scale_y_continuous(breaks = seq(1, 15, by = 1)) +  # Ensure y-axis includes values 1-5
+  labs(
+    title = "Number of Families Passing Filter by Threshold",
+    x = "Minimum Count of Sites (Threshold)",
+    y = "Number of Families"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12) )
+
+```
+
+### try to filter the poor families, based on minimum site count that pass from F1 to F2. ** FEMALES **
+```{r}
+daughters <- dat %>% filter(family %in% all_members) %>% filter((generation == "F1" | generation == "F2") & sex == "female") %>% pull(name)
+
+daughters <- pull_gt(daughters) %>% filter(chrom == "NW_019211454")
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 1000 & daughter > 1000) 
+# 1,000 sites: 6 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 700 & daughter > 700) 
+# 700 sites: 10 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 600 & daughter > 600) 
+# 600 sites: 10 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 500 & daughter > 500) 
+# 500 sites: 11 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 400 & daughter > 400) 
+# 400 sites: 12 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 300 & daughter > 300) 
+# 300 sites: 13 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 200 & daughter > 200) 
+# 200 sites: 13 families
+
+daughters %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), daughter = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 100 & daughter > 100) 
+# 100 sites: 15 families
+
+# Create data frame for daughters
+daughters_data <- data.frame(
+  Threshold = c(1000, 700, 600, 500, 400, 300, 200, 100),
+  Families = c(6, 10, 10, 11, 12, 13, 13, 15)
+)
+
+# Create dot plot
+ggplot(daughters_data, aes(x = Threshold, y = Families)) +
+  geom_point(size = 3, alpha = 0.8) +  # Add dots
+  geom_line(alpha = 0.6, linetype = "dashed") +  # Connect dots with dashed lines
+  scale_y_continuous(breaks = seq(1, 15, by = 1)) +  # Ensure y-axis includes values 1-5
+  labs(
+    title = "Number of Families Passing Filter by Threshold",
+    x = "Minimum Count of Sites (Threshold)",
+    y = "Number of Families"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12) )
+
+```
+
+### try to filter the poor families, based on minimum site count that pass from F1 to F2. ** MALES **
+```{r}
+sons <- dat %>%
+  filter(family %in% all_members) %>%  
+  filter((generation == "F1" & sex == "female") | (generation == "F2" & sex == "male")) %>%
+  pull(name)
+
+sons <- pull_gt(sons) %>% filter(chrom == "NW_019211454") %>% filter(!str_detect(Sample, "sis"))
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 1000 & son > 1000) 
+# 1,000 sites: 6 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 900 & son > 900) 
+# 900 sites: 6 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 800 & son > 800) 
+# 800 sites: 8 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 700 & son > 700) 
+# 700 sites: 8 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 600 & son > 600) 
+# 600 sites: 8 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 500 & son > 500) 
+# 500 sites: 9 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 400 & son > 400) 
+# 400 sites: 10 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 300 & son > 300) 
+# 300 sites: 11 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 200 & son > 200) 
+# 200 sites: 11 families
+
+sons %>% group_by(family) %>% summarise(mother = sum(generation == "F1" & GT == "0/0"), son = sum(generation == "F2" & GT == "0/1")) %>% filter(mother > 100 & son > 100) 
+# 100 sites: 13 families
+
+# Create data frame for sons
+sons_data <- data.frame(
+  Threshold = c(1000, 900, 800, 700, 600, 500, 400, 300, 200, 100),
+  Families = c(6, 6, 8, 8, 8, 9, 10, 11, 11, 13)
+)
+
+# Create dot plot
+ggplot(sons_data, aes(x = Threshold, y = Families)) +
+  geom_point(size = 3, alpha = 0.8) +  # Add dots
+  geom_line(alpha = 0.6, linetype = "dashed") +  # Connect dots with dashed lines
+  scale_y_continuous(breaks = seq(1, 15, by = 1)) +  # Ensure y-axis includes values 1-5
+  labs(
+    title = "Number of Families Passing Filter by Threshold",
+    x = "Minimum Count of Sites (Threshold)",
+    y = "Number of Families"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12) )
+
+```
+
+```{r}
+fam2 %>% filter(identity == "mother_son")
+
+
+fam2 %>% summarise(common_sites = sum(identity == "mother_son")) 
+
+
+sons = dat %>%
+  filter(family %in% all_members) %>%  
+  filter((generation == "F1" & sex == "female") | (generation == "F2" & sex == "male")) %>%
+  pull(name)
+
+sons <- pull_gt(sons) %>% filter(chrom == "NW_019211454") %>% filter(!str_detect(Sample, "sis"))
+
+```
+
+# common sites across generations
+```{r}
+# poor similarity mother and son
+c(412, 400, 458, 46, 426, 240)
+
+#fam_id <- 338 # good
+#fam_id <- 412 # bad
+
+# set up family and members
+fam_id <- 498
+
+# Extract Sample Names for Family Members
+grandma <- filter(dat, family == fam_id & generation == "F0" & sex == "female") %>% pull(name)
+father <- filter(dat, family == fam_id & generation == "F1" & sex == "male") %>% pull(name)
+mother <- filter(dat, family == fam_id & generation == "F1" & sex == "female") %>% pull(name)
+son <-    filter(dat, family == fam_id & generation == "F2" & sex == "male") %>% pull(name) 
+daughter <- filter(dat, family == fam_id & generation == "F2" & sex == "female") %>% pull(name)
+daughter <- daughter[1]  # Select the first daughter if multiple daughters exist
+
+fam <- pull_gt(c(grandma, father, mother, son, daughter)) %>% filter(chrom == "NW_019211454") %>% mutate(pos = as.numeric(pos)) 
+
+grandma_homo <- filter(fam, GT == "0/0" & generation == "F0") %>% pull(pos)
+mother_hetero <- filter(fam, generation == "F1" & sex == "female" & GT == "0/1") %>% pull(pos)
+good_sites <- intersect(grandma_homo, mother_hetero)
+```
+
+Arrange the data to make it easier to plot, adding
+לשחק עם הספים כאן של עומק הריצוף 
+DP
+כדי לראות אם אפשר להיפטר מהאתרים ההטרוזיגוטיים בזכרים בדור
+F1
+בעיקר מדובר בשורה הזו:
+fam2_common <- fam2_common %>% filter(DP > 26)
+עשיתי רק עבור משפחה אחת. וזה נראה שנשארו עוד אתרים הטרוזיגוטים
+אולי זו לא השיטה להוריד אותם...???
+```{r}
+fam2 <- fam %>%
+  filter(pos %in% good_sites) %>%  # Keep only sites appearing in both F0 & F1 females
+  mutate(member = case_when(
+    generation == "F0" & sex == "female" ~ "grandmother",
+    generation == "F1" & sex == "male" ~ "father",
+    generation == "F1" & sex == "female" ~ "mother",
+    generation == "F2" & sex == "male" ~ "son",
+    generation == "F2" & sex == "female" ~ "daughter",
+    TRUE ~ "unknown"
+  ))
+
+# Assign factor separately
+fam2 <- fam2 %>%
+  mutate(member = factor(member, levels = c("grandmother", "father", "son", "mother", "daughter")))
+
+# Find positions that appear in all members
+positions_all_members <- fam2 %>%
+  group_by(pos) %>%
+  summarise(member_count = n_distinct(member), .groups = "drop") %>%
+  filter(member_count == n_distinct(fam2$member)) %>%
+  pull(pos)
+
+# Filter fam2 to keep only rows with these positions
+fam2_common <- fam2 %>% filter(pos %in% positions_all_members)
+
+# Filter fam2 to keep only sites with depth higher then 20
+#fam2_common <- fam2_common %>% filter(DP > 30)
+
+# Ensure positions are sorted
+fam2_common <- fam2_common %>% arrange(pos)
+
+# Generate 30 evenly spaced indices and round them to ensure integer indices
+indices <- round(seq(1, nrow(fam2_common), length.out = 30))
+
+# Select the corresponding positions
+selected_positions <- fam2_common %>% slice(indices) %>% pull(pos)
+
+# Filter the dataset based on these selected positions
+fam2_selected <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter(!is.na(member), !is.na(pos), !is.na(GT))
+
+# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
+# Ensure GT is a factor with all genotype levels and order family members
+fam2_selected <- fam2_selected %>%
+  mutate(
+    GT = factor(GT, levels = c("0/0", "0/1", "1/1"), labels = c("AA", "AB", "BB")),  # Ensure "BB" exists in factor levels
+    member = factor(member, levels = c("grandmother", "father", "mother", "son", "daughter"), ordered = TRUE)  # Explicit order
+  ) %>%
+  mutate(member_num = as.numeric(member))  # Convert ordered factor to numeric
+  
+#write.csv(fam2_common, file="fam2_common.csv", row.names=FALSE)
+#write.csv(fam2_selected, file="fam2_selected.csv", row.names=FALSE)
+
+```
+
+## A plot to vizualize gene flow 
+```{r}
+# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
+fam2_selected %>%
+  mutate(
+    pos = ifelse(member %in% c("father", "mother"), pos + 100*10^6, pos),  # Adjusts positions
+    pos = ifelse(member %in% c("grandmother"), pos + 100*10^6*2, pos)) %>%
+
+  ggplot(aes(x = member_num, y = pos, color = GT)) +
+  geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, y = pos, yend = pos), size = 1.5) +  # Horizontal lines with spacing
+  scale_x_continuous(breaks = unique(fam2_selected$member_num), labels = unique(fam2_selected$member)) +  # Restore original labels
+  scale_color_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),  # Updated colors for renamed genotypes
+    name = "Genotype",
+    breaks = c("AA", "AB", "BB")  # Ensures BB appears in the legend even if absent
+  ) +
+  theme_classic() +
+  labs(
+    title = paste("Genotype Flow Across Family Members 
+Family ID:", fam_id),
+    x = "Family Member",
+    y = "Genomic Position"
+  ) +
+  theme(
+    axis.text.x = element_text(size = 12, face = "bold", angle = 30, hjust = 1),  # Rotate labels
+    panel.grid.major = element_blank(), 
+    axis.line.x = element_blank(),  # <-- Removes the x-axis line
+    axis.ticks.x = element_blank())  # Removes x-axis ticks
+```
+
+##### the same plot, only for fig A1
+```{r}
+# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
+fam2_selected %>%
+ # mutate(
+  #  pos = ifelse(member %in% c("father", "mother"), pos + 100*10^6, pos),  # Adjusts positions
+   # pos = ifelse(member %in% c("grandmother"), pos + 100*10^6*2, pos)) %>%
+
+  ggplot(aes(x = member_num, y = pos / 1e6, color = GT)) +  # Convert pos to Mb
+ geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, 
+                   y = pos / 1e6, yend = pos / 1e6), size = 1.5) +  # Apply same conversion
+    scale_x_continuous(breaks = unique(fam2_selected$member_num), labels = unique(fam2_selected$member)) +  # Restore original labels
+  scale_color_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),  # Updated colors for renamed genotypes
+    name = "Genotype",
+    breaks = c("AA", "AB", "BB")  # Ensures BB appears in the legend even if absent
+  ) +
+  theme_classic() +
+  labs(
+    title = paste("Genotype Flow Across Family Members 
+Family ID:", fam_id),
+    x = "Family Member",
+    y = "Genomic Position"
+  ) +
+  theme(
+    axis.text.x = element_text(size = 12, face = "bold", angle = 30, hjust = 1),  # Rotate labels
+    panel.grid.major = element_blank(), 
+    axis.line.x = element_blank(),  # <-- Removes the x-axis line
+    axis.ticks.x = element_blank())  # Removes x-axis ticks
+  
+```
+
+### For Fig 1A: three generations, one family   
+We need:
+- one family , with a lot of sites, as many are following down o the third generation (F2).   
+- Clean false sites (low depth)   
+
+#### common sites, F0 female > F1 male
+```{r}
+# Filter for the F1 male
+fam2_filtered <- fam2_common %>%
+  filter(generation == "F1") %>%
+    filter(sex == "male")
+
+# Extract unique family number (assuming there's only one)
+family_number <- unique(fam2_filtered$family)
+
+# Scatter plot of DP by position, colored by GT
+ggplot(fam2_filtered, aes(x = pos, y = DP, color = GT)) +
+  geom_point(alpha = 0.7, size = 2) +  # Scatter plot
+  # One single trend line (black, dashed)
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "black") +
+  theme_minimal() +
+  labs(title = paste("Depth (DP) Across Positions by Genotype (GT)\n in Father of Family", family_number, "with 0/0 Grandma"),
+       x = "Genomic Position",
+       y = "Depth (DP)",
+       color = "Genotype (GT)") +
+  # Keep color coding for GT points
+  scale_color_manual(values = c("0/1" = "red", "0/0" = "gray")) +
+  theme(text = element_text(size = 14))
+
+# Filter for selected sites where GT == "0/1"
+none_mother_sites <- fam2_filtered %>%
+  filter(GT == "0/1") %>%
+  select(pos) %>%  # Keep only the position column
+  distinct()  # Remove duplicates
+
+# Filter for grandmother (F0 female)
+grandmother_filtered <- fam2_common %>%
+  filter(generation == "F0") %>% 
+  filter(sex == "female") %>%
+  mutate(site_status = ifelse(pos %in% none_mother_sites$pos, "Not grandma's Site", "Grandma's Site"))  # Mark sites
+
+# check these sites' depth , in the F0 female (grandmother)
+ggplot(grandmother_filtered, aes(x = pos, y = DP, color = site_status)) +
+  geom_point(alpha = 0.7, size = 2) +  # Scatter plot
+  # One single trend line (black, dashed)
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "black") +
+  theme_minimal() +
+  labs(title = "Depth (DP) Across Positions in Grandmother\nColor-Coded by Selected Sites from Father",
+       x = "Genomic Position",
+       y = "Depth (DP)",
+       color = "Site Status") +
+  # Lighter blue for "Grandma's Site" to improve contrast
+  scale_color_manual(values = c("Grandma's Site" = "lightblue", "Not grandma's Site" = "red")) +
+  theme(text = element_text(size = 14))
+
+```
+
+#### common sites, F1 female > F2 male
+```{r}
+# Filter for the F1 male
+fam2_filtered <- fam2_common %>%
+  filter(generation == "F2") %>%
+    filter(sex == "male")
+
+# Extract unique family number (assuming there's only one)
+family_number <- unique(fam2_filtered$family)
+
+# Scatter plot of DP by position, colored by GT
+ggplot(fam2_filtered, aes(x = pos, y = DP, color = GT)) +
+  geom_point(alpha = 0.7, size = 2) +  # Scatter plot
+  # One single trend line (black, dashed)
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "black") +
+  theme_minimal() +
+  labs(title = paste("Depth (DP) Across Positions by Genotype (GT)\n in Son of Family", family_number, "with 0/1 Mom"),
+       x = "Genomic Position",
+       y = "Depth (DP)",
+       color = "Genotype (GT)") +
+  # Keep color coding for GT points
+  scale_color_manual(values = c("0/0" = "red", "0/1" = "gray")) +
+  theme(text = element_text(size = 14))
+
+# Filter for selected sites where GT == "0/0"
+none_mother_sites <- fam2_filtered %>%
+  filter(GT == "0/0") %>%
+  select(pos) %>%  # Keep only the position column
+  distinct()  # Remove duplicates
+
+# Filter for grandmother (F0 female)
+mother_filtered <- fam2_common %>%
+  filter(generation == "F1") %>% 
+  filter(sex == "female") %>%
+  mutate(site_status = ifelse(pos %in% none_mother_sites$pos, "Not Mom's Site", "Mom's Site"))  # Mark sites
+
+# check these sites' depth , in the F0 female (grandmother)
+ggplot(mother_filtered, aes(x = pos, y = DP, color = site_status)) +
+  geom_point(alpha = 0.7, size = 2) +  # Scatter plot
+  # One single trend line (black, dashed)
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "black") +
+  theme_minimal() +
+  labs(title = "Depth (DP) Across Positions in Mother\nColor-Coded by Selected Sites from Son",
+       x = "Genomic Position",
+       y = "Depth (DP)",
+       color = "Site Status") +
+  # Lighter blue for "Mom's Site" to balance red contrast
+  scale_color_manual(values = c("Mom's Site" = "lightblue", "Not Mom's Site" = "red")) +
+  theme(text = element_text(size = 14))
+```
+
+###########################
+###### other analyses #####
+###########################
+
+## exploring depth, and setting threshold of DP
+```{r}
+# Plot histogram of depth for each family
+ad2 %>% 
+  mutate(depth = ref + alt) %>% # Calculate depth as sum of reference and alternate allele depths
+ggplot( aes(x = depth, fill = family)) +
+  geom_histogram(binwidth = 10, alpha = 0.7, position = "identity") + 
+  facet_wrap(~family, scales = "free_y") + 
+  theme_minimal() +
+  labs(title = "Histogram of Position Depth for Each Family",
+       x = "Depth (Ref + Alt)",
+       y = "Count") +
+  theme(legend.position = "none")  # Remove legend for clarity
+
+
+# Compute depth summary per family
+family_depth_summary <- ad2 %>%
+  mutate(depth = ref + alt) %>% 
+ filter(sex != "not determined") %>%
+  group_by(family,sex) %>%
+  summarise(
+    mean_depth = mean(ref + alt, na.rm = TRUE),
+    median_depth = median(ref + alt, na.rm = TRUE),
+    min_depth = min(ref + alt, na.rm = TRUE),
+    max_depth = max(ref + alt, na.rm = TRUE),
+    n_sites = n()
+  ) %>% na.omit() 
+
+# Display the summary
+family_depth_summary
+
+
+# Define a threshold (e.g., remove families with median depth < 10)
+low_depth_families <- family_depth_summary %>%
+  filter(mean_depth < 15) %>%
+  pull(family)  # Extracts family names with low depth
+
+# Print the families that will be removed
+print(low_depth_families)
+
+########
+# Filter for the F1 male
+fam2_filtered <- fam2_common %>%
+  filter(generation == "F1") %>%
+    filter(sex == "male")
+
+# Scatter plot of DP by position, colored by GT
+ggplot(fam2_filtered, aes(x = pos, y = DP, color = GT)) +
+  geom_point(alpha = 0.7, size = 2) +  # Scatter plot
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "black") +  # Trendline
+  theme_minimal() +
+  labs(title = "Depth (DP) Across Positions by Genotype (GT)
+in F1 male of 0/0 F0 female",
+       x = "Genomic Position",
+       y = "Depth (DP)",
+       color = "Genotype (GT)") +
+  theme(text = element_text(size = 14))
+
+#####
+
+
+# Define low depth threshold
+low_depth_threshold <- 20  
+
+# Count the number of low-depth positions per sample
+low_depth_summary <- ad2 %>%
+  mutate(depth = ref + alt) %>%  # Compute total depth
+  filter(depth < low_depth_threshold) %>%  # Filter low-depth positions
+  group_by(id) %>%
+  summarise(n_low_depth_positions = n(), 
+            mean_depth = mean(depth, na.rm = TRUE), 
+            median_depth = median(depth, na.rm = TRUE)) %>%
+  arrange(desc(n_low_depth_positions))  # Sort samples with highest low-depth sites
+
+# Merge with metadata
+low_depth_summary <- low_depth_summary %>%
+  left_join(dat, by = c("id" = "sample"))  %>% # Match by sample ID
+    filter(sex !="not determined") 
+
+# Plot: Bar Plot with Color Coding by Family
+ggplot(low_depth_summary, aes(x = reorder(id, -n_low_depth_positions), 
+                              y = n_low_depth_positions, fill = sex)) +
+  geom_col() +
+  coord_flip() +  # Flip for better readability
+  theme_minimal() +
+  labs(title = "Number of Low-Depth Positions per Sample",
+       x = "Sample ID",
+       y = "Number of Positions with Low Depth",
+       fill = "Family") +
+  theme(text = element_text(size = 12), legend.position = "right")
+
+ggplot(low_depth_summary, aes(x = sex, y = mean_depth, fill = sex)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +  # Box plot without showing outliers
+  geom_jitter(width = 0.2, alpha = 0.5, color = "black") +  # Adds points for each sample
+  theme_minimal() +
+  labs(title = "Distribution of Mean Depth (DP) by Sex",
+       x = "Sex",
+       y = "Mean Depth (DP)") +
+  theme(text = element_text(size = 14)) +
+  scale_fill_manual(values = c("male" = "blue", "female" = "red")) +
+  facet_wrap(~family)
+
+
+
+```
+
+
+#### 2️⃣ Analysis: Flag Samples & Families with Extreme Depth
+```{r}
+# Compute stricter IQR-based thresholds
+depth_stats <- low_depth_summary %>%
+  summarise(Q1 = quantile(mean_depth, 0.25, na.rm = TRUE),
+            Q3 = quantile(mean_depth, 0.75, na.rm = TRUE),
+            IQR = Q3 - Q1)
+
+# Stricter thresholds (1.0 × IQR instead of 1.5 × IQR)
+lower_bound_iqr <- depth_stats$Q1 - 1.0 * depth_stats$IQR
+upper_bound_iqr <- depth_stats$Q3 + 1.0 * depth_stats$IQR
+
+# Compute 5th and 95th percentile thresholds (alternative method)
+lower_bound_pct <- quantile(low_depth_summary$mean_depth, 0.05, na.rm = TRUE)
+upper_bound_pct <- quantile(low_depth_summary$mean_depth, 0.95, na.rm = TRUE)
+
+# Select the stricter method
+lower_bound <- max(lower_bound_iqr, lower_bound_pct)  # Take the stricter lower threshold
+upper_bound <- min(upper_bound_iqr, upper_bound_pct)  # Take the stricter upper threshold
+
+# Flag Outlier Samples
+outlier_samples <- low_depth_summary %>%
+  mutate(outlier = case_when(
+    mean_depth < lower_bound ~ "Low Depth Outlier",
+    mean_depth > upper_bound ~ "High Depth Outlier",
+    TRUE ~ "Normal"
+  ))
+
+# Check how many outliers were detected
+outlier_samples %>% filter(outlier != "Normal")
+
+ggplot(outlier_samples, aes(x = sex, y = mean_depth, fill = outlier)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +  
+  geom_jitter(width = 0.2, alpha = 0.5, aes(color = outlier)) +  
+  theme_minimal() +
+  labs(title = "Detection of Families with Extreme Depth",
+       x = "sex",
+       y = "Mean Depth (DP)",
+       fill = "Outlier Status",
+       color = "Outlier Status") +
+  scale_fill_manual(values = c("Low Depth Outlier" = "blue", 
+                               "High Depth Outlier" = "red", 
+                               "Normal" = "gray")) +
+  scale_color_manual(values = c("Low Depth Outlier" = "blue", 
+                                "High Depth Outlier" = "red", 
+                                "Normal" = "gray")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  facet_wrap(~family)
+
+ggplot(outlier_samples, aes(x = mean_depth, y = n_low_depth_positions, color = outlier)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_hline(yintercept = lower_bound, linetype = "dashed", color = "blue") +  
+  geom_hline(yintercept = upper_bound, linetype = "dashed", color = "red") +  
+  theme_minimal() +
+  labs(title = "Outlier Detection: Mean Depth vs. Number of Low-Depth Sites",
+       x = "Mean Depth",
+       y = "Number of Low-Depth Positions",
+       color = "Outlier Status") +
+  scale_color_manual(values = c("Low Depth Outlier" = "blue", 
+                                "High Depth Outlier" = "red", 
+                                "Normal" = "black"))
+
+
+
+
+# Compute overall depth statistics
+depth_stats <- outlier_samples %>%
+  summarise(
+    Q1 = quantile(mean_depth, 0.25, na.rm = TRUE),
+    Q3 = quantile(mean_depth, 0.75, na.rm = TRUE),
+    IQR = Q3 - Q1,  # Interquartile Range
+    lower_bound = Q1 - 1.5 * IQR,  # Lower bound for outliers
+    upper_bound = Q3 + 1.5 * IQR   # Upper bound for outliers
+  )
+
+
+ggplot(outlier_samples, aes(x = as.factor(family), y = mean_depth, fill = sex)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +  
+  geom_jitter(width = 0.2, alpha = 0.5, aes(color = sex)) +  
+
+  # Reference lines using IQR-based thresholds
+  geom_hline(yintercept = depth_stats$Q1, linetype = "dashed", color = "blue", size = 1) +  
+  geom_hline(yintercept = depth_stats$Q3, linetype = "dashed", color = "blue", size = 1) +  
+ # geom_hline(yintercept = depth_stats$lower_bound, linetype = "dotted", color = "red", size = 1) +  
+  #geom_hline(yintercept = depth_stats$upper_bound, linetype = "dotted", color = "red", size = 1) +  
+
+  theme_minimal() +
+  labs(title = "Detection of Families with Extreme Depth",
+       x = "Family",
+       y = "Mean Depth (DP)",
+       fill = "Sex",
+       color = "Sex") +
+  scale_fill_manual(values = c("male" = "blue", "female" = "red")) +  
+  scale_color_manual(values = c("male" = "blue", "female" = "red")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+
+
+
+```
+
+## set the threshold for each family 
+```{r}
+
+# Count the number of sites per genotype (GT) in each identity
+gt_counts <- fam2 %>%
+  select(GT, identity, pos) %>%  # Keep relevant columns
+  #na.omit() %>%  # Remove missing values
+  group_by(identity, GT) %>%  # Group by identity and genotype
+  summarise(count = n(), .groups = "drop")  # Count occurrences
+
+# Create the heatmap using ggplot2
+ggplot(gt_counts, aes(x = GT, y = identity, fill = count)) +
+  geom_tile(color = "white") +  # Add white grid lines
+  scale_fill_gradient(low = "lightblue", high = "darkblue", name = "Count") +  # Color scale
+  geom_text(aes(label = count), color = "white", size = 5) +  # Display count values
+  labs(
+    title = "Heatmap of Genotype Count by Identity",
+    x = "Genotype (GT)",
+    y = "Identity Pair"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    panel.grid = element_blank()
+  )
+
+```
+
+
+
+
+
+
+# sasha's older plot (with lines, and genomic position adjusted)
+Arrange the data to make it easier to plot, adding
+```{r}
+fam2 <- fam %>% filter(pos %in% good_sites) %>% # keep only sites that appear in both F0 and F1 females
+  mutate(
+    member = case_when(
+      generation == "F0" & sex == "female" ~ "grandmother",
+      generation == "F1" & sex == "male" ~ "father",
+      generation == "F1" & sex == "female" ~ "mother",
+      generation == "F2" & sex == "male" ~ "son",
+      generation == "F2" & sex == "female" ~ "daughter",
+      TRUE ~ "unknown"
+    ), member = factor(member, levels = c("grandmother",  "father", "son", "mother", "daughter"))
+  ) 
+
+# Identify genomic positions (pos) where genotypes (GT) are identical between specific family member pairs across generations.
+grandma_father <- fam2 %>% group_by(pos) %>% filter(generation == "F0" | (generation == "F1" & sex == "male" )) %>% select(pos, generation, GT) %>% pivot_wider(names_from = generation, values_from = GT) %>% filter(F0 == F1) %>% pull(pos)
+grandma_mother <- fam2 %>% group_by(pos) %>% filter(generation == "F0" | (generation == "F1" & sex == "female" )) %>% select(pos, generation, GT) %>% pivot_wider(names_from = generation, values_from = GT) %>% filter(F0 == F1) %>% pull(pos)
+mother_son <- fam2 %>% group_by(pos) %>% filter((generation == "F1" & sex == "female") | (generation == "F2" & sex == "male" )) %>% select(pos, generation, GT) %>% pivot_wider(names_from = generation, values_from = GT) %>% filter(F2 == F1) %>% pull(pos)
+mother_daughter <- fam2 %>% group_by(pos) %>% filter((generation == "F1" & sex == "female") | (generation == "F2" & sex == "female" )) %>% select(pos, generation, GT) %>% pivot_wider(names_from = generation, values_from = GT) %>% filter(F2 == F1) %>% pull(pos)
+father_daughter <- fam2 %>% group_by(pos) %>% filter((generation == "F1" & sex == "male") | (generation == "F2" & sex == "female" )) %>% select(pos, generation, GT) %>% pivot_wider(names_from = generation, values_from = GT) %>% filter(F2 == F1) %>% pull(pos)
+father_son <- fam2 %>% group_by(pos) %>% filter((generation == "F1" & sex == "male") | (generation == "F2" & sex == "male" )) %>% select(pos, generation, GT) %>% pivot_wider(names_from = generation, values_from = GT) %>% filter(F2 == F1) %>% pull(pos)
+
+# Add new columns to the fam2 dataset to identify relationships (identity) between genotypes at genomic positions and adjusts genomic positions (pos) for specific family members to facilitate visualization.
+fam2 <- mutate(fam2, 
+  identity = case_when(
+    pos %in% grandma_father & (generation == "F0" | (generation == "F1" & sex == "male" )) ~ "grandma_father",
+    pos %in% grandma_mother & (generation == "F0" | (generation == "F1" & sex == "female")) ~ "grandma_mother", 
+    pos %in% mother_son & ((generation == "F1" & sex == "female") | (generation == "F2" & sex == "male" )) ~ "mother_son", 
+    pos %in% mother_daughter & ((generation == "F1" & sex == "female") | (generation == "F2" & sex == "female" )) ~ "mother_daughter",
+    pos %in% father_daughter & ((generation == "F1" & sex == "male") | (generation == "F2" & sex == "female" )) ~ "father_daughter",
+    pos %in% father_son & ((generation == "F1" & sex == "male") | (generation == "F2" & sex == "male" )) ~ "father_son",
+    TRUE ~ NA),
+  identity2 = ifelse(!is.na(identity), paste(pos, identity), NA), # Add a Combined Identifier: identity2
+  pos = ifelse(member %in% c("father", "mother"), pos + 100*10^6, pos),  # Adjusts the pos column for specific family members to separate their positions on the x-axis
+  pos = ifelse(member %in% c("grandmother"), pos + 100*10^6*2, pos)
+) 
+
+fam2 %>% 
+  ggplot(aes(member, pos, color = GT)) +
+  geom_line(aes(group = identity2, color = identity), alpha = 1) +
+  geom_point() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid = element_blank()) +
+  labs(title = paste("Genotype Flow Across Family Members - Family ID:", fam_id),
+    x = "Family Member",
+    y = "Genomic Position"
+  ) +
+  theme_bw()   
+```
+
+
+-----------
+## further ways of ploting the inheritance
+```{r}
+library(ggalluvial)
+
+# Ensure 'member' is a properly ordered factor
+fam2$member <- factor(fam2$member, levels = c("grandmother", "father", "mother", "son", "daughter"))
+
+# Generate the plot
+fam2 %>%
+  filter(!is.na(GT)) %>%
+  ggplot(aes(axis1 = member, axis2 = GT, y = ..count.., fill = GT)) +
+  geom_alluvium(aes(group = interaction(member, GT)), alpha = 0.7) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_fill_manual(values = c("0/0" = "#ffbf00", "0/1" = "#66b032", "1/1" = "#1982c4", "NA" = "gray")) +
+  labs(
+    title = "Genotype Flow Across Family Members",
+    x = "Family Member",
+    y = "Genotype Count",
+    fill = "Genotype"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    axis.text.y = element_text(size = 12, hjust = 0),  # Adjust y-axis labels
+    panel.grid = element_blank()
+  )+scale_x_discrete(
+  labels = c("grandmother", "father", "mother", "son", "daughter")
+) +
+  facet_wrap(~ generation, scales = "free_x")
+
+
+
+```
+
+---------
+
+```{r}
+df <- fam110 %>% filter(generation == "F1" | (generation == "F2" & sex == "male") | (generation == "F2" & sex == "female") & chrom == "NW_019211454") %>% select(pos, Sample, GT) %>% group_by(pos) %>% filter(!all(GT == first(GT)) & n_distinct(Sample) == 4) %>%  filter(all(table(Sample) == 1)) %>% ungroup() %>% pivot_wider( names_from = Sample, values_from = GT) %>% select(-pos)
+
+
+compare_gt <- function(parent, offspring) {
+    comparison <- rep(NA, length(parent))
+    for(i in 1:length(parent)) 
+        if (parent[i] == offspring[i])
+            comparison[i] <- "same" 
+        else if (parent[i] == "0/1")
+           comparison[i] <- "loss"
+        else if (parent[i] == "0/0" | parent[i] == "1/1") 
+           comparison[i] <- "gain"
+    return(comparison)
+}
+
+mother <-
+father <- 
+son <-
+daughter <-
+
+
+p1 <- data.frame(site = 1:nrow(df), mother = df$`110_111_dat`, son = df$`110_111c_grnson`, comparison = compare_gt(df$`110_111_dat`, df$`110_111c_grnson`)) %>% pivot_longer(col = c(mother, son)) %>% ggplot(aes(x=name, y=site, group = site)) + geom_point() + geom_line(aes(color = comparison))
+
+
+p2 <- data.frame(site = 1:nrow(df), mother = df$`110_111_dat`, daughter = df$`110_111d_grndat`, comparison = compare_gt(df$`110_111_dat`, df$`110_111d_grndat`)) %>% pivot_longer(col = c(mother, daughter)) %>% ggplot(aes(x=name, y=site, group = site)) + geom_point() + geom_line(aes(color = comparison))
+
+p1 + p2 
+
+```
+
+
+```{r}
+
+fam240 <- pull_gt(filter(dat, family == 240) %>% pull(name))
+df_240 <- fam240 %>% filter(generation == "F1" | (generation == "F2" & sex == "male") | (generation == "F2" & sex == "female") & chrom == "NW_019211454") %>% select(pos, Sample, GT) %>% group_by(pos) %>% filter(!all(GT == first(GT)) & n_distinct(Sample) == 4) %>%  filter(all(table(Sample) == 1)) %>% ungroup() %>% pivot_wider( names_from = Sample, values_from = GT) %>% select(-pos)
+
+
+p1 <- data.frame(site = 1:nrow(df_240), mother = df_240$`240_241_dat`, son = df_240$`240_241c_grnson`, comparison = compare_gt(df_240$`240_241_dat`, df_240$`240_241c_grnson`)) %>% pivot_longer(col = c(mother, son)) %>% ggplot(aes(x=name, y=site, group = site)) + geom_point() + geom_line(aes(color = comparison))
+
+
+p2 <- data.frame(site = 1:nrow(df), mother = df$`110_111_dat`, daughter = df$`110_111d_grndat`, comparison = compare_gt(df$`110_111_dat`, df$`110_111d_grndat`)) %>% pivot_longer(col = c(mother, daughter)) %>% ggplot(aes(x=name, y=site, group = site)) + geom_point() + geom_line(aes(color = comparison))
+
+p1 + p2 
+
+
+```
+
+
+```{r}
+mother_son <- dat %>% filter((generation == "F1" & sex == "female") | (generation == "F2" & sex == "male")) %>% group_by(family) %>%
+    filter(n() == 2) %>% pull(name)
+
+mother_son_gt <- pull_gt(mother_son)  # for simplicty, we'll just take the largest chromosome
+
+compare_generations <- function(data) {
+  parent <- data %>% filter(generation == "F1") %>% pull(GT)
+  offspring <- data %>% filter(generation == "F2") %>% pull(GT)
+    if (length(parent) == 0 || length(offspring) == 0) {
+    return(NA) # Return NA if either parent or offspring is missing
+  }
+  if (parent == offspring) {
+    return("same")
+  } else if (parent == "0/1") {
+    return("loss")
+  } else if (parent == "0/0" | parent == "1/1") {
+    return("gain")
+  }
+}
+
+mother_het <- mother_son_gt %>% filter(generation == "F1" & GT == "0/1") %>% select(chrom, pos)
+
+mother_het %>% left_join(mother_son_gt) %>% filter(generation == "F2") %>% #filter(chrom == "NW_019211454") %>% 
+    reframe(status = ifelse(GT == "0/1", "same", "loss"), pos = as.numeric(pos), chrom)  %>% filter(status == "loss") %>%
+    ggplot(aes(pos, color = status, after_stat(count))) + geom_histogram() + facet_grid(chrom~., scales= "free")
+
+mother_homo <- mother_son_gt %>% filter(generation == "F1" & GT == "0/0") %>% select(chrom, pos)
+
+mother_homo %>% left_join(mother_son_gt) %>% filter(generation == "F2") %>% filter(chrom == "NW_019211454") %>% 
+    reframe(status = ifelse(GT == "0/0", "same", "gain"), pos = as.numeric(pos), chrom)  %>%
+    ggplot(aes(pos, color = status, after_stat(count))) + geom_density() + facet_grid(chrom~., scales= "free")
+
+
+```

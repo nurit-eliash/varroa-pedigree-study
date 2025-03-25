@@ -1,5 +1,6 @@
 ---
-title: "figures-for-varroa-pedigree-MS"
+title: "Varroa mode of genetic inheritance-Figures and Supplementary materials for MS"
+author: "Nurit Eliash and Sasha Mikheyev"
 date: "2023-02-20"
 output:
   html_document:
@@ -24,8 +25,30 @@ editor_options:
 </style>
 ```
 
-### load libraries
-```{r include=FALSE}
+# Prerequisites and Setup
+
+## Project Overview
+This project aims to investigate <i>Varroa destructor</i> mode of genetic inheritance. 
+For that, we constructed a three-generation pedigree of the varroa mite's genome.
+We used genomes of 223 varroa mite samples, belonging to 30 families, obtained from three honey bee colonies (<i> Apis mellifera</i> ).
+Each mite family consists of 3 generations, and contains at least:    
+- Foundress female mite (F0)    
+- Son and daughter (F1)   
+- At least one adult grandchild, male/female (F2)     
+
+## Data Sources
+- Raw fastq reads: [BioProject PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
+- Code repository: [GitHub](https://github.com/nurit-eliash/varroa-pedigree-study/tree/main#varroa-pedigree-study)
+
+## Required Files
+Before running this analysis, ensure you have:    
+1. The VCF file processed with the specified parameters   
+2. The filtered sites CSV file generated from site quality exploration    
+3. All required R packages installed    
+
+## Load Libraries and Set Parameters
+
+```{r libraries, echo=FALSE, eval=TRUE}
 library("tidyverse")
 library("dplyr")
 library("ggplot2")
@@ -41,38 +64,59 @@ library("splitstackshape")
 library("plotly")
 library("kableExtra")
 library("pastecs") # for stats stat.desc()
-
+library("patchwork")
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
                       fig.asp = 0.4,
                       out.width = "100%")
 ```
 
-the VCF was filtered with the following parameters:  
-```{r eval=FALSE, echo=TRUE}
-vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 15000 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
+# Data Processing
+
+## VCF File Processing
+The VCF was filtered with the following parameters:     
+
+```bash
+vcftools --vcf snponly_freebayes.vcf \
+  --chr NW_019211454.1 \
+  --chr NW_019211455.1 \
+  --chr NW_019211456.1 \
+  --chr NW_019211457.1 \
+  --chr NW_019211458.1 \
+  --chr NW_019211459.1 \
+  --chr NW_019211460.1 \
+  --max-alleles 2 \
+  --minQ 15000 \
+  --minDP 16 \
+  --maxDP 40 \
+  --max-missing 0.5 \
+  --maf 0.2 \
+  --recode \
+  --recode-INFO-all \
+  --out Q15000BIALLDP16HDP40mis.5maf.2Chr7
 ```
 
-### load VCF file
+```{r process-vcf, echo=FALSE, eval=TRUE}
+# Read and process VCF file
+vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE)
 
-```{r}
-vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE )
-vcf
-# extract the genotype for each site in each individual
+# Extract genotype data
 gt <- extract.gt(vcf, element = "GT") 
 gt <- as.data.frame(t(gt)) %>%
   rownames_to_column("ID")
-#clean the ID names
+
+# Clean the ID names
 gt$ID <- sub("_[^_]+$", "", gt$ID)
 
+# Create the table object
 table <- gt %>%
   t() %>%
   as.data.frame() %>%
   row_to_names(row_number = 1) %>%
   dplyr::select(contains(c("son", "dat", "fnd"))) %>%  # Keep only F0, F1, and F2 adults
-  # 🔹 Remove columns containing specific substrings
+  # Remove columns containing specific substrings
   dplyr::select(-matches("sis|479-2|565-2|535_1|535_3")) %>%
-  # 🔹 Convert GT values from numbers to letters
+  # Convert GT values from numbers to letters
   mutate(across(everything(), ~ case_when(
     . == "0/0" ~ "AA",
     . == "0/1" ~ "AB",
@@ -81,23 +125,193 @@ table <- gt %>%
   )))
 ```
 
-# Main figures
+## Site Quality Filtering
+The site quality filtering criteria were developed based on Variant Allele Frequency (VAF) and Genotype Quality Allele Frequency (QAF) analysis. For detailed methodology and validation of these thresholds, see [Site Quality Analysis](site_quality_exploration.html#sanity-check-to-determine-the-threshold-for-site-filtering).    
 
-## Figure 2A. Proportion of maternal genotype in F2 mites
-the original figure can be re-run in here:  
-~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd
+We applied two additional filtering parameters to account for biases in alternate allele representation and to ensure high-confidence genotype calls based on allele frequency and quality.    
+*Variant allele frequency (VAF)* was calculated as VAF = AO/DP, where AO (Alternate Observations) represents the number of reads supporting the alternate allele, and DP (Depth) is the total read depth at the site.     
+Similarly, *Quality Allele Frequency (QAF)* was computed as QAF = QA/QA+QO, where QA (Quality of Alternate Allele) is the sum of Phred-scaled base quality scores for reads supporting the alternate allele, and QO (Quality of Reference Allele) is the sum of Phred-scaled base quality scores for reads supporting the reference allele.     
 
-~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
 
-## Figure 2B. F1 male (AA) x Female (AB)
-```{r}
+```{r load-f2-filtered}
+# Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous
+f2_homo_parents <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_homo_parents.csv")
 
+# read the fam2_selected data
+fam2_selected <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam2_selected.csv")
 ```
+
+### Supplementary Figure: Distribution of VAF and QAF in F2 Offspring
+*Click the code button to view the analysis of VAF and QAF distributions*
+
+```{r vaf-qaf-distribution, echo=FALSE, eval=TRUE}
+# QAF: All genotypes overlaid
+QAF_all_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "A",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  )
+
+# QAF: Facetted by genotype
+QAF_facet_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  facet_wrap(~ GT, scales = "free_y") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "B",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10),
+    panel.spacing = unit(2, "lines")
+  )
+
+# Combine QAF plots with adjusted spacing
+QAF_combined <- (QAF_all_gt + QAF_facet_gt + plot_layout(widths = c(1, 3)))
+
+# Display the combined QAF plot
+QAF_combined
+
+# Add caption below the plot
+cat("**Figure 1.** Distribution of Quality Allele Frequency (QAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of QAF values for all genotypes.\nB. Same data faceted by genotype (AA, AB, BB), showing the distribution and spread within each genotype class.\nVertical axis represents count of sites; horizontal axis is QAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+
+# VAF: All genotypes overlaid
+VAF_all_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "A",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  )
+
+# VAF: Facetted by genotype
+VAF_facet_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  facet_wrap(~ GT, scales = "free_y") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "B",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10),
+    panel.spacing = unit(2, "lines")
+  )
+
+# Combine VAF plots with adjusted spacing
+VAF_combined <- (VAF_all_gt + VAF_facet_gt + plot_layout(widths = c(1, 3)))
+
+# Display the combined VAF plot
+VAF_combined
+
+# Add caption below the plot
+cat("**Figure 2.** Distribution of Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of VAF values across all genotypes.\nB. Faceted distribution of VAF by genotype, showing characteristic frequency patterns for AA, AB, and BB.\nVertical axis represents count of sites; horizontal axis is VAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+```
+
+Based on the distribution of sites' VAF and QAF values, the following filtering criteria were applied:    
+- Homozygous Reference (AA): VAF < 0.03 and QAF < 0.03, sites exhibit low alternate allele support        
+- Heterozygous (AB): 0.4 < VAF < 0.6 and 0.4 < QAF < 0.6, sites maintain a balanced allele distribution       
+- Homozygous Alternate (BB): VAF > 0.8 and QAF > 0.8, sites demonstrate high alternate allele support       
+
+This filtering approach enhances the accuracy of genotype classification while reducing the inclusion of low-confidence variant calls, by minimizing genotyping errors due to sequencing artifacts or depth-related biases.    
+
+
+```{r load-filtered-sites}
+# Load the pre-filtered sites per family and sample
+filtered_sites <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv") %>%
+    mutate(family = as.character(family),
+           Sample = as.character(Sample),
+           # Extract Chromosome from the site column
+           chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>% 
+    rename(gt = GT)
+```
+
+
+# Main Figures
+
+## Figure 2A: Proportion of maternal genotype in F2 mites
+*Note: The original analysis can be found in:*
+- `~/Documents/GitHub/varroa-pedigree-study/R_scripts/pedigree-hetero-count-Q15000.Rmd`
+- `~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd`
+
+```{r load-selected-family}
+# Load the fam2_selected data, for one family (478) on the largest chromosome, NW_019211454
+fam2_selected <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam2_selected.csv")
+```
+
+#### the same plot, only for fig A1
+```{r}
+# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
+fam_id <- 478
+
+fam2_selected %>%
+  ggplot(aes(x = member_num, y = pos / 1e6, color = GT)) +  # Convert pos to Mb
+  geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, 
+                   y = pos / 1e6, yend = pos / 1e6), size = 1.5) +  # Apply same conversion
+  scale_x_continuous(breaks = unique(fam2_selected$member_num), labels = unique(fam2_selected$member)) +  # Restore original labels
+  scale_color_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),  # Updated colors for renamed genotypes
+    name = "Genotype",
+    breaks = c("AA", "AB", "BB")  # Ensures BB appears in the legend even if absent
+  ) +
+  theme_classic() +
+  labs(
+    title = paste("Genotype Flow Across Family Members\nFamily ID:", fam_id),
+    x = "Family Member",
+    y = "Genomic Position (Mb)"
+  ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),  # Adjusted text size and angle
+    axis.title.x = element_text(margin = margin(t = 15)),  # Add margin above x-axis title
+    panel.grid.major = element_blank(), 
+    legend.position = "right",  # Move legend to the right
+    legend.box.margin = margin(0, 0, 0, 10),  # Add margin to separate legend from plot
+    plot.margin = margin(10, 20, 30, 10)  # Increased bottom margin to accommodate rotated labels
+  )
+```
+
+## Figure 2B: F1 male (AA) x Female (AB) crossing analysis
 
 ### Analysis of all sites
 Crossing homozygotic male, with heterozygotic Female (5) F1 male (AA) x Female (AB)
 
-```{r all-sites-analysis}
+```{r all-sites-analysis, echo=FALSE, eval=TRUE}
 # Set the families (include only families with at least one adult F2)
 family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
   str_extract("[^_]+") %>%
@@ -168,16 +382,9 @@ rule:
     (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB))     
 
 ### Analysis of filtered sites (site quality QAF and VAF)
-The analysis was done in "~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd"
+*Click the code button to view the filtered sites analysis*
 
-```{r filtered-sites-analysis}
-# Load the pre-filtered sites per family and sample
-filtered_sites <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv") %>%
-    mutate(family = as.character(family),
-           Sample = as.character(Sample),
-           # Extract Chromosome from the site column
-           chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>% rename(gt = GT)
-
+```{r filtered-sites-analysis, echo=FALSE, eval=TRUE}
 # Set the families (include only families with at least one adult F2)
 family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
   str_extract("[^_]+") %>%
@@ -202,7 +409,7 @@ for (fam in family) {
     tidyr::pivot_longer(cols = -c(site, chrom)) %>%
     dplyr::rename(Sample = name, gt = value) %>%
     # filter for sites 
-     left_join(filtered_sites, by = c("site", "chrom", "Sample",  "gt")) %>% #view()
+    left_join(filtered_sites, by = c("site", "chrom", "Sample", "gt")) %>%
     na.omit() %>% # Count genotypes
     dplyr::count(Sample, gt, chrom, .drop = FALSE) %>%
     dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
@@ -222,14 +429,14 @@ observed <- do.call("rbind", obs) %>%
   mutate(Sample = as.character(Sample))
 
 # Create samples dataframe
-Sample <- data.frame(
+samples <- data.frame(
   Sample = rep(unique(observed$Sample), each = 3), 
   gt = rep(c("AA", "AB", "BB"))
 ) %>%   
   mutate(family = str_extract(Sample, "^[0-9]+"))
 
 # Join and create final dataset
-samples_obs_filtered <- left_join(Sample, observed, by = c("family", "Sample", "gt")) %>% 
+samples_obs_filtered <- left_join(samples, observed, by = c("family", "Sample", "gt")) %>% 
   mutate(sex = case_when(
     grepl("son", Sample) ~ "Male",
     grepl("dat", Sample) ~ "Female"
@@ -241,7 +448,9 @@ samples_obs_filtered <- left_join(Sample, observed, by = c("family", "Sample", "
 ```
 
 ### Comparison of all sites vs filtered sites
-```{r compare-datasets}
+*Click the code button to view the comparison analysis*
+
+```{r compare-datasets, echo=FALSE, eval=TRUE}
 # Create a table showing sites filtered per sample
 cat("\nSites filtered per sample:\n")
 sites_per_sample <- table %>%
@@ -285,11 +494,12 @@ knitr::kable(sites_comparison %>%
   digits = 2,
   caption = "Number of sites filtered per sample") %>%
   kable_styling(full_width = TRUE)
-
 ```
 
 ### Filtered for QAF and VAF, minimum sites per sample = 10
-```{r comparing-all-and-filtered-data-sites_min10}
+*Click the code button to view the analysis with minimum 10 sites per sample*
+
+```{r comparing-all-and-filtered-data-sites_min10, echo=FALSE, eval=TRUE}
 site_threshold = as.numeric(10)
 
 ## all sites
@@ -510,7 +720,9 @@ Filtered sites, sites per sample => 10") +
 
 
 ### Filtered for QAF and VAF, minimum sites per sample = 40
-```{r comparing-all-and-filtered-data-sites_min40}
+*Click the code button to view the analysis with minimum 40 sites per sample*
+
+```{r comparing-all-and-filtered-data-sites_min40, echo=FALSE, eval=TRUE}
 site_threshold = as.numeric(40)
 
 ## all sites
@@ -729,12 +941,13 @@ Filtered sites, sites per sample => 40") +
   coord_cartesian(ylim = c(0, 1))
 ```
 
+
 ---
 
 # Archived Code for Future Reference
 *The following code sections are preserved for future analysis but are not currently active in the main analysis.*
 
-```{r filtered-sites-analysis-archived}
+```{r filtered-sites-analysis-archived, echo=FALSE, eval=TRUE}
 # Load the pre-filtered sites per family and sample
 filtered_sites <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv") %>%
     mutate(family = as.character(family),
@@ -778,6 +991,8 @@ observed_count <- do.call("rbind", obs_count) %>%
 
 
 ## F1 male (AB) x Female (AB)
+*Click the code button to view the archived analysis for AB x AB crossing*
+
 ```{r eval=FALSE, include=FALSE}
 # define a list to put all the data frames in
 obs <- list()
@@ -833,6 +1048,8 @@ modes = rbind(Haploid,Automixis,Sexual)
 ```
 
 ## F1 male (AB) x Female (AA)
+*Click the code button to view the archived analysis for AB x AA crossing*
+
 ```{r eval=FALSE, include=FALSE}
 # define a list to put all the data frames in
 obs <- list()
@@ -888,6 +1105,8 @@ modes = rbind(Haploid,Automixis,Sexual)
 ```
 
 ## Heterozygosity Analysis
+*Click the code button to view the archived heterozygosity analysis*
+
 ```{r eval=FALSE, include=FALSE}
 ### varroa mite DNA
 ind_het <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.het", delim = "\t",
@@ -933,6 +1152,8 @@ count_varroa_DNA = ind_het_sex %>%
 ```
 
 ## Ploidy Analysis
+*Click the code button to view the archived ploidy analysis*
+
 ```{r eval=FALSE, include=FALSE}
 ### Flow-cytometry
 data <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa_ploidy/data/ploidy.csv") %>%

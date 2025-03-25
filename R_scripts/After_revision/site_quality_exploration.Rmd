@@ -23,13 +23,14 @@ editor_options:
 </style>
 ```
 
-```{r load libraries}
+```{r libraries, echo=FALSE, eval=TRUE}
 library(vcfR)
 library(tidyverse)
 library(ggokabeito) 
 library(RcppRoll)
 library(stringr)
 library(purrr)
+library(patchwork)
 ```
 
 ```{r load data}
@@ -160,122 +161,203 @@ all_param <- all_param %>% filter(!(member %in% "unknown")) %>% # remove nymphs,
   mutate(member_num = as.numeric(member))  # Convert ordered factor to numeric
 ```
 
-# Sanity check, to determine the threshold for stie filtering
+# Sanity check, to determine the threshold for site filtering
+In this section, we will filter the sites based on the VAF and QAF distributions, under the assumption, that when F0 and F1 are all homozygous, then their F2 female offspring, must be homozygous as well.    
+As a result, we can also assume, that any genotype in the F2 female that is NOT AA, is an error.    
+It is therefore should be safe to set the threshold for site quality (VAF and QAF values), based on these filtered sites.   
 
-## F0 and F1 Homo 0/0, looking at F2 daughter (should all be 0/0)
+## F0 and F1 Homo AA, looking at F2 daughter (should all be AA)
 ### Find a threshold for VAF and QAF 
 ```{r}
-# Find positions where all F0 and all F1 individuals are homozygous 0/0
-good_sites <- all_param %>%
+# Find positions where all F0 and all F1 individuals are homozygous AA
+AA_sites_F0F1 <- all_param %>%
   filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
   group_by(family, site) %>%  # Group by family and position
-  summarise(all_homo = all(GT == "0/0"), .groups = "drop") %>%  # Ensure all individuals in family are 0/0
-  filter(all_homo) %>%  # Keep only positions where all individuals in F0 and F1 are 0/0
+  summarise(all_homo = all(GT == "AA"), .groups = "drop") %>%  # Ensure all individuals in family are AA
+  filter(all_homo) %>%  # Keep only positions where all individuals in F0 and F1 are AA
   select(family, site)  # Extract family and positions
 
-# Count the number of positions per family that passed the filtering
- good_sites %>%
+# Count the number of positions per family that passed the homo filtering
+AA_sites_F0F1 %>%
   group_by(family) %>%
   summarise(num_sites_passed = n())
  
-# Step 1: Filter the F2 females at the selected positions, on chrom 1
-f2_filtered <- all_param %>%
-    filter(family == "284") %>%
-filter(generation == "F2", site %in% filter(good_sites, family == "284")$site) %>% # Keep only F2 at good sites
+# Filter the F2 females at the selected positions, on chrom 1
+f2_homo_parents <- all_param %>%
+  filter(generation == "F2") %>%
   filter(chrom == "1") %>%
-  filter(sex == "female")
-  
-# Step 1: Compute the 99th percentile for VAF and QAF per family
-percentile_thresholds <- f2_filtered %>%
-  group_by(family) %>%
+  filter(sex == "female") %>%
+  # Join with AA_sites_F0F1 to keep only sites that passed the filtering
+  inner_join(AA_sites_F0F1, by = c("family", "site"))
+
+# Visualize VAF and QAF distributions to determine thresholds
+# QAF: All genotypes overlaid
+QAF_all_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "A",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(legend.position = "none")
+
+# QAF: Facetted by genotype
+QAF_facet_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  facet_wrap(~ GT, scales = "free_y") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "B",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(legend.position = "right")
+
+# Combine QAF plots
+QAF_combined <- (QAF_all_gt + QAF_facet_gt + plot_layout(widths = c(1, 3)))
+
+# Display the combined QAF plot
+QAF_combined
+
+# Add caption below the plot
+cat("**Figure 1.** Distribution of Quality Allele Frequency (QAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of QAF values for all genotypes.\nB. Same data faceted by genotype (AA, AB, BB), showing the distribution and spread within each genotype class.\nVertical axis represents count of sites; horizontal axis is QAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+
+# VAF: All genotypes overlaid
+VAF_all_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "A",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(legend.position = "none")
+
+# VAF: Facetted by genotype
+VAF_facet_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  facet_wrap(~ GT, scales = "free_y") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  theme_classic() +
+  labs(title = "B",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(legend.position = "right")
+
+# Combine VAF plots
+VAF_combined <- (VAF_all_gt + VAF_facet_gt + plot_layout(widths = c(1, 3)))
+
+# Display the combined VAF plot
+VAF_combined
+
+# Add caption below the plot
+cat("**Figure 2.** Distribution of Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of VAF values across all genotypes.\nB. Faceted distribution of VAF by genotype, showing characteristic frequency patterns for AA, AB, and BB.\nVertical axis represents count of sites; horizontal axis is VAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+```
+
+#### short summary:
+- 413,119 sites were homozygous in F0 and F1.    
+- out of these sites, 45,841 sites were present in their corresponding families. Ofcourese, most of the sites are AA.    
+- for these, we visualized the site's quality, in each genotype.    
+- because we know what the QAF and VAF should be in a perfect genotyping, we can clearly see which of the sites are errors, and set the boundries accordingly.    
+
+The plots make sense. Its visible that there's a peak of local quality heterozygotes below 0.4, which we can safely filter at.       
+We therefore propose the following boundaries for each genotype:    
+AA < 0.03     
+AB > 0.4 and < 0.6   
+BB > 0.8   
+
+```{r create-filtered-df}
+# Create the filtered sites dataset that will be used in the next Rmd file
+filtered_sites <- all_param %>%
+  filter(
+    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
+    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
+    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB)
+  ) %>%
+  select(family, Sample, site, QAF, VAF, GT)  # Keep only necessary columns
+
+# Save the filtered sites dataset for use in the next Rmd file
+write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
+
+# Create summary statistics for filtered data
+summary_stats <- filtered_sites %>%
+  group_by(family, GT) %>%
   summarise(
-    VAF_99 = quantile(VAF, 0.99, na.rm = TRUE),
-    QAF_99 = quantile(QAF, 0.99, na.rm = TRUE)
+    count = n(),
+    mean_VAF = mean(VAF, na.rm = TRUE),
+    mean_QAF = mean(QAF, na.rm = TRUE),
+    .groups = 'drop'
   )
 
-# Step 2: Compute overall 99th percentile threshold across all families
-vaf_threshold <- quantile(percentile_thresholds$VAF_99, 0.99, na.rm = TRUE)
-qaf_threshold <- quantile(percentile_thresholds$QAF_99, 0.99, na.rm = TRUE)
+# Display summary statistics
+knitr::kable(summary_stats, 
+             caption = "Summary statistics for filtered sites by family and genotype",
+             digits = 3)
 
-# Step 3: VAF Plot Faceted by Family
-ggplot(f2_filtered, aes(x = pos, y = VAF, color = GT)) +
-  geom_point(alpha = 0.6) +
-  geom_hline(data = percentile_thresholds, aes(yintercept = VAF_99), linetype = "dashed", color = "black", size = 1) +
-  facet_wrap(~ family, scales = "free_x") +  # Facet by family
-  theme_minimal() +
-  labs(title = "VAF Across Positions by GT in F2 Females (Faceted by Family)",
-       x = "Genomic Position",
-       y = "VAF",
-       color = "Genotype (GT)")
-
-# Step 4: QAF Plot Faceted by Family
-ggplot(f2_filtered, aes(x = pos, y = QAF, color = GT)) +
-  geom_point(alpha = 0.6) +
-  geom_hline(data = percentile_thresholds, aes(yintercept = QAF_99), linetype = "dashed", color = "black", size = 1) +
-  facet_wrap(~ family, scales = "free_x") +  # Facet by family
-  theme_minimal() +
-  labs(title = "QAF Across Positions by GT in F2 Females (Faceted by Family)",
-       x = "Genomic Position",
-       y = "QAF",
-       color = "Genotype (GT)")
-
+# Save the f2_homo_parents data for use in the next Rmd file and create the QAF and VAF plots for the supp info of the MS
+write.csv(f2_homo_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_homo_parents.csv", row.names = FALSE)
 ```
 
-```{r}
-# QAF histogram
-ggplot(f2_filtered, aes(x = QAF, fill = GT)) +
-  geom_histogram(binwidth = 0.01, alpha = 0.7, position = "identity") +
-  facet_wrap(~ GT, scales = "free_y") +  # Facet by genotype
-  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +  # Set breaks & limits
-  theme_minimal() +
-  labs(title = "QAF Distribution Across Families",
-       x = "Quality Allele Frequency (QAF)",
-       y = "Count",
-       fill = "Genotype (GT)")
 
-# Alternative: Density Plot
-ggplot(f2_filtered, aes(x = QAF, fill = GT, y = ..density..)) +
-  geom_histogram(binwidth = 0.01, alpha = 0.7, position = "identity") +
-    facet_wrap(~ GT, scales = "free_y") +  # Facet by family
-theme_minimal() +
-  labs(title = "QAF Distribution (Density Normalized)",
-       x = "Quality Allele Frequency (QAF)",
-       y = "Density",
-       fill = "Genotype (GT)")
 
-# VAF Histogram
-ggplot(f2_filtered, aes(x = VAF, fill = GT)) +
-  geom_histogram(binwidth = 0.01, alpha = 0.7, position = "identity") +
-  facet_wrap(~ GT, scales = "free_y") +  # Facet by genotype
-  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +  # Set breaks & limits
-  theme_minimal() +
-  labs(title = "VAF Distribution Across Families",
-       x = "Variant Allele Frequency (VAF)",
-       y = "Count",
-       fill = "Genotype (GT)")
+####  how many sites were kept after filtering?
+```{r pull sites- spread to check, eval=FALSE, include=FALSE}
 
-# Alternative: Density Plot
-ggplot(f2_filtered, aes(x = VAF, fill = GT, y = ..density..)) +
-  geom_histogram(binwidth = 0.05, alpha = 0.7, position = "identity") +
+# Count the number of unique sites per sample before filtering
+original_site_counts <- all_param %>%
+ group_by(family, Sample) %>%  # Keep sites grouped by family
+  summarise(original_sites = n_distinct(site), .groups = "drop") %>% 
+  mutate(original_sites = as.numeric(original_sites)) %>%  
+  mutate(family = as.character(family)) %>%
+  mutate(Sample = as.character(Sample)) 
+
+# Merge the original and filtered site counts by family
+site_comparison <- original_site_counts %>%
+  left_join(filtered_sites_summary, by = c("Sample", "family")) %>%
+  mutate(kept_percentage = (num_sites_kept/original_sites) * 100)
+  
+ggplot(site_comparison, aes(x = family, y = kept_percentage, fill = family)) +
+  geom_boxplot(alpha = 0.8, outlier.shape = NA) +  # Box plot without outlier points
+  geom_jitter(width = 0.2, alpha = 0.5, size = 1) +  # Add jitter for visibility of individual points
   theme_minimal() +
-  labs(title = "VAF Distribution (Density Normalized)",
-       x = "Quality Allele Frequency (VAF)",
-       y = "Density",
-       fill = "Genotype (GT)")
+  labs(
+    title = "Distribution of Kept Site Percentages per Family",
+    x = "Family",
+    y = "Kept Site Percentage (%)",
+    fill = "Family"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis for readability
+    legend.position = "none"  # Remove legend to avoid redundancy
+  )
+
 ```
-The plot makes sense. You can see how there’s a peak of local quality heterozygotes below 0.4, which we can safely filter at.       
-We propose the following boundaries for each genotype:    
-0/0 < 0.03     
-0/1 > 0.4 and < 0.6   
-1/1 > 0.8   
 
 ---
 
-Based on the threshold above, we have filtered the sites, and plot a family on chromosome 1:    
-# For MS, F0=0/0, F1 mother = 0/1
-```{r}
-# Step 1: Identify sites where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
-good_sites <- all_param %>%
+# Follow genotype flow in one family, on one chromosome
+Now we wish to follow the genotype in specific family, in specific chromosome.    
+to do that, we need to look only at informative sites, for which we have hypothesis about the F2 genotype, based on their parents' (F1) genotype.   
+
+Based on the determined site-quality threshold, we now filter the sites, and plot informative sites in one family on chromosome 1:    
+
+```{r informative-sites-on-one-chrom}
+# Step 1: Identify informative sites: where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
+F0AA_F1AB <- all_param %>%
   filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
    filter(chrom %in% c("1")) %>%  # Keep only chromosome 1
  group_by(family, site) %>%  # Group by family and site
@@ -288,52 +370,35 @@ good_sites <- all_param %>%
   select(family, site)  # Extract only relevant columns
 
 # Step 2: Count the number of positions per family that passed the filtering
-site_counts <- good_sites %>%
+F0AA_F1AB %>%
   group_by(family) %>%
   summarise(num_sites_passed = n())
 
-site_counts
-
-# Step 1: Identify families that have both a son and a daughter
-valid_families <- all_param %>%
-  filter(generation == "F2") %>%  # Focus on F2 generation
-  group_by(family) %>%
-  summarise(
-    has_son = any(sex == "male"),
-    has_daughter = any(sex == "female"),
-    .groups = "drop"
-  ) %>%
-  filter(has_son & has_daughter) %>%  # Keep only families with both
-  pull(family)  # Extract valid family IDs
-
-# Step 2: Filter families that have at least 500 passing sites
-families_with_enough_sites <- site_counts %>%
-  filter(num_sites_passed >= 300) %>%
-  pull(family)  # Extract families with enough sites
-
-# Step 3: Keep only families that satisfy BOTH conditions
-final_families <- intersect(valid_families, families_with_enough_sites)
-
-final_families
-
-# Step 4: Filter all_param to keep only these families
-filtered_families <- all_param %>%
-  filter(family %in% final_families)
-
-#> final_families: 338 , 478
-
 ```
 
+
 Now we have data on all families, will pick one family each time to plot
-```{r}
+```{r one-family}
 # set up family and members
 fam_id <- 478
 
-one_fam <- filtered_families %>% filter(family == fam_id)
+one_fam <- F0AA_F1AB %>% filter(family == fam_id)
 
 # Step 3: Extract all family members' genotypes at these sites
 family_sites <- one_fam %>%
-  inner_join(good_sites, by = c("family", "site"))  # Keep only sites that passed filtering
+  inner_join(filtered_sites, by = c("family", "site")) %>% # Keep only sites that passed filtering
+  separate(site, into = c("chrom", "pos"), sep = "\\.1_", remove = FALSE) %>% # Split site into chrom and pos
+  mutate(pos = as.numeric(pos)) %>% # Convert pos to numeric
+  mutate(member = case_when(
+    str_detect(Sample, "fnd") ~ "grandmother",
+    str_detect(Sample, "_dat") ~ "mother",
+    str_detect(Sample, "_son") ~ "father",
+    str_detect(Sample, "_grndat") ~ "daughter",
+    str_detect(Sample, "_grnson") ~ "son",
+    TRUE ~ "unknown"
+  )) %>%
+  mutate(member = factor(member, levels = c("grandmother", "father", "mother", "son", "daughter"), ordered = TRUE)) %>%
+  mutate(member_num = as.numeric(member))
 
 # Find positions that appear in all members
 positions_all_members <- family_sites %>%
@@ -362,38 +427,9 @@ fam2_selected <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter
   
 ```
 
-# Plots
-#### A plot to vizualize gene flow 
-```{r}
-# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
-fam2_selected %>% 
-  mutate(
-    pos = ifelse(member %in% c("father", "mother"), pos + 100*10^6, pos),  # Adjusts positions
-    pos = ifelse(member %in% c("grandmother"), pos + 100*10^6*2, pos)) %>%
-  ggplot(aes(x = member_num, y = pos, color = GT)) +
-  geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, y = pos, yend = pos), size = 1.5) +  # Horizontal lines with spacing
-  scale_x_continuous(breaks = unique(all_param$member_num), labels = unique(all_param$member)) +  # Restore original labels
-  scale_color_manual(
-    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),  # Updated colors for renamed genotypes
-    name = "Genotype",
-    breaks = c("AA", "AB", "BB")  # Ensures BB appears in the legend even if absent
-  ) +
-  theme_classic() +
-  labs(
-    title = paste("Genotype Flow Across Family Members 
-Family ID:", fam_id),
-    x = "Family Member",
-    y = "Genomic Position"
-  ) +
-  theme(
-    axis.text.x = element_text(size = 12, face = "bold", angle = 30, hjust = 1),  # Rotate labels
-    panel.grid.major = element_blank(), 
-    axis.line.x = element_blank(),  # <-- Removes the x-axis line
-    axis.ticks.x = element_blank())  # Removes x-axis ticks
-```
 
-#### the same plot, only for fig A1
-```{r}
+#### vizualize genotype flow in one family, for fig A1
+```{r filter-site-qual-and-plot}
 # Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
 fam2_selected %>%
  filter(
@@ -448,35 +484,41 @@ filtered_sites_summary <- filtered_sites %>%
 write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
 ```
 
-sanity check
-```{r pull sites- spread to check, eval=FALSE, include=FALSE}
 
-# Count the number of unique sites per sample before filtering
-original_site_counts <- all_param %>%
- group_by(family, Sample) %>%  # Keep sites grouped by family
-  summarise(original_sites = n_distinct(site), .groups = "drop") %>% 
-  mutate(original_sites = as.numeric(original_sites)) %>%  
-  mutate(family = as.character(family)) %>%
-  mutate(Sample = as.character(Sample)) 
+```{r load-f2-filtered}
+# save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
+write.csv(fam2_selected, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam2_selected.csv", row.names = FALSE)
+```
 
-# Merge the original and filtered site counts by family
-site_comparison <- original_site_counts %>%
-  left_join(filtered_sites_summary, by = c("Sample", "family")) %>%
-  mutate(kept_percentage = (num_sites_kept/original_sites) * 100)
-  
-ggplot(site_comparison, aes(x = family, y = kept_percentage, fill = family)) +
-  geom_boxplot(alpha = 0.8, outlier.shape = NA) +  # Box plot without outlier points
-  geom_jitter(width = 0.2, alpha = 0.5, size = 1) +  # Add jitter for visibility of individual points
-  theme_minimal() +
+
+---
+# Archived
+#### A plot to vizualize gene flow in one family 
+```{r eval=FALSE, include=FALSE}
+# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
+fam2_selected %>% 
+  mutate(
+    pos = ifelse(member %in% c("father", "mother"), pos + 100*10^6, pos),  # Adjusts positions
+    pos = ifelse(member %in% c("grandmother"), pos + 100*10^6*2, pos)) %>%
+  ggplot(aes(x = member_num, y = pos, color = GT)) +
+  geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, y = pos, yend = pos), size = 1.5) +  # Horizontal lines with spacing
+  scale_x_continuous(breaks = unique(all_param$member_num), labels = unique(all_param$member)) +  # Restore original labels
+  scale_color_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),  # Updated colors for renamed genotypes
+    name = "Genotype",
+    breaks = c("AA", "AB", "BB")  # Ensures BB appears in the legend even if absent
+  ) +
+  theme_classic() +
   labs(
-    title = "Distribution of Kept Site Percentages per Family",
-    x = "Family",
-    y = "Kept Site Percentage (%)",
-    fill = "Family"
+    title = paste("Genotype Flow Across Family Members 
+Family ID:", fam_id),
+    x = "Family Member",
+    y = "Genomic Position"
   ) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis for readability
-    legend.position = "none"  # Remove legend to avoid redundancy
-  )
-
+    axis.text.x = element_text(size = 12, face = "bold", angle = 30, hjust = 1),  # Rotate labels
+    panel.grid.major = element_blank(), 
+    axis.line.x = element_blank(),  # <-- Removes the x-axis line
+    axis.ticks.x = element_blank())  # Removes x-axis ticks
 ```
+
