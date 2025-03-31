@@ -1,5 +1,5 @@
 ---
-title: "Varroa mode of genetic inheritance-Figures and Supplementary materials for MS"
+title: "Varroa mode of genetic inheritance-Figures and Supplementary materials"
 author: "Nurit Eliash and Sasha Mikheyev"
 date: "2023-02-20"
 output:
@@ -48,7 +48,7 @@ Before running this analysis, ensure you have:
 
 ## Load Libraries and Set Parameters
 
-```{r libraries, echo=FALSE, eval=TRUE}
+```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE}
 library("tidyverse")
 library("dplyr")
 library("ggplot2")
