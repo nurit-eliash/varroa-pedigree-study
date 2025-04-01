@@ -23,7 +23,7 @@ editor_options:
 </style>
 ```
 
-```{r libraries, echo=FALSE, eval=TRUE}
+```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 library(vcfR)
 library(tidyverse)
 library(ggokabeito) 
@@ -33,7 +33,7 @@ library(purrr)
 library(patchwork)
 ```
 
-```{r load data}
+```{r load-data, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 # Load the metadata CSV file into a data frame 'dat', and keep only one F1 female per family. 
 dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/meta_data_223.csv") %>% 
    rename(id = sample) %>% # Rename 'sample' column to 'id'
@@ -61,7 +61,7 @@ ad <- extract.gt(vcf, element = "AD") # Extract the allele depth (AD)
 ```
 
 ## Variant Allele Frequency (VAF) 
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 # Ensure AO and DP are numeric and avoid division by zero
 ao[is.na(ao)] <- 0
 dp[is.na(dp)] <- 1  # Avoid division by zero
@@ -76,7 +76,7 @@ vaf_long <- as.data.frame(vaf_df) %>%
 ```
 
 ## Genotyping quality (QAF)
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 qa <- extract.gt(vcf, element = "QA", as.numeric = TRUE)  # Quality of Alt Allele
 qo <- extract.gt(vcf, element = "QR", as.numeric = TRUE)  # Quality of Ref Allele
 
@@ -94,14 +94,14 @@ qaf_long <- as.data.frame(qaf) %>%
 ```
 
 ## Heterozygosity
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 is_het <- as.data.frame(is_het(gt)) %>% 
   rownames_to_column(var = "site") %>% 
   pivot_longer(-site, names_to = "id", values_to = "het") 
 ```
 
 ## Allele depth (AD)
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 ad2 <- as.data.frame(ad) %>% 
   rownames_to_column(var = "site") %>% 
   pivot_longer(-site, names_to = "id", values_to = "ad") %>% 
@@ -117,7 +117,7 @@ ad_join <- mutate(ad_join, chrom = factor(chrom, levels = unique(chrom), labels 
 ```
 
 ## Genotype (GT)
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 gt_long <- gt %>% 
 as.data.frame() %>% 
   rownames_to_column("site") %>% 
@@ -125,7 +125,7 @@ as.data.frame() %>%
 ```
 
 ## Depth (DP)
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 dp_long <- dp %>% 
 as.data.frame() %>% 
   rownames_to_column("site") %>% 
@@ -133,7 +133,7 @@ as.data.frame() %>%
 ```
 
 ## Join all site parameters
-```{r}
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 # Combine information on allele depth, heterozygosity, VAF, GQ and family structure 
 all_param <- ad_join %>%
   left_join(qaf_long, by = c("site", "id")) %>%
@@ -280,6 +280,7 @@ AA < 0.03
 AB > 0.4 and < 0.6   
 BB > 0.8   
 
+Create the filtered sites *"filtered_sites"* dataset that will be used in the final supp Rmd file, and save as csv    
 ```{r create-filtered-df}
 # Create the filtered sites dataset that will be used in the next Rmd file
 filtered_sites <- all_param %>%
@@ -292,7 +293,10 @@ filtered_sites <- all_param %>%
 
 # Save the filtered sites dataset for use in the next Rmd file
 write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
+```
 
+Summarized statistics for the filtered data, and Save the f2_homo_parents data for use in the next Rmd file and create the QAF and VAF plots for the supp info of the MS
+```{r create-filtered-df}
 # Create summary statistics for filtered data
 summary_stats <- filtered_sites %>%
   group_by(family, GT) %>%
