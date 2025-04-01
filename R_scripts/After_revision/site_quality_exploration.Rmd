@@ -296,7 +296,7 @@ write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-s
 ```
 
 Summarized statistics for the filtered data, and Save the f2_homo_parents data for use in the next Rmd file and create the QAF and VAF plots for the supp info of the MS
-```{r create-filtered-df}
+```{r summary-stats-and-plots}
 # Create summary statistics for filtered data
 summary_stats <- filtered_sites %>%
   group_by(family, GT) %>%
@@ -307,49 +307,70 @@ summary_stats <- filtered_sites %>%
     .groups = 'drop'
   )
 
-# Display summary statistics
-knitr::kable(summary_stats, 
-             caption = "Summary statistics for filtered sites by family and genotype",
-             digits = 3)
+# Display summary statistics with scrolling functionality
+summary_stats %>%
+  knitr::kable(
+    caption = "Summary statistics for filtered sites by family and genotype",
+    digits = 3,
+    format = "html"
+  ) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = "striped",
+    full_width = TRUE,
+    position = "left",
+    fixed_thead = TRUE
+  ) %>%
+  kableExtra::scroll_box(
+    width = "100%", 
+    height = "300px"
+  )
 
-# Save the f2_homo_parents data for use in the next Rmd file and create the QAF and VAF plots for the supp info of the MS
-write.csv(f2_homo_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_homo_parents.csv", row.names = FALSE)
-```
-
-
-
-####  how many sites were kept after filtering?
-```{r pull sites- spread to check, eval=FALSE, include=FALSE}
+# Add a note about scrolling below the table
+cat("\n*Note: Scroll to see all rows in the table.*\n")
 
 # Count the number of unique sites per sample before filtering
 original_site_counts <- all_param %>%
- group_by(family, Sample) %>%  # Keep sites grouped by family
+  group_by(family, Sample) %>%
   summarise(original_sites = n_distinct(site), .groups = "drop") %>% 
   mutate(original_sites = as.numeric(original_sites)) %>%  
   mutate(family = as.character(family)) %>%
-  mutate(Sample = as.character(Sample)) 
+  mutate(Sample = as.character(Sample))
 
-# Merge the original and filtered site counts by family
+# Count filtered sites per sample
+filtered_sites_summary <- filtered_sites %>%
+  group_by(family, Sample) %>%
+  summarise(num_sites_kept = n(), .groups = "drop") %>%
+  mutate(family = as.character(family))
+
+# Merge the original and filtered site counts
 site_comparison <- original_site_counts %>%
   left_join(filtered_sites_summary, by = c("Sample", "family")) %>%
-  mutate(kept_percentage = (num_sites_kept/original_sites) * 100)
-  
+  mutate(
+    num_sites_kept = replace_na(num_sites_kept, 0),
+    kept_percentage = (num_sites_kept/original_sites) * 100
+  )
+
+# Create box plot of kept site percentages
 ggplot(site_comparison, aes(x = family, y = kept_percentage, fill = family)) +
   geom_boxplot(alpha = 0.8, outlier.shape = NA) +  # Box plot without outlier points
-  geom_jitter(width = 0.2, alpha = 0.5, size = 1) +  # Add jitter for visibility of individual points
+  geom_jitter(width = 0.2, alpha = 0.5, size = 1) +  # Add jitter for individual points
   theme_minimal() +
   labs(
     title = "Distribution of Kept Site Percentages per Family",
     x = "Family",
-    y = "Kept Site Percentage (%)",
-    fill = "Family"
+    y = "Kept Site Percentage (%)"
   ) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis for readability
-    legend.position = "none"  # Remove legend to avoid redundancy
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    legend.position = "none",  # Remove legend
+    panel.grid.major.x = element_blank(),  # Remove vertical grid lines
+    panel.grid.minor = element_blank(),    # Remove minor grid lines
+    plot.title = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 9)
   )
-
 ```
+
 
 ---
 
@@ -424,7 +445,9 @@ fam2_common <- fam2_common %>% arrange(pos)
 indices <- round(seq(1, nrow(fam2_common), length.out = 30))
 
 # Select the corresponding positions
-selected_positions <- fam2_common %>% slice(indices) %>% pull(pos)
+selected_positions <- fam2_common %>% 
+  #slice(indices) %>% 
+  pull(pos)
 
 # Filter the dataset based on these selected positions
 fam2_selected <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter(!is.na(member), !is.na(pos), !is.na(GT))
