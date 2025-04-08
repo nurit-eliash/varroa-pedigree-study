@@ -10,7 +10,7 @@ output:
     toc_depth: 5
     toc_float:
       collapsed: yes
-    df_print: paged
+      df_print: paged
 bibliography: references.bib
 editor_options: 
   chunk_output_type: console
@@ -25,53 +25,67 @@ editor_options:
 }
 </style>
 ```
-
 # Overview
 
-This document contains supplementary figures and analyses for our study on the mode of genetic inheritance in *Varroa destructor*. It should be read in conjunction with the detailed methodology presented in [Site Quality Analysis](site_quality_exploration.html).
+This document contains supplementary figures and analyses for our study
+on the mode of genetic inheritance in *Varroa destructor*. It should be
+read in conjunction with the detailed methodology presented in [Site
+Quality Analysis](site_quality_exploration.html).
 
 ## Document Structure
-1. Prerequisites and Setup
-   - Project overview
-   - Data sources
-   - Required files and packages
-2. Data Processing
-   - VCF file processing
-   - Site quality filtering methodology
-3. Main Figures
-   - Figure 1: Genotype flow in single family
-   - Figure 2: Cross-family analysis
-4. Supplementary Analyses
-   - Quality metrics
-   - Additional validations
+
+1.  Prerequisites and Setup
+    -   Project overview
+    -   Data sources
+    -   Required files and packages
+2.  Data Processing
+    -   VCF file processing
+    -   Site quality filtering methodology
+3.  Main Figures
+    -   Figure 1: Genotype flow in single family
+    -   Figure 2: Cross-family analysis
+4.  Supplementary Analyses
+    -   Quality metrics
+    -   Additional validations
 
 ## Data Availability
-- Raw sequencing data: [BioProject PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
-- Analysis code: [GitHub Repository](https://github.com/nurit-eliash/varroa-pedigree-study/)
-- Filtered datasets: Available upon request
+
+-   Raw sequencing data: [BioProject
+    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
+-   Analysis code: [GitHub
+    Repository](https://github.com/nurit-eliash/varroa-pedigree-study/)
+-   Filtered datasets: Available upon request
 
 # Prerequisites and Setup
 
 ## Project Overview
-This analysis is part of a comprehensive study investigating the genetic inheritance patterns in *Varroa destructor* mites. We analyzed genomic data from 223 mite samples across 30 families, collected from three *Apis mellifera* colonies. Each family consists of three generations:
+
+This analysis is part of a comprehensive study investigating the genetic
+inheritance patterns in *Varroa destructor* mites. We analyzed genomic
+data from 223 mite samples across 30 families, collected from three
+*Apis mellifera* colonies. Each family consists of three generations:
 
 ## Data Sources
-- Raw fastq reads: [BioProject PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
-- Code repository: [GitHub](https://github.com/nurit-eliash/varroa-pedigree-study/tree/main#varroa-pedigree-study)
+
+-   Raw fastq reads: [BioProject
+    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
+-   Code repository:
+    [GitHub](https://github.com/nurit-eliash/varroa-pedigree-study/tree/main#varroa-pedigree-study)
 
 ## Required Files
-Before running this analysis, ensure you have:    
-1. The VCF file processed with the specified parameters   
-2. The filtered sites CSV file generated from site quality exploration    
-3. All required R packages installed    
 
-1. **VCF File**: Filtered variant calls meeting these criteria:
-   - Minimum quality score: 15000
-   - Minimum depth: 16
-   - Maximum depth: 40
-   - Maximum missing data: 50%
-   - Minimum allele frequency: 0.2
-   - Chromosomes: NW_019211454.1 through NW_019211460.1
+Before running this analysis, ensure you have:\
+1. The VCF file processed with the specified parameters\
+2. The filtered sites CSV file generated from site quality exploration\
+3. All required R packages installed
+
+1.  **VCF File**: Filtered variant calls meeting these criteria:
+    -   Minimum quality score: 15000
+    -   Minimum depth: 16
+    -   Maximum depth: 40
+    -   Maximum missing data: 50%
+    -   Minimum allele frequency: 0.2
+    -   Chromosomes: NW_019211454.1 through NW_019211460.1
 
 ```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 library("tidyverse")
@@ -90,6 +104,7 @@ library("plotly")
 library("kableExtra")
 library("pastecs") # for stats stat.desc()
 library("patchwork")
+library("readr")  # for read_delim function
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
                       fig.asp = 0.4,
@@ -99,9 +114,12 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
 # Data Processing
 
 ## VCF File Processing
-The initial variant calling file was filtered using VCFtools with stringent quality control parameters to ensure high-confidence variant calls. The filtering criteria were:
 
-```bash
+The initial variant calling file was filtered using VCFtools with
+stringent quality control parameters to ensure high-confidence variant
+calls. The filtering criteria were:
+
+``` bash
 vcftools --vcf snponly_freebayes.vcf \
   --chr NW_019211454.1 \
   --chr NW_019211455.1 \
@@ -122,40 +140,49 @@ vcftools --vcf snponly_freebayes.vcf \
 ```
 
 ### Filtering Rationale
-- **Chromosomes**: Selected the 7 largest chromosomes (NW_019211454.1-460.1)
-- **Alleles**: Limited to biallelic sites to focus on clear binary inheritance patterns
-- **Quality**: Minimum Phred score of 15000 ensures high base quality
-- **Depth**: Range of 16-40 balances between coverage requirements and potential artifacts
-- **Missing Data**: Maximum 50% missing data per site maintains statistical power
-- **Minor Allele Frequency**: Minimum 0.2 reduces impact of sequencing errors
+
+-   **Chromosomes**: Selected the 7 largest chromosomes
+    (NW_019211454.1-460.1)
+-   **Alleles**: Limited to biallelic sites to focus on clear binary
+    inheritance patterns
+-   **Quality**: Minimum Phred score of 15000 ensures high base quality
+-   **Depth**: Range of 16-40 balances between coverage requirements and
+    potential artifacts
+-   **Missing Data**: Maximum 50% missing data per site maintains
+    statistical power
+-   **Minor Allele Frequency**: Minimum 0.2 reduces impact of sequencing
+    errors
 
 ## Quality Control Metrics
+
 We implemented two key metrics to assess genotype quality:
 
-1. **Variant Allele Frequency (VAF)**
-   - Calculated as: VAF = AO/DP
-   - AO: Alternate allele observations
-   - DP: Total read depth
-   - Provides measure of allelic balance
-
-2. **Quality Allele Frequency (QAF)**
-   - Calculated as: QAF = QA/(QA+QO)
-   - QA: Quality scores for alternate allele
-   - QO: Quality scores for reference allele
-   - Weights allele calls by base quality
+1.  **Variant Allele Frequency (VAF)**
+    -   Calculated as: VAF = AO/DP
+    -   AO: Alternate allele observations
+    -   DP: Total read depth
+    -   Provides measure of allelic balance
+2.  **Quality Allele Frequency (QAF)**
+    -   Calculated as: QAF = QA/(QA+QO)
+    -   QA: Quality scores for alternate allele
+    -   QO: Quality scores for reference allele
+    -   Weights allele calls by base quality
 
 ### Genotype Classification Thresholds
-Based on empirical distribution analysis (see Figures 1-2), we established the following thresholds:
 
-| Genotype | VAF Range | QAF Range | Interpretation |
-|----------|-----------|-----------|----------------|
-| AA (Ref) | < 0.03 | < 0.03 | Strong reference support |
+Based on empirical distribution analysis (see Figures 1-2), we
+established the following thresholds:
+
+| Genotype | VAF Range | QAF Range | Interpretation                 |
+|----------|-----------|-----------|--------------------------------|
+| AA (Ref) | \< 0.03   | \< 0.03   | Strong reference support       |
 | AB (Het) | 0.4 - 0.6 | 0.4 - 0.6 | Balanced allele representation |
-| BB (Alt) | > 0.8 | > 0.8 | Strong alternate support |
+| BB (Alt) | \> 0.8    | \> 0.8    | Strong alternate support       |
 
-These thresholds were validated using known inheritance patterns in our pedigree structure.
+These thresholds were validated using known inheritance patterns in our
+pedigree structure.
 
-```{r process-vcf, echo=FALSE, eval=TRUE}
+```{r process-vcf, echo=FALSE, eval=TRUEç}
 # Read and process VCF file
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE)
 
@@ -185,12 +212,24 @@ table <- gt %>%
 ```
 
 ## Site Quality Filtering
-The site quality filtering criteria were developed based on Variant Allele Frequency (VAF) and Genotype Quality Allele Frequency (QAF) analysis. For detailed methodology and validation of these thresholds, see [Site Quality Analysis](site_quality_exploration.html#sanity-check-to-determine-the-threshold-for-site-filtering).    
 
-We applied two additional filtering parameters to account for biases in alternate allele representation and to ensure high-confidence genotype calls based on allele frequency and quality.    
-*Variant allele frequency (VAF)* was calculated as VAF = AO/DP, where AO (Alternate Observations) represents the number of reads supporting the alternate allele, and DP (Depth) is the total read depth at the site.     
-Similarly, *Quality Allele Frequency (QAF)* was computed as QAF = QA/QA+QO, where QA (Quality of Alternate Allele) is the sum of Phred-scaled base quality scores for reads supporting the alternate allele, and QO (Quality of Reference Allele) is the sum of Phred-scaled base quality scores for reads supporting the reference allele.     
+The site quality filtering criteria were developed based on Variant
+Allele Frequency (VAF) and Genotype Quality Allele Frequency (QAF)
+analysis. For detailed methodology and validation of these thresholds,
+see [Site Quality
+Analysis](site_quality_exploration.html#sanity-check-to-determine-the-threshold-for-site-filtering).
 
+We applied two additional filtering parameters to account for biases in
+alternate allele representation and to ensure high-confidence genotype
+calls based on allele frequency and quality.\
+*Variant allele frequency (VAF)* was calculated as VAF = AO/DP, where AO
+(Alternate Observations) represents the number of reads supporting the
+alternate allele, and DP (Depth) is the total read depth at the site.\
+Similarly, *Quality Allele Frequency (QAF)* was computed as QAF =
+QA/QA+QO, where QA (Quality of Alternate Allele) is the sum of
+Phred-scaled base quality scores for reads supporting the alternate
+allele, and QO (Quality of Reference Allele) is the sum of Phred-scaled
+base quality scores for reads supporting the reference allele.
 
 ```{r load-f2-homo-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
@@ -199,7 +238,9 @@ f2_homo_parents <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree
 ```
 
 ### Supplementary Figure: Distribution of VAF and QAF in F2 Offspring
-*Click the code button to view the analysis of VAF and QAF distributions*
+
+*Click the code button to view the analysis of VAF and QAF
+distributions*
 
 ```{r vaf-qaf-distribution, echo=FALSE, eval=TRUE}
 # QAF: All genotypes overlaid
@@ -301,19 +342,26 @@ VAF_combined
 cat("**Figure 2.** Distribution of Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of VAF values across all genotypes.\nB. Faceted distribution of VAF by genotype, showing characteristic frequency patterns for AA, AB, and BB.\nVertical axis represents count of sites; horizontal axis is VAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
 ```
 
-Based on the distribution of sites' VAF and QAF values, the following filtering criteria were applied:    
-- Homozygous Reference (AA): VAF < 0.03 and QAF < 0.03, sites exhibit low alternate allele support        
-- Heterozygous (AB): 0.4 < VAF < 0.6 and 0.4 < QAF < 0.6, sites maintain a balanced allele distribution       
-- Homozygous Alternate (BB): VAF > 0.8 and QAF > 0.8, sites demonstrate high alternate allele support       
+Based on the distribution of sites' VAF and QAF values, the following
+filtering criteria were applied:\
+- Homozygous Reference (AA): VAF \< 0.03 and QAF \< 0.03, sites exhibit
+low alternate allele support\
+- Heterozygous (AB): 0.4 \< VAF \< 0.6 and 0.4 \< QAF \< 0.6, sites
+maintain a balanced allele distribution\
+- Homozygous Alternate (BB): VAF \> 0.8 and QAF \> 0.8, sites
+demonstrate high alternate allele support
 
-This filtering approach enhances the accuracy of genotype classification while reducing the inclusion of low-confidence variant calls, by minimizing genotyping errors due to sequencing artifacts or depth-related biases.    
-
+This filtering approach enhances the accuracy of genotype classification
+while reducing the inclusion of low-confidence variant calls, by
+minimizing genotyping errors due to sequencing artifacts or
+depth-related biases.
 
 # Main Figures
 
 ## Figure 1A: Crossing F1 mother AB with F1 father AA, one family
-*Note: The original analysis can be found in:*
-- `~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd`
+
+*Note: The original analysis can be found in:* -
+`~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd`
 
 ```{r load-selected-family}
 # Load the fam2_selected data, for one family (478) on the largest chromosome, NW_019211454
@@ -362,32 +410,32 @@ family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
 obs <- list()
 
 for (fam in family) {
-  obs[[fam]] <- table %>%
-    dplyr::select(starts_with(fam)) %>%
+    obs[[fam]] <- table %>%
+      dplyr::select(starts_with(fam)) %>%
     # Add site and chromosome information
-    rownames_to_column("site") %>%
+      rownames_to_column("site") %>%
     mutate(chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
     # Filter for the genotype patterns we want
-    dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AA")) %>%  # F0 Female must be AA
-    dplyr::filter_at(vars(matches("_son")), all_vars(. == "AA")) %>%  # Sons must be AA
-    dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AB")) %>%  # Daughters must be AB
+      dplyr::filter_at(vars(matches("_fnd")), all_vars(. == "AA")) %>%  # F0 Female must be AA
+      dplyr::filter_at(vars(matches("_son")), all_vars(. == "AA")) %>%  # Sons must be AA
+      dplyr::filter_at(vars(matches("_dat")), all_vars(. == "AB")) %>%  # Daughters must be AB
     # Select only the grandchildren columns and keep site/chrom info
     dplyr::select(site, chrom, contains("grn")) %>%
     # Reshape the data
-    tidyr::pivot_longer(cols = -c(site, chrom)) %>%
+      tidyr::pivot_longer(cols = -c(site, chrom)) %>%
     dplyr::rename(Sample = name, gt = value) %>%
     # Count genotypes
     dplyr::count(Sample, gt, chrom, .drop = FALSE) %>%
-    dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
-    mutate(n = as.numeric(n)) %>%
+      dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
+      mutate(n = as.numeric(n)) %>%
     group_by(Sample) %>%
-    mutate(total = as.numeric(sum(n))) %>%
-    mutate(sex = case_when(
+      mutate(total = as.numeric(sum(n))) %>%
+      mutate(sex = case_when(
       grepl("son", Sample) ~ "Male",
       grepl("dat", Sample) ~ "Female"
-    )) %>%
+      )) %>%
     # Add family column
-    mutate(family = fam)
+      mutate(family = fam)
 }
 
 # Bind all families together into a final data frame containing all observed counts
@@ -408,13 +456,13 @@ samples_obs_all <- left_join(samples, observed, by = c("family", "Sample", "gt")
     grepl("dat", Sample) ~ "Female"
   )) %>%
   group_by(Sample, chrom) %>%
-  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::mutate(prop = n/total) %>%
-  na.omit()
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
+    na.omit()
 ```
 
-
 ### Analysis of filtered sites (site quality QAF and VAF)
+
 ```{r load-filtered-sites}
 # Load the pre-filtered sites per family and sample
 # the file was created using the ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
@@ -431,14 +479,14 @@ filtered_sites <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-
 # Set the families (include only families with at least one adult F2)
 family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
   str_extract("[^_]+") %>%
-  unique()
+    unique()
 
 # Define a list to store all data frames per family
 obs <- list()
 
 for (fam in family) {
-  obs[[fam]] <- table %>%
-    dplyr::select(starts_with(fam)) %>%
+obs[[fam]] <- table %>%
+  dplyr::select(starts_with(fam)) %>%
     # Add site and chromosome information
     rownames_to_column("site") %>%
     mutate(chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
@@ -455,11 +503,11 @@ for (fam in family) {
     left_join(filtered_sites, by = c("site", "chrom", "Sample", "gt")) %>%
     na.omit() %>% # Count genotypes
     dplyr::count(Sample, gt, chrom, .drop = FALSE) %>%
-    dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
-    mutate(n = as.numeric(n)) %>%
+  dplyr::filter(gt %in% c("AA", "BB", "AB")) %>%
+  mutate(n = as.numeric(n)) %>%
     group_by(Sample) %>%
-    mutate(total = as.numeric(sum(n))) %>%
-    mutate(sex = case_when(
+  mutate(total = as.numeric(sum(n))) %>%
+  mutate(sex = case_when(
       grepl("son", Sample) ~ "Male",
       grepl("dat", Sample) ~ "Female"
     )) %>%
@@ -485,8 +533,8 @@ samples_obs_filtered <- left_join(samples, observed, by = c("family", "Sample", 
     grepl("dat", Sample) ~ "Female"
   )) %>%
   group_by(Sample, chrom) %>%
-  mutate(total = as.numeric(sum(n))) %>%
-  dplyr::mutate(prop = n/total) %>%
+    mutate(total = as.numeric(sum(n))) %>%
+    dplyr::mutate(prop = n/total) %>%
   na.omit()
 ```
 
@@ -552,9 +600,10 @@ sites_comparison %>%
 cat("\n*Note: Scroll to see all rows in the table.*")
 ```
 
-
 ### Filtered for QAF and VAF, minimum sites per sample = 40
-*Click the code button to view the analysis with minimum 40 sites per sample*
+
+*Click the code button to view the analysis with minimum 40 sites per
+sample*
 
 ```{r filtered-data-sites-min40, echo=TRUE, eval=TRUE, message=FALSE}
 # filtered samples, at least 40 sites per sample
@@ -678,11 +727,70 @@ Filtered sites, sites per sample => 40") +
   coord_cartesian(ylim = c(0, 1))
 ```
 
+# Supplementary Figures for Manuscript
 
----
+## Variant Quality Distribution (Figure S 6)
+
+```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+# Read the variant quality data
+var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", 
+                       delim = "\t",
+                       col_names = c("chr", "pos", "qual"), 
+                       skip = 1)
+
+# Print summary statistics
+cat("Summary of variant quality scores:\n")
+print(summary(var_qual$qual))
+
+# Create main plot
+ggplot(var_qual, aes(x = qual)) +
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
+  theme_classic() +
+  ggtitle("Variant Quality Distribution") +
+  scale_x_continuous(n.breaks = 12, limits = c(0, 50000)) +  # Adjusted x-axis range
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(size = 12),
+    axis.title = element_text(size = 10)
+  ) +
+  xlab("Variant Quality") + 
+  ylab("Density") +
+  geom_vline(xintercept = 15000, color = "red", linetype = "dashed")
+
+# Calculate percentage of variants above threshold
+pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
+
+# Add caption below the plot
+cat(sprintf("\n**Figure S6.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50%% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold))
+```
+
+## Karyotyping of males and females (Figure S 3A)
+
+```{r karyotyping-plot, echo=TRUE, eval=FALSE}
+# Code for karyotyping plot will be added here
+# This will generate Figure S 3A showing karyotype analysis of males and females
+```
+
+## Flow cytometry of males and females (Figure S 3B)
+
+```{r flow-cytometry-plot, echo=TRUE, eval=FALSE}
+# Code for flow cytometry plot will be added here
+# This will generate Figure S 3B showing flow cytometry analysis of males and females
+```
+
+## RNAseq of males and females (Figure 2)
+
+```{r rnaseq-plot, echo=TRUE, eval=FALSE}
+# Code for RNAseq analysis plot will be added here
+# This will generate Figure 2 showing RNAseq analysis of males and females
+```
+
+------------------------------------------------------------------------
 
 # Archived Code for Future Reference
-*The following code sections are preserved for future analysis but are not visible in the HTML output.*
+
+*The following code sections are preserved for future analysis but are
+not visible in the HTML output.*
 
 ```{r archived-code-min10, eval=FALSE, include=FALSE}
 ### Filtered for QAF and VAF, minimum sites per sample = 10

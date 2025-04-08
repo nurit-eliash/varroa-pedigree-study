@@ -15,6 +15,19 @@ editor_options:
     wrap: 72
 ---
 
+hello
+
+```{=html}
+<!--
+NOTE FOR FASTER PROCESSING:
+After running this document once completely (which creates all_param.rds), 
+you can speed up subsequent runs by:
+1. Running only the 'libraries' chunk
+2. Commenting out all chunks between 'libraries' and 'load-all-param'
+3. Uncommenting the loading line in the 'load-all-param' chunk
+This will skip the time-consuming data processing steps and load the processed data directly.
+-->
+```
 ```{=html}
 <style type="text/css">
   body{
@@ -22,8 +35,7 @@ editor_options:
 }
 </style>
 ```
-
-```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 library(vcfR)
 library(tidyverse)
 library(ggokabeito) 
@@ -33,7 +45,7 @@ library(purrr)
 library(patchwork)
 ```
 
-```{r load-data, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+```{r load-data, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 # Load the metadata CSV file into a data frame 'dat', and keep only one F1 female per family. 
 dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/meta_data_223.csv") %>% 
    rename(id = sample) %>% # Rename 'sample' column to 'id'
@@ -60,8 +72,9 @@ ao <- extract.gt(vcf, element = "AO", as.numeric = TRUE)  # Extract Alternate Ob
 ad <- extract.gt(vcf, element = "AD") # Extract the allele depth (AD)
 ```
 
-## Variant Allele Frequency (VAF) 
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+## Variant Allele Frequency (VAF)
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 # Ensure AO and DP are numeric and avoid division by zero
 ao[is.na(ao)] <- 0
 dp[is.na(dp)] <- 1  # Avoid division by zero
@@ -76,7 +89,8 @@ vaf_long <- as.data.frame(vaf_df) %>%
 ```
 
 ## Genotyping quality (QAF)
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 qa <- extract.gt(vcf, element = "QA", as.numeric = TRUE)  # Quality of Alt Allele
 qo <- extract.gt(vcf, element = "QR", as.numeric = TRUE)  # Quality of Ref Allele
 
@@ -94,14 +108,16 @@ qaf_long <- as.data.frame(qaf) %>%
 ```
 
 ## Heterozygosity
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 is_het <- as.data.frame(is_het(gt)) %>% 
   rownames_to_column(var = "site") %>% 
   pivot_longer(-site, names_to = "id", values_to = "het") 
 ```
 
 ## Allele depth (AD)
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 ad2 <- as.data.frame(ad) %>% 
   rownames_to_column(var = "site") %>% 
   pivot_longer(-site, names_to = "id", values_to = "ad") %>% 
@@ -117,7 +133,8 @@ ad_join <- mutate(ad_join, chrom = factor(chrom, levels = unique(chrom), labels 
 ```
 
 ## Genotype (GT)
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 gt_long <- gt %>% 
 as.data.frame() %>% 
   rownames_to_column("site") %>% 
@@ -125,7 +142,8 @@ as.data.frame() %>%
 ```
 
 ## Depth (DP)
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 dp_long <- dp %>% 
 as.data.frame() %>% 
   rownames_to_column("site") %>% 
@@ -133,7 +151,8 @@ as.data.frame() %>%
 ```
 
 ## Join all site parameters
-```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+
+```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 # Combine information on allele depth, heterozygosity, VAF, GQ and family structure 
 all_param <- ad_join %>%
   left_join(qaf_long, by = c("site", "id")) %>%
@@ -159,16 +178,32 @@ all_param <- all_param %>% filter(!(member %in% "unknown")) %>% # remove nymphs,
     member = factor(member, levels = c("grandmother", "father", "mother", "son", "daughter"), ordered = TRUE)  # Explicit order
   ) %>%
   mutate(member_num = as.numeric(member))  # Convert ordered factor to numeric
+
+# Save all_param to RDS file for faster loading
+#saveRDS(all_param, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/all_param.rds")
+```
+
+```{r load-all-param, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+# Load the saved all_param data
+# Comment out the previous chunks and use this instead for faster loading
+# all_param <- readRDS("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/all_param.rds")
 ```
 
 # Sanity check, to determine the threshold for site filtering
-In this section, we will filter the sites based on the VAF and QAF distributions, under the assumption, that when F0 and F1 are all homozygous, then their F2 female offspring, must be homozygous as well.    
-As a result, we can also assume, that any genotype in the F2 female that is NOT AA, is an error.    
-It is therefore should be safe to set the threshold for site quality (VAF and QAF values), based on these filtered sites.   
+
+In this section, we will filter the sites based on the VAF and QAF
+distributions, under the assumption, that when F0 and F1 are all
+homozygous, then their F2 female offspring, must be homozygous as well.\
+As a result, we can also assume, that any genotype in the F2 female that
+is NOT AA, is an error.\
+It is therefore should be safe to set the threshold for site quality
+(VAF and QAF values), based on these filtered sites.
 
 ## F0 and F1 Homo AA, looking at F2 daughter (should all be AA)
-### Find a threshold for VAF and QAF 
-```{r}
+
+### Find a threshold for VAF and QAF
+
+```{r, cache=TRUE}
 # Find positions where all F0 and all F1 individuals are homozygous AA
 AA_sites_F0F1 <- all_param %>%
   filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
@@ -269,19 +304,26 @@ cat("**Figure 2.** Distribution of Variant Allele Frequency (VAF) values in F2 f
 ```
 
 #### short summary:
-- 413,119 sites were homozygous in F0 and F1.    
-- out of these sites, 45,841 sites were present in their corresponding families. Ofcourese, most of the sites are AA.    
-- for these, we visualized the site's quality, in each genotype.    
-- because we know what the QAF and VAF should be in a perfect genotyping, we can clearly see which of the sites are errors, and set the boundries accordingly.    
 
-The plots make sense. Its visible that there's a peak of local quality heterozygotes below 0.4, which we can safely filter at.       
-We therefore propose the following boundaries for each genotype:    
-AA < 0.03     
-AB > 0.4 and < 0.6   
-BB > 0.8   
+-   413,119 sites were homozygous in F0 and F1.\
+-   out of these sites, 45,841 sites were present in their corresponding
+    families. Ofcourese, most of the sites are AA.\
+-   for these, we visualized the site's quality, in each genotype.\
+-   because we know what the QAF and VAF should be in a perfect
+    genotyping, we can clearly see which of the sites are errors, and
+    set the boundries accordingly.
 
-Create the filtered sites *"filtered_sites"* dataset that will be used in the final supp Rmd file, and save as csv    
-```{r create-filtered-df}
+The plots make sense. Its visible that there's a peak of local quality
+heterozygotes below 0.4, which we can safely filter at.\
+We therefore propose the following boundaries for each genotype:\
+AA \< 0.03\
+AB \> 0.4 and \< 0.6\
+BB \> 0.8
+
+Create the filtered sites *"filtered_sites"* dataset that will be used
+in the final supp Rmd file, and save as csv
+
+```{r create-filtered-df, cache=TRUE}
 # Create the filtered sites dataset that will be used in the next Rmd file
 filtered_sites <- all_param %>%
   filter(
@@ -295,8 +337,17 @@ filtered_sites <- all_param %>%
 write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
 ```
 
-Summarized statistics for the filtered data, and Save the f2_homo_parents data for use in the next Rmd file and create the QAF and VAF plots for the supp info of the MS
-```{r summary-stats-and-plots}
+Summarized statistics for the filtered data, and Save the
+f2_homo_parents data for use in the next Rmd file and create the QAF and
+VAF plots for the supp info of the MS
+
+```{r load-filtered-sites, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+# Load the saved filtered_sites data
+# Comment out the previous chunks and use this instead for faster loading
+# filtered_sites <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv")
+```
+
+```{r summary-stats-and-plots, cache=TRUE}
 # Create summary statistics for filtered data
 summary_stats <- filtered_sites %>%
   group_by(family, GT) %>%
@@ -371,16 +422,19 @@ ggplot(site_comparison, aes(x = family, y = kept_percentage, fill = family)) +
   )
 ```
 
-
----
+------------------------------------------------------------------------
 
 # Follow genotype flow in one family, on one chromosome
-Now we wish to follow the genotype in specific family, in specific chromosome.    
-to do that, we need to look only at informative sites, for which we have hypothesis about the F2 genotype, based on their parents' (F1) genotype.   
 
-Based on the determined site-quality threshold, we now filter the sites, and plot informative sites in one family on chromosome 1:    
+Now we wish to follow the genotype in specific family, in specific
+chromosome.\
+to do that, we need to look only at informative sites, for which we have
+hypothesis about the F2 genotype, based on their parents' (F1) genotype.
 
-```{r informative-sites-on-one-chrom}
+Based on the determined site-quality threshold, we now filter the sites,
+and plot informative sites in one family on chromosome 1:
+
+```{r informative-sites-on-one-chrom, cache=TRUE}
 # Step 1: Identify informative sites: where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
 F0AA_F1AB <- all_param %>%
   filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
@@ -401,9 +455,9 @@ F0AA_F1AB %>%
 
 ```
 
-
 Now we have data on all families, will pick one family each time to plot
-```{r one-family}
+
+```{r one-family, cache=TRUE}
 # set up family and members
 fam_id <- 478
 
@@ -442,7 +496,7 @@ fam2_common <- family_sites %>% filter(pos %in% positions_all_members)
 fam2_common <- fam2_common %>% arrange(pos)
 
 # Generate 30 evenly spaced indices and round them to ensure integer indices
-indices <- round(seq(1, nrow(fam2_common), length.out = 30))
+#indices <- round(seq(1, nrow(fam2_common), length.out = 30))
 
 # Select the corresponding positions
 selected_positions <- fam2_common %>% 
@@ -454,9 +508,9 @@ fam2_selected <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter
   
 ```
 
-
 #### vizualize genotype flow in one family, for fig A1
-```{r filter-site-qual-and-plot}
+
+```{r filter-site-qual-and-plot, cache=TRUE}
 # Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
 fam2_selected %>%
  filter(
@@ -488,7 +542,9 @@ Position (Mb)"
     axis.ticks.x = element_blank())  # Removes x-axis ticks
 ```
 
-save the filtered sites,to be used in the pulled data analysis       (~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd)   
+save the filtered sites,to be used in the pulled data analysis
+(\~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd)
+
 ```{r}
 # Filter sites based on QAF & VAF thresholds while keeping sites per family
 filtered_sites <- all_param %>%
@@ -511,16 +567,17 @@ filtered_sites_summary <- filtered_sites %>%
 write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
 ```
 
-
 ```{r load-f2-filtered}
 # save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
 write.csv(fam2_selected, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam2_selected.csv", row.names = FALSE)
 ```
 
+------------------------------------------------------------------------
 
----
 # Archived
-#### A plot to vizualize gene flow in one family 
+
+#### A plot to vizualize gene flow in one family
+
 ```{r eval=FALSE, include=FALSE}
 # Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
 fam2_selected %>% 
@@ -548,4 +605,3 @@ Family ID:", fam_id),
     axis.line.x = element_blank(),  # <-- Removes the x-axis line
     axis.ticks.x = element_blank())  # Removes x-axis ticks
 ```
-

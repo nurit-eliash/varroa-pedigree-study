@@ -62,7 +62,7 @@ The first metric we will look at is the (Phred encoded) site quality. This is a 
 
 Take a look at the data when it is read in. You will see that for each site in our subsampled VCF, we have extracted the site quality score. Now we will plot the distribution of this quality using ggplot. Usually, the geom_density function works best, but you can use geom_histogram too.
 ```{r}
-var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-linkage-map/data/vcf_filter/7chr_subset/subset_Chr7.lqual", delim = "\t",
+var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/7chr_subset/subset_Chr7.lqual", delim = "\t",
            col_names = c("chr", "pos", "qual"), skip = 1)
 
 # make more strict filter on the quality value:
