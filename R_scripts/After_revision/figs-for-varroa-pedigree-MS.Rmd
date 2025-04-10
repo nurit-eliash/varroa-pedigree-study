@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Information: Figures and Analysis for Varroa Destructor Inheritance Study"
+title: "Figures and Analysis for *Varroa Destructor* Inheritance Study"
 author: "Nurit Eliash and Sasha Mikheyev"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -32,22 +32,6 @@ on the mode of genetic inheritance in *Varroa destructor*. It should be
 read in conjunction with the detailed methodology presented in [Site
 Quality Analysis](site_quality_exploration.html).
 
-## Document Structure
-
-1.  Prerequisites and Setup
-    -   Project overview
-    -   Data sources
-    -   Required files and packages
-2.  Data Processing
-    -   VCF file processing
-    -   Site quality filtering methodology
-3.  Main Figures
-    -   Figure 1: Genotype flow in single family
-    -   Figure 2: Cross-family analysis
-4.  Supplementary Analyses
-    -   Quality metrics
-    -   Additional validations
-
 ## Data Availability
 
 -   Raw sequencing data: [BioProject
@@ -63,7 +47,7 @@ Quality Analysis](site_quality_exploration.html).
 This analysis is part of a comprehensive study investigating the genetic
 inheritance patterns in *Varroa destructor* mites. We analyzed genomic
 data from 223 mite samples across 30 families, collected from three
-*Apis mellifera* colonies. Each family consists of three generations:
+*Apis mellifera* colonies. Each family consists of three generations: F0 foundress adult female mite, F1 male and female adult offspring mites, and their F2 offspring, composed of immature mites (nymphs and eggs) and at least one adult male.    
 
 ## Data Sources
 
@@ -78,14 +62,6 @@ Before running this analysis, ensure you have:\
 1. The VCF file processed with the specified parameters\
 2. The filtered sites CSV file generated from site quality exploration\
 3. All required R packages installed
-
-1.  **VCF File**: Filtered variant calls meeting these criteria:
-    -   Minimum quality score: 15000
-    -   Minimum depth: 16
-    -   Maximum depth: 40
-    -   Maximum missing data: 50%
-    -   Minimum allele frequency: 0.2
-    -   Chromosomes: NW_019211454.1 through NW_019211460.1
 
 ```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 library("tidyverse")
@@ -105,6 +81,8 @@ library("kableExtra")
 library("pastecs") # for stats stat.desc()
 library("patchwork")
 library("readr")  # for read_delim function
+library(ggsignif) # for statistics of karyotyping
+
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
                       fig.asp = 0.4,
@@ -155,14 +133,16 @@ vcftools --vcf snponly_freebayes.vcf \
 
 ## Quality Control Metrics
 
-We implemented two key metrics to assess genotype quality:
+We implemented three key metrics to assess genotype quality:
 
-1.  **Variant Allele Frequency (VAF)**
+1.  **Variant Quality Distribution** (see Figure S6)    
+
+2.  **Variant Allele Frequency (VAF)**
     -   Calculated as: VAF = AO/DP
     -   AO: Alternate allele observations
     -   DP: Total read depth
     -   Provides measure of allelic balance
-2.  **Quality Allele Frequency (QAF)**
+3.  **Quality Allele Frequency (QAF)**
     -   Calculated as: QAF = QA/(QA+QO)
     -   QA: Quality scores for alternate allele
     -   QO: Quality scores for reference allele
@@ -182,7 +162,7 @@ established the following thresholds:
 These thresholds were validated using known inheritance patterns in our
 pedigree structure.
 
-```{r process-vcf, echo=FALSE, eval=TRUEç}
+```{r process-vcf, echo=FALSE, eval=TRUE}
 # Read and process VCF file
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE)
 
@@ -237,38 +217,15 @@ base quality scores for reads supporting the reference allele.
 f2_homo_parents <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_homo_parents.csv")
 ```
 
-### Supplementary Figure: Distribution of VAF and QAF in F2 Offspring
-
-*Click the code button to view the analysis of VAF and QAF
-distributions*
-
-```{r vaf-qaf-distribution, echo=FALSE, eval=TRUE}
+### Supplementary Figure: setting the threwhols for site quality: Distribution of VAF and QAF in F2 Offspring of homozygous parents
+#### QAF
+```{r qaf-distribution, echo=FALSE, eval=TRUE}
 # QAF: All genotypes overlaid
 QAF_all_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
   geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
-  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
   theme_classic() +
   labs(title = "A",
-       x = "Quality Allele Frequency (QAF)",
-       y = "Count") +
-  scale_fill_manual(
-    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
-    name = "Genotype"
-  ) +
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
-    axis.title.x = element_text(margin = margin(t = 15)),
-    plot.margin = margin(10, 10, 30, 10)
-  )
-
-# QAF: Facetted by genotype
-QAF_facet_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
-  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
-  facet_wrap(~ GT, scales = "free_y") +
-  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
-  theme_classic() +
-  labs(title = "B",
        x = "Quality Allele Frequency (QAF)",
        y = "Count") +
   scale_fill_manual(
@@ -279,45 +236,85 @@ QAF_facet_gt <- ggplot(f2_homo_parents, aes(x = QAF, fill = GT)) +
     legend.position = "right",
     axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
     axis.title.x = element_text(margin = margin(t = 15)),
-    plot.margin = margin(10, 10, 30, 10),
-    panel.spacing = unit(2, "lines")
-  )
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = c(0.03, 0.4, 0.6, 0.8), linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = -Inf, xmax = 0.03, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#ffbf00") +
+  annotate("rect", xmin = 0.4, xmax = 0.6, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#66b032") +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#1982c4")
 
-# Combine QAF plots with adjusted spacing
-QAF_combined <- (QAF_all_gt + QAF_facet_gt + plot_layout(widths = c(1, 3)))
+# QAF: AA genotype
+QAF_AA <- ggplot(subset(f2_homo_parents, GT == "AA"), aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  theme_classic() +
+  labs(title = "B",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(values = c("AA" = "#ffbf00"), name = "Genotype") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = 0.03, linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = -Inf, xmax = 0.03, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#ffbf00")
+
+# QAF: AB genotype
+QAF_AB <- ggplot(subset(f2_homo_parents, GT == "AB"), aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  theme_classic() +
+  labs(title = "C",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(values = c("AB" = "#66b032"), name = "Genotype") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = c(0.4, 0.6), linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = 0.4, xmax = 0.6, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#66b032")
+
+# QAF: BB genotype
+QAF_BB <- ggplot(subset(f2_homo_parents, GT == "BB"), aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  theme_classic() +
+  labs(title = "D",
+       x = "Quality Allele Frequency (QAF)",
+       y = "Count") +
+  scale_fill_manual(values = c("BB" = "#1982c4"), name = "Genotype") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = 0.8, linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#1982c4")
+
+# Combine QAF plots with a single legend on the right for plot A only
+QAF_combined <- (QAF_all_gt + QAF_AA + QAF_AB + QAF_BB + plot_layout(ncol = 4))
 
 # Display the combined QAF plot
 QAF_combined
 
 # Add caption below the plot
-cat("**Figure 1.** Distribution of Quality Allele Frequency (QAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of QAF values for all genotypes.\nB. Same data faceted by genotype (AA, AB, BB), showing the distribution and spread within each genotype class.\nVertical axis represents count of sites; horizontal axis is QAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+cat("**Figure S1.** Distribution of Quality Allele Frequency (QAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of QAF values for all genotypes.\nB. Same data faceted by genotype (AA, AB, BB), showing the distribution and spread within each genotype class.\nVertical axis represents count of sites; horizontal axis is QAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+```
 
+#### VAF
+```{r vaf-distribution, echo=FALSE, eval=TRUE}
 # VAF: All genotypes overlaid
 VAF_all_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
   geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
-  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
   theme_classic() +
   labs(title = "A",
-       x = "Variant Allele Frequency (VAF)",
-       y = "Count") +
-  scale_fill_manual(
-    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
-    name = "Genotype"
-  ) +
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
-    axis.title.x = element_text(margin = margin(t = 15)),
-    plot.margin = margin(10, 10, 30, 10)
-  )
-
-# VAF: Facetted by genotype
-VAF_facet_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
-  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
-  facet_wrap(~ GT, scales = "free_y") +
-  scale_x_continuous(breaks = seq(0, 1, by = 0.1)) +
-  theme_classic() +
-  labs(title = "B",
        x = "Variant Allele Frequency (VAF)",
        y = "Count") +
   scale_fill_manual(
@@ -328,18 +325,75 @@ VAF_facet_gt <- ggplot(f2_homo_parents, aes(x = VAF, fill = GT)) +
     legend.position = "right",
     axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
     axis.title.x = element_text(margin = margin(t = 15)),
-    plot.margin = margin(10, 10, 30, 10),
-    panel.spacing = unit(2, "lines")
-  )
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = c(0.03, 0.4, 0.6, 0.8), linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = -Inf, xmax = 0.03, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#ffbf00") +
+  annotate("rect", xmin = 0.4, xmax = 0.6, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#66b032") +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#1982c4")
 
-# Combine VAF plots with adjusted spacing
-VAF_combined <- (VAF_all_gt + VAF_facet_gt + plot_layout(widths = c(1, 3)))
+# VAF: AA genotype
+VAF_AA <- ggplot(subset(f2_homo_parents, GT == "AA"), aes(x = VAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  theme_classic() +
+  labs(title = "B",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(values = c("AA" = "#ffbf00"), name = "Genotype") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = 0.03, linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = -Inf, xmax = 0.03, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#ffbf00")
 
-# Display the combined VAF plot
+# VAF: AB genotype
+VAF_AB <- ggplot(subset(f2_homo_parents, GT == "AB"), aes(x = VAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  theme_classic() +
+  labs(title = "C",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(values = c("AB" = "#66b032"), name = "Genotype") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = c(0.4, 0.6), linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = 0.4, xmax = 0.6, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#66b032")
+
+# VAF: BB genotype
+VAF_BB <- ggplot(subset(f2_homo_parents, GT == "BB"), aes(x = QAF, fill = GT)) +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  theme_classic() +
+  labs(title = "D",
+       x = "Variant Allele Frequency (VAF)",
+       y = "Count") +
+  scale_fill_manual(values = c("BB" = "#1982c4"), name = "Genotype") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10)
+  ) +
+  geom_vline(xintercept = 0.8, linetype = "dashed", color = "gray", alpha = 0.5) +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.4, fill = "#1982c4")
+
+# Combine VAF plots with a single legend on the right for plot A only
+VAF_combined <- (VAF_all_gt + VAF_AA + QAF_AB + VAF_BB + plot_layout(ncol = 4))
+
+# Display the combined QAF plot
 VAF_combined
 
 # Add caption below the plot
-cat("**Figure 2.** Distribution of Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of VAF values across all genotypes.\nB. Faceted distribution of VAF by genotype, showing characteristic frequency patterns for AA, AB, and BB.\nVertical axis represents count of sites; horizontal axis is VAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
+cat("**Figure S2.** Distribution of Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of VAF values across all genotypes.\nB. Faceted distribution of VAF by genotype, showing characteristic frequency patterns for AA, AB, and BB.\nVertical axis represents count of sites; horizontal axis is VAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
 ```
 
 Based on the distribution of sites' VAF and QAF values, the following
@@ -396,6 +450,9 @@ fam2_selected %>%
     legend.box.margin = margin(0, 0, 0, 10),  # Add margin to separate legend from plot
     plot.margin = margin(10, 20, 30, 10)  # Increased bottom margin to accommodate rotated labels
   )
+
+# Add caption below the plot
+cat("\n**Figure 1A.** Genotype flow visualization across a single family (Family ID: 478). Each horizontal line represents a genomic position on chromosome NW_019211454.1, with colors indicating genotypes (yellow = AA, green = AB, blue = BB). Family members are arranged in generational order, showing the inheritance pattern from parents to offspring. The y-axis shows the genomic position in megabases (Mb).")
 ```
 
 ## Figure 2B: Crossing F1 mother AB with F1 father AA, all families
@@ -725,11 +782,16 @@ Filtered sites, sites per sample => 40") +
   ) +
   scale_color_manual(values = c("Female" = "red", "Male" = "blue")) +
   coord_cartesian(ylim = c(0, 1))
+
+# Add captions below each plot
+cat("\n**Figure 1B.** Distribution of genotypes in offspring from crosses between AA males and AB females, showing filtered sites with minimum 40 sites per sample. Top panel shows overall proportions across all chromosomes, while bottom panel shows chromosome-specific distributions. Bar heights represent the proportion of each genotype (AA, AB, BB) in males and females, with sample sizes and total site counts indicated below each bar.")
+
+cat("\n**Figure 1C.** Boxplot distribution of AA genotype proportions across chromosomes in male and female offspring. Each point represents an individual sample, with boxes showing the median and quartile ranges. Data is filtered to include only samples with 40 or more sites. The plot demonstrates sex-specific differences in AA genotype frequency across all seven chromosomes.")
 ```
 
 # Supplementary Figures for Manuscript
 
-## Variant Quality Distribution (Figure S 6)
+## Variant Quality Distribution (Figure S 6) לתקן כאן את מספר האיור 
 
 ```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 # Read the variant quality data
@@ -761,104 +823,94 @@ ggplot(var_qual, aes(x = qual)) +
 pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
 
 # Add caption below the plot
-cat(sprintf("\n**Figure S6.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50%% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold))
+cat("\n**Figure S6.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
 ```
 
 ## Karyotyping of males and females (Figure S 3A)
 
-```{r karyotyping-plot, echo=TRUE, eval=FALSE}
-# Code for karyotyping plot will be added here
-# This will generate Figure S 3A showing karyotype analysis of males and females
+```{r karyotyping-plot, echo=TRUE}
+dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/data/karyo_varroa_sasha.csv", col_types = "cccnnn")
+
+dat_means <- dat %>% group_by(ID) %>% 
+    reframe(
+        chroms = sum(cell_count * chromo_number) / sum(cell_count), 
+        count = sum(cell_count), 
+        sd = sqrt(sum(cell_count * (chromo_number - chroms)^2) / sum(cell_count)), 
+        sem = sd / sqrt(count), 
+        ci_lower = chroms - qt(0.975, df = count - 1) * sem, 
+        ci_upper = chroms + qt(0.975, df = count - 1) * sem, 
+        sex = Sex[1])
+
+dat_means %>%
+ggplot(aes(x = sex, y = chroms, color = sex, size = count)) + 
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), size = 1, width = 0.05, position=position_jitter(width=0.2)) + 
+  scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) +  # Custom colors
+  scale_size_continuous(range = c(3, 10)) +  # Custom size range
+  geom_hline(yintercept = 7, color = "blue") + 
+  geom_hline(yintercept = 14, color = "#E31C79") + 
+  theme_bw() + 
+  ylab("Chromosome count") + 
+  geom_signif(comparisons = list(c("Male", "Female")), map_signif_level = TRUE, test = "wilcox.test", color = "black") + 
+  scale_y_continuous(breaks = scales::breaks_pretty()) + 
+  theme(legend.position = "bottom") + 
+  guides(color = "none") +  
+  labs(size = "Number of cells examined per individual") + 
+  xlab("Sex")
+#ggsave("karyptype.pdf", heigh=5, width=5)
+```
+
+cat("\n**Figure S3A.** Chromosome count analysis in male and female Varroa destructor mites. Points show mean chromosome counts for individual mites, with error bars representing 95% confidence intervals. Point size indicates the number of cells examined per individual. Blue and pink horizontal lines represent the expected haploid (n=7) and diploid (2n=14) chromosome numbers, respectively. Statistical significance between male and female counts is indicated by the horizontal bar.")
+
+Do males have significantly less chromosomes than the diploid number of 14?
+```{r karyotyping-stats}
+filter(dat_means, sex == "Male") %>% pull(chroms) %>% t.test(., mu = 14)
 ```
 
 ## Flow cytometry of males and females (Figure S 3B)
 
 ```{r flow-cytometry-plot, echo=TRUE, eval=FALSE}
 # Code for flow cytometry plot will be added here
-# This will generate Figure S 3B showing flow cytometry analysis of males and females
+
 ```
 
 ## RNAseq of males and females (Figure 2)
 
-```{r rnaseq-plot, echo=TRUE, eval=FALSE}
-# Code for RNAseq analysis plot will be added here
-# This will generate Figure 2 showing RNAseq analysis of males and females
-```
+```{r rnaseq-plot, echo=TRUE}
+rna_dat <- read_csv("/Users/nuriteliash/Documents/GitHub/Varroa-RNAseq-Zheng-2025/data/rna-seq.csv")
 
-------------------------------------------------------------------------
-
-# Archived Code for Future Reference
-
-*The following code sections are preserved for future analysis but are
-not visible in the HTML output.*
-
-```{r archived-code-min10, eval=FALSE, include=FALSE}
-### Filtered for QAF and VAF, minimum sites per sample = 10
-site_threshold = as.numeric(10)
-
-## all sites
-# First, create the summary dataframe for labels
-summary_df_all <- samples_obs_all %>%
-  group_by(chrom, sex) %>%
-  summarise(
-    num_samples = length(unique(Sample)),
-    total_sites = sum(total, na.rm = TRUE),
-    .groups = 'drop'
+rna_dat_summary <- rna_dat %>%
+  group_by(family, sex) %>%
+  summarize(
+    het_prop = sum(het) / sum(het + homo),  # Proportion of heterozygous
+    count = sum(het + homo),                # Total trials
+    sem = sqrt((het_prop * (1 - het_prop)) / count),  # Standard error of the mean
+    ci_lower = het_prop - qt(0.975, df = count - 1) * sem,  # Lower confidence interval
+    ci_upper = het_prop + qt(0.975, df = count - 1) * sem   # Upper confidence interval
   )
 
-# plot pulled data
-ggplot(samples_obs_all %>% filter(total >= site_threshold), 
-       aes(fill = gt, y = prop, x = factor(sex, levels = c("Female", "Male")))) +
-  geom_bar(position = "fill", stat = "identity", width = 0.5) +
-  ylab("Genotype Proportion") +
-  labs(title = "Offspring Genotype, Crossing (AA) Male x (AB) Female
-All sites, sites per sample => 10", 
-       fill = "Genotype") +
-  theme_classic() +
-  theme(
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_text(size = 12),
-    strip.text.x = element_text(size = 12),
-    panel.spacing = unit(1, "lines"),
-    plot.margin = margin(t = 10, r = 10, b = 60, l = 10)
-  ) +
-  scale_fill_manual(values = c("#ffbf00", "#66b032", "#1982c4")) +
-  geom_text(data = summary_df_all,
-            aes(x = sex, 
-                y = -0.03,
-                label = paste0(num_samples, " ", sex, "s")),
-            inherit.aes = FALSE,
-            size = 2.8,
-            vjust = 1) +
-  geom_text(data = summary_df_all,
-            aes(x = sex, 
-                y = -0.18,
-                label = paste0(format(total_sites, big.mark = ","), " sites")),
-            inherit.aes = FALSE,
-            size = 2.8,
-            vjust = 0.5)
+# Plot the data
+rna_dat_summary %>%
+  ggplot(aes(x = sex, y = het_prop, colour = sex, group = family)) +
+  geom_line(position = position_dodge(width = 0.5), colour = "black") +  
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), size = 1, position = position_dodge(width = 0.5)) +
+  theme_bw() +
+  ylab("Proportion of heterozygous sites") +
+  xlab("Sex") +
+  theme(legend.position = "bottom") +
+  scale_y_continuous(labels = scales::percent_format())  + 
+  scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) + # Custom colors
+  theme(legend.position = "none")
 
-# [Rest of the archived code for min10 analysis...]
+cat("\n**Figure 2.** RNA-seq analysis of heterozygous site proportions in male and female mites. Each point represents the mean proportion of heterozygous sites per individual mite, with error bars showing 95% confidence intervals. Points are connected by lines to show family relatedness of mother and son. The y-axis shows the proportion of heterozygous sites as a percentage of total sites analyzed.")
 ```
 
-```{r archived-code-f1-male-ab, eval=FALSE, include=FALSE}
-## F1 male (AB) x Female (AB)
-# [All the F1 male (AB) x Female (AB) analysis code...]
-```
+Do  heterozygocity proportion differ significantly between male and female mites?
+```{r rnaseq-stats}
+# Reshape to wide format
+df_wide <- rna_dat_summary %>%
+  select(family, sex, het_prop) %>%
+  pivot_wider(names_from = sex, values_from = het_prop)
 
-```{r archived-code-f1-male-ab-female-aa, eval=FALSE, include=FALSE}
-## F1 male (AB) x Female (AA)
-# [All the F1 male (AB) x Female (AA) analysis code...]
-```
-
-```{r archived-code-heterozygosity, eval=FALSE, include=FALSE}
-## Heterozygosity Analysis
-# [All the heterozygosity analysis code...]
-```
-
-```{r archived-code-ploidy, eval=FALSE, include=FALSE}
-## Ploidy Analysis
-# [All the ploidy analysis code...]
+# Paired t-test
+t.test(df_wide$Female, df_wide$Male, paired = TRUE)
 ```
