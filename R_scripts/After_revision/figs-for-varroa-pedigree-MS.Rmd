@@ -518,6 +518,48 @@ samples_obs_all <- left_join(samples, observed, by = c("family", "Sample", "gt")
     na.omit()
 ```
 
+## Figure 2: RNAseq of males and females 
+
+```{r rnaseq-plot, echo=TRUE}
+rna_dat <- read_csv("/Users/nuriteliash/Documents/GitHub/Varroa-RNAseq-Zheng-2025/data/rna-seq.csv")
+
+rna_dat_summary <- rna_dat %>%
+  group_by(family, sex) %>%
+  summarize(
+    het_prop = sum(het) / sum(het + homo),  # Proportion of heterozygous
+    count = sum(het + homo),                # Total trials
+    sem = sqrt((het_prop * (1 - het_prop)) / count),  # Standard error of the mean
+    ci_lower = het_prop - qt(0.975, df = count - 1) * sem,  # Lower confidence interval
+    ci_upper = het_prop + qt(0.975, df = count - 1) * sem   # Upper confidence interval
+  )
+
+# Plot the data
+rna_dat_summary %>%
+  ggplot(aes(x = sex, y = het_prop, colour = sex, group = family)) +
+  geom_line(position = position_dodge(width = 0.5), colour = "black") +  
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), size = 1, position = position_dodge(width = 0.5)) +
+  theme_bw() +
+  ylab("Proportion of heterozygous sites") +
+  xlab("Sex") +
+  theme(legend.position = "bottom") +
+  scale_y_continuous(labels = scales::percent_format())  + 
+  scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) + # Custom colors
+  theme(legend.position = "none")
+
+cat("\n**Figure 2.** RNA-seq analysis of heterozygous site proportions in male and female mites. Each point represents the mean proportion of heterozygous sites per individual mite, with error bars showing 95% confidence intervals. Points are connected by lines to show family relatedness of mother and son. The y-axis shows the proportion of heterozygous sites as a percentage of total sites analyzed.")
+```
+
+Do  heterozygocity proportion differ significantly between male and female mites?
+```{r rnaseq-stats}
+# Reshape to wide format
+df_wide <- rna_dat_summary %>%
+  select(family, sex, het_prop) %>%
+  pivot_wider(names_from = sex, values_from = het_prop)
+
+# Paired t-test
+t.test(df_wide$Female, df_wide$Male, paired = TRUE)
+```
+
 ### Analysis of filtered sites (site quality QAF and VAF)
 
 ```{r load-filtered-sites}
@@ -873,44 +915,3 @@ filter(dat_means, sex == "Male") %>% pull(chroms) %>% t.test(., mu = 14)
 
 ```
 
-## RNAseq of males and females (Figure 2)
-
-```{r rnaseq-plot, echo=TRUE}
-rna_dat <- read_csv("/Users/nuriteliash/Documents/GitHub/Varroa-RNAseq-Zheng-2025/data/rna-seq.csv")
-
-rna_dat_summary <- rna_dat %>%
-  group_by(family, sex) %>%
-  summarize(
-    het_prop = sum(het) / sum(het + homo),  # Proportion of heterozygous
-    count = sum(het + homo),                # Total trials
-    sem = sqrt((het_prop * (1 - het_prop)) / count),  # Standard error of the mean
-    ci_lower = het_prop - qt(0.975, df = count - 1) * sem,  # Lower confidence interval
-    ci_upper = het_prop + qt(0.975, df = count - 1) * sem   # Upper confidence interval
-  )
-
-# Plot the data
-rna_dat_summary %>%
-  ggplot(aes(x = sex, y = het_prop, colour = sex, group = family)) +
-  geom_line(position = position_dodge(width = 0.5), colour = "black") +  
-  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), size = 1, position = position_dodge(width = 0.5)) +
-  theme_bw() +
-  ylab("Proportion of heterozygous sites") +
-  xlab("Sex") +
-  theme(legend.position = "bottom") +
-  scale_y_continuous(labels = scales::percent_format())  + 
-  scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) + # Custom colors
-  theme(legend.position = "none")
-
-cat("\n**Figure 2.** RNA-seq analysis of heterozygous site proportions in male and female mites. Each point represents the mean proportion of heterozygous sites per individual mite, with error bars showing 95% confidence intervals. Points are connected by lines to show family relatedness of mother and son. The y-axis shows the proportion of heterozygous sites as a percentage of total sites analyzed.")
-```
-
-Do  heterozygocity proportion differ significantly between male and female mites?
-```{r rnaseq-stats}
-# Reshape to wide format
-df_wide <- rna_dat_summary %>%
-  select(family, sex, het_prop) %>%
-  pivot_wider(names_from = sex, values_from = het_prop)
-
-# Paired t-test
-t.test(df_wide$Female, df_wide$Male, paired = TRUE)
-```
