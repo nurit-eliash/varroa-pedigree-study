@@ -23,14 +23,15 @@ editor_options:
 ```
 In this study we explored the mode of genetic inheritance of *Varroa destructor*, a parasitic mite of honeybees, so far known as a haplodiploid species with an arrhenotokous reproductive mode. The mite shows contrasting phenomena of highly inbreeding life style (sib-mating), yet maintaining relatively high genetic variation.
 
-The experimental setup consisted of a three-generational pedigree.  
-Sample size: 30 families, total of 223 individuals.  
-Three *Apis mellifera liguistica* colonies, located at Okinawa Institute of Acience and Technology (OIST) experimental apiary.  
-For details of mite collection and pedigree construction, please see the original [manuscript](Update%20this).  
-All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/).  
-All data are available and reproducible from the [GitHub page](https://github.com/nurit-eliash/varroa-pedigree-study).  
+The experimental setup consisted of a three-generational pedigree.\
+Sample size: 30 families, total of 223 individuals.\
+Three *Apis mellifera liguistica* colonies, located at Okinawa Institute of Acience and Technology (OIST) experimental apiary.\
+For details of mite collection and pedigree construction, please see the original [manuscript](Update%20this).\
+All biosamples are available in Sequence Read Archive (SRA) under the accession [PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/).\
+All data are available and reproducible from the [GitHub page](https://github.com/nurit-eliash/varroa-pedigree-study).
 
 ### load libraries
+
 ```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
 library("tidyverse")
 library("plyr")
@@ -58,11 +59,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
 #fig.width = 6,fig.asp = 0.8,out.width = "100%"
 ```
 
-the VCF was filtered using vcftools with the following filters:  
+the VCF was filtered using vcftools with the following filters:
+
 ```{r echo=TRUE, eval=FALSE}
 vcftools --vcf snponly_freebayes.vcf --chr NW_019211454.1 --chr NW_019211455.1 --chr NW_019211456.1 --chr NW_019211457.1 --chr NW_019211458.1 --chr NW_019211459.1 --chr NW_019211460.1 --max-alleles 2 --minQ 15000 --minDP 16 --maxDP 40 --max-missing 0.5 --maf 0.2 --recode --recode-INFO-all --out Q15000BIALLDP16HDP40mis.5maf.2Chr7  
 ```
-
 
 ## Load Variant Call Format (VCF) file.
 
@@ -89,23 +90,18 @@ family = grep("grndat|grnson",gt$ID, value=TRUE) %>%
   str_extract("[^_]+")  %>%
   unique()
 
-# or, include all F2 samples, but indicate if they have an adult sister (may indicate if the F1 female was fertilized)
-#family = grep("grn",gt$ID, value=TRUE) %>%
-#  str_extract("[^_]+")  %>%
-#  unique()
 ```
-
 
 The individual ID name nomenclature is composed of 3 parts, separated by an underscore (\_).\
 The first part is the family ID, the second is the unique name of the individual, and the the third part indicates its generation, sex, and its position in relation to the foundress mite (generation F0).\
 
-**For example:**  
-Individual ID *240_240a_son*, belong to family *240*,  
-has a unique name of *240a*,   
+**For example:**\
+Individual ID *240_240a_son*, belong to family *240*,\
+has a unique name of *240a*,\
 and is the *son* of the foundress mite of family 240, that is, its a male of F1 generation.\
 
-Individual ID *240_241b_grndat*, belong to family *240*,   
-has a unique name of *241b*,   
+Individual ID *240_241b_grndat*, belong to family *240*,\
+has a unique name of *241b*,\
 and is the *granddaughter* of the foundress mite of family 240, that is, its a female of F2 generation (and the daughter of *240_240a_son*).
 
 ------------------------------------------------------------------------
@@ -121,7 +117,7 @@ For example, these are the first 6 sites (*13565-25513*) of chromosome (*NW_0192
 table %>% select(contains(c("240_"))) %>% head()
 ```
 
-The family members include:  
+The family members include:
 
 -   **F0 generation:** foundress female mite (*240_240_fnd*).\
 -   **F1 generation:** adult son (*240_240a_son*) and adult daughter (*240_241_dat*) of the foundress F0 mite. Because in varroa mite reproduction is via sib-mating, these brother and sister will also mate, to produce the F2 generation.\
@@ -157,10 +153,27 @@ Then we crossed heterozygotic sites, to explore the mode of genetic inheritance 
 -   **Heterozygotic male, with heterozygotic female:**
     (9) F1 male (0/1) x female (0/1)
 
+In addition to the fixed F1 genotypes, we also "fixed" the F0 female genotype to match that of her son (F1 male), so we can phase the alleles of the F1 generations.\
+"Phasing alleles" is the process of determine the parental origin of each allele.\
+for heterozygotic genotype phasing is critical, as it allows the tracking of the allele from one generation tot he next.
 
-In addition to the fixed F1 genotypes, we also "fixed" the F0 female genotype to match that of her son (F1 male), so we can phase the alleles of the F1 generations.   
-"Phasing alleles" is the process of determine the parental origin of each allele.  
-for heterozygotic genotype phasing is critical, as it allows the tracking of the allele from one generation tot he next.    
+---
+
+## Abnormal and Normal males
+
+Based on the "informative crosses" we observe that while most F2 males inherit only maternal genotypes, suggesting a parthenogenetic mode of inheritance, a few males carry also paternal genotypes.\
+We then plot the distribution of F2 males' proportion of maternal sites, for all 4 "informative crosses". based on this visualization, we set the threshold for "normal" males at 0.75, as it includes 14 out of 23 males. That is in "normal" males, at least 75% of the genotypes are maternal. The rest of the males, are considered "abnormal", and were not included in the final analysis.
+
+![](/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/pictures/Maternal_genotype_distribution.jpg)
+
+The "abnormal" males are: **412_413a_grnson, 400_401a_grnson, 458_459a_grnson, 240_241c_grnson, 426_427b_grnson and 300_301a_grnson**
+
+```{r}
+# define the group of abnormal males
+abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
+```
+
+---
 
 ## 'Sanity check': Crossing homozygotic sites (crosses 1-4)
 
@@ -201,20 +214,20 @@ samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex 
     group_by(sample) %>%
     replace(is.na(.), 0) %>%
     mutate(total = as.numeric(sum(n))) %>%
-    dplyr::mutate(prop = n/total) %>%
-    left_join(abnorm_males, by = "sample") %>% 
-    dplyr::select(-sex.y) %>% 
-    replace(is.na(.), "normal") %>%
-    dplyr::rename(sex = sex.x) %>%
-    unite("type", sex,normality, remove = FALSE)
+    dplyr::mutate(prop = n/total)# %>%
+    #left_join(abnorm_males, by = "sample") %>% 
+  #  dplyr::select(-sex.y) %>% 
+    #replace(is.na(.), "normal") %>%
+  #  dplyr::rename(sex = sex.x) %>%
+  #  unite("type", sex,normality, remove = FALSE)
   
 pooled_obs_count =  samples_obs %>% 
     dplyr::filter(total>=10) %>%
     filter(gt =="0/0") %>%
-    group_by(type) %>% 
+    #group_by(type) %>% 
     mutate(sites = sum(total)) %>% 
    mutate(count_sample = n_distinct(sample)) %>%
-   select(c(type,sites,count_sample)) %>% 
+ #  select(c(type,sites,count_sample)) %>% 
     unique()
 
 pooled_obs_count
@@ -265,7 +278,9 @@ filter(pooled_obs_count, type == 'male_normal')$sites, "sites")))
 ```
 
 ### (2) F1 male (1/1) x female (1/1)
+
 we expect all F2 offspring to be homozygotic (1/1) like their parents (F1)
+
 ```{r}
 # define a list to put all the data frames in
 # define a list to put all the data frames in
@@ -338,10 +353,11 @@ paste(filter(pooled_obs_count, sex == 'male')$count_sample, " males,\n",
 filter(pooled_obs_count, sex == 'male')$sites, "sites")))
 ```
 
-
 ### (3) F1 male (0/0) x female (1/1)
+
 We expect zero sites for this cross, because the F1 are siblings.\
 Indeed, there are only 23 sites in the F2 pooled females, and 14 for the F2 pooled males:
+
 ```{r}
 # define a list to put all the data frames in
 # define a list to put all the data frames in
@@ -533,10 +549,9 @@ samples_obs <- left_join(samples, observed, by=c("sample","gt")) %>% mutate(sex 
     replace(is.na(.), 0) %>%
     mutate(total = as.numeric(sum(n))) %>%
     dplyr::mutate(prop = n/total) %>%
-    left_join(abnorm_males, by = "sample") %>% 
-    dplyr::select(-sex.y) %>% 
+    left_join(abnorm_males, by=c("sample","sex")) %>% 
+  #  dplyr::select(-sex.y) %>% 
     replace(is.na(.), "normal") %>%
-    dplyr::rename(sex = sex.x) %>%
     unite("type", sex,normality, remove = FALSE)
   
 pooled_obs_count =  samples_obs %>% 
@@ -551,7 +566,8 @@ pooled_obs_count =  samples_obs %>%
 pooled_obs_count
 
 p_00_01 =  samples_obs %>% dplyr::filter(total>=10) %>%
-    ggplot(aes(fill=gt, y=prop, x=sex)) + 
+     dplyr::filter(normality == "normal") %>%
+  ggplot(aes(fill=gt, y=prop, x=sex)) + 
     geom_bar(position="fill", stat="identity", ) +
     labs(fill = "Genotype") + 
     theme_classic() +
@@ -569,7 +585,6 @@ paste(filter(pooled_obs_count, sex == 'male')$count_sample, " males,\n",
 filter(pooled_obs_count, sex == 'male')$sites, "sites")))
 
 ```
-
 
 ### (6) F1 male (1/1) x female (0/1)
 
@@ -799,7 +814,9 @@ filter(pooled_obs_count, sex == 'male')$sites, "sites")))
 ```
 
 ## Crossing heterozygotic male and female
+
 ### (9) F1 male (0/1) x female (0/1)
+
 ```{r}
 # define a list to put all the data frames in
 obs <- list()
@@ -872,7 +889,8 @@ filter(pooled_obs_count, sex == 'male')$sites, "sites")))
 
 ```
 
-## Plot sanity check crosses 
+## Plot sanity check crosses
+
 ```{r}
 legend <- get_legend(p_00_00)   # get the legend of the first one plot
 
@@ -891,7 +909,8 @@ prow <- plot_grid( p_00_00 + theme(legend.position="none"),
 plot_grid( prow, legend, rel_widths = c(1, .2))
 ```
 
-## Plot informative crosses 
+## Plot informative crosses
+
 ```{r}
 legend <- get_legend(p_01_01)   # get the legend of the first one plot
 
@@ -912,20 +931,4 @@ plot_grid( prow, legend, rel_widths = c(1, .2))
 ```
 
 ------------------------------------------------------------------------
-
-## Abnormal and Normal males
-
-Based on the "informative crosses" we observe that while most F2 males inherit only maternal genotypes, suggesting a parthenogenetic mode of inheritance, a few males carry also paternal genotypes.  
-We then plot the distribution of F2 males' proportion of maternal sites, for all 4 "informative crosses". based on this visualization, we set the threshold for "normal" males at 0.75, as it includes 14 out of 23 males.   That is in "normal" males, at least 75% of the genotypes are maternal.  The rest of the males, are considered "abnormal", and were not included in the final analysis.  
-
-![](/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/pictures/Maternal_genotype_distribution.jpg)
-
-
-The "abnormal" males are:
-**412_413a_grnson, 400_401a_grnson, 458_459a_grnson, 240_241c_grnson, 426_427b_grnson and 300_301a_grnson**
-
-```{r}
-# define the group of abnormal males
-abnorm_males = tibble(sample = c("240_241c_grnson", "400_401a_grnson","412_413a_grnson", "426_427b_grnson", "458_459a_grnson", "46_47d_grnson"), sex = "male", normality = "abnormal")
-```
 

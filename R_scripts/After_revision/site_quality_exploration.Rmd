@@ -35,6 +35,7 @@ This will skip the time-consuming data processing steps and load the processed d
 }
 </style>
 ```
+
 ```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 library(vcfR)
 library(tidyverse)
@@ -72,7 +73,7 @@ ao <- extract.gt(vcf, element = "AO", as.numeric = TRUE)  # Extract Alternate Ob
 ad <- extract.gt(vcf, element = "AD") # Extract the allele depth (AD)
 ```
 
-## Variant Allele Frequency (VAF)
+## Variant Allele Frequency (VAF) 
 
 ```{r, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 # Ensure AO and DP are numeric and avoid division by zero
@@ -199,9 +200,9 @@ is NOT AA, is an error.\
 It is therefore should be safe to set the threshold for site quality
 (VAF and QAF values), based on these filtered sites.
 
-## F0 and F1 Homo AA, looking at F2 daughter (should all be AA)
+## Find a threshold for VAF and QAF 
 
-### Find a threshold for VAF and QAF
+### F0 and F1 Homo AA, looking at F2 daughter (should all be AA)
 
 ```{r, cache=TRUE}
 # Find positions where all F0 and all F1 individuals are homozygous AA
@@ -218,12 +219,15 @@ AA_sites_F0F1 %>%
   summarise(num_sites_passed = n())
  
 # Filter the F2 females at the selected positions, on chrom 1
-f2_homo_parents <- all_param %>%
+f2_AA_parents <- all_param %>%
   filter(generation == "F2") %>%
   filter(chrom == "1") %>%
   filter(sex == "female") %>%
   # Join with AA_sites_F0F1 to keep only sites that passed the filtering
   inner_join(AA_sites_F0F1, by = c("family", "site"))
+
+
+write.csv(f2_AA_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AA_parents.csv", row.names = FALSE)
 
 # Visualize VAF and QAF distributions to determine thresholds
 # QAF: All genotypes overlaid
@@ -303,6 +307,194 @@ VAF_combined
 cat("**Figure 2.** Distribution of Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous F0 and F1 parents.\nA. Overlaid histogram of VAF values across all genotypes.\nB. Faceted distribution of VAF by genotype, showing characteristic frequency patterns for AA, AB, and BB.\nVertical axis represents count of sites; horizontal axis is VAF. Bin width = 0.02.\nGenotypes are color-coded: AA (yellow), AB (green), BB (blue).")
 ```
 
+
+### F0 and F1 Homo BB, looking at F2 daughter (should all be BB)
+
+```{r, cache=TRUE}
+# Find positions where all F0 and all F1 individuals are homozygous AA
+BB_sites_F0F1 <- all_param %>%
+  filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
+  group_by(family, site) %>%  # Group by family and position
+  summarise(all_homo = all(GT == "BB"), .groups = "drop") %>%  # Ensure all individuals in family are AA
+  filter(all_homo) %>%  # Keep only positions where all individuals in F0 and F1 are AA
+  select(family, site)  # Extract family and positions
+
+# Count the number of positions per family that passed the homo filtering
+BB_sites_F0F1 %>%
+  group_by(family) %>%
+  summarise(num_sites_passed = n())
+ 
+# Filter the F2 females at the selected positions, on chrom 1
+f2_BB_parents <- all_param %>%
+  filter(generation == "F2") %>%
+  filter(chrom == "1") %>%
+  filter(sex == "female") %>%
+  # Join with AA_sites_F0F1 to keep only sites that passed the filtering
+  inner_join(BB_sites_F0F1, by = c("family", "site"))
+
+write.csv(f2_BB_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_BB_parents.csv", row.names = FALSE)
+
+# QAF log-scale plot
+QAF_BB_gt_log <- ggplot(f2_BB_parents, aes(x = QAF, fill = GT)) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  scale_y_continuous(
+    trans = "log10",
+    breaks = 10^(0:5),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  coord_cartesian(ylim = c(2, max(table(f2_BB_parents$QAF)) * 1.1)) +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = 1, ymax = max(table(f2_BB_parents$QAF)) * 1.1, alpha = 0.2, fill = "#1982c4") +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  geom_vline(xintercept = c(0.8), linetype = "dashed", color = "gray", alpha = 1) +
+  theme_classic() +
+  labs(x = "Quality Allele Frequency (QAF)",
+       y = "Count (log scale)",
+       title = "A") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10),
+    plot.title = element_text(face = "bold", hjust = -0.2)
+  )
+
+# VAF log-scale plot
+VAF_BB_gt_log <- ggplot(f2_BB_parents, aes(x = VAF, fill = GT)) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  scale_y_continuous(
+    trans = "log10",
+    breaks = 10^(0:5),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  coord_cartesian(ylim = c(2, max(table(f2_BB_parents$VAF)) * 1.1)) +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = 1, ymax = max(table(f2_BB_parents$VAF)) * 1.1, alpha = 0.2, fill = "#1982c4") +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  geom_vline(xintercept = c(0.8), linetype = "dashed", color = "gray", alpha = 1) +
+  theme_classic() +
+  labs(x = "Variant Allele Frequency (VAF)",
+       y = "Count (log scale)",
+       title = "B") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10),
+    plot.title = element_text(face = "bold", hjust = -0.2)
+  )
+
+# QAF non-log scale plot
+QAF_BB_gt <- ggplot(f2_BB_parents, aes(x = QAF, fill = GT)) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = 0, ymax = max(table(f2_BB_parents$QAF)) * 1.1, alpha = 0.2, fill = "#1982c4") +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  geom_vline(xintercept = c(0.8), linetype = "dashed", color = "gray", alpha = 1) +
+  theme_classic() +
+  labs(x = "Quality Allele Frequency (QAF)",
+       y = "Count",
+       title = "C") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10),
+    plot.title = element_text(face = "bold", hjust = -0.2)
+  )
+
+# VAF non-log scale plot
+VAF_BB_gt <- ggplot(f2_BB_parents, aes(x = VAF, fill = GT)) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
+  annotate("rect", xmin = 0.8, xmax = Inf, ymin = 0, ymax = max(table(f2_BB_parents$VAF)) * 1.1, alpha = 0.2, fill = "#1982c4") +
+  geom_histogram(binwidth = 0.02, alpha = 1, position = "identity") +
+  geom_vline(xintercept = c(0.8), linetype = "dashed", color = "gray", alpha = 1) +
+  theme_classic() +
+  labs(x = "Variant Allele Frequency (VAF)",
+       y = "Count",
+       title = "D") +
+  scale_fill_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),
+    name = "Genotype"
+  ) +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    plot.margin = margin(10, 10, 30, 10),
+    plot.title = element_text(face = "bold", hjust = -0.2)
+  )
+
+# Combine plots with shared legend
+combined_plot <- (QAF_BB_gt_log + VAF_BB_gt_log + QAF_BB_gt + VAF_BB_gt) + plot_layout(ncol = 4, guides = "collect")
+
+# Display the combined plot
+combined_plot
+
+# Add unified caption below the plot
+cat("\n**Figure S1.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.8). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.8 threshold range.")
+```
+
+
+### F1 females homo BB, F1 male homo AA, looking at F2 daughter (should all be AB)
+
+```{r, cache=TRUE}
+# Extract AB sites from both cross directions and combine them for threshold analysis
+
+# 1. F1 female AA × F1 male BB
+AA_female_BB_male_sites <- all_param %>%
+  filter(generation == "F1") %>%
+  group_by(family, site) %>%
+  summarise(
+    female_AA = any(GT == "AA" & sex == "female"),
+    male_BB = any(GT == "BB" & sex == "male"),
+    .groups = "drop"
+  ) %>%
+  filter(female_AA & male_BB) %>%
+  select(family, site)
+
+f2_AB_AA_female_BB_male <- all_param %>%
+  filter(generation == "F2", sex == "female") %>%
+  inner_join(AA_female_BB_male_sites, by = c("family", "site")) %>%
+  mutate(cross_direction = "F1_female_AA_F1_male_BB")
+
+# 2. F1 female BB × F1 male AA
+BB_female_AA_male_sites <- all_param %>%
+  filter(generation == "F1") %>%
+  group_by(family, site) %>%
+  summarise(
+    female_BB = any(GT == "BB" & sex == "female"),
+    male_AA = any(GT == "AA" & sex == "male"),
+    .groups = "drop"
+  ) %>%
+  filter(female_BB & male_AA) %>%
+  select(family, site)
+
+f2_AB_BB_female_AA_male <- all_param %>%
+  filter(generation == "F2", sex == "female") %>%
+  inner_join(BB_female_AA_male_sites, by = c("family", "site")) %>%
+  mutate(cross_direction = "F1_female_BB_F1_male_AA")
+
+# Combine both AB site sets
+f2_AB_combined <- bind_rows(f2_AB_AA_female_BB_male, f2_AB_BB_female_AA_male)
+
+# Save for later use
+write.csv(f2_AB_combined, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AB_combined.csv", row.names = FALSE)
+
+# Now you can use f2_AB_combined for QAF/VAF threshold analysis, and stratify by cross_direction if needed.
+
+```
+
+
 #### short summary:
 
 -   413,119 sites were homozygous in F0 and F1.\
@@ -334,7 +526,7 @@ filtered_sites <- all_param %>%
   select(family, Sample, site, QAF, VAF, GT)  # Keep only necessary columns
 
 # Save the filtered sites dataset for use in the next Rmd file
-write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
+#write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
 ```
 
 Summarized statistics for the filtered data, and Save the
@@ -434,6 +626,7 @@ hypothesis about the F2 genotype, based on their parents' (F1) genotype.
 Based on the determined site-quality threshold, we now filter the sites,
 and plot informative sites in one family on chromosome 1:
 
+## crossing F1 female AB, daughter of AA F0 mother
 ```{r informative-sites-on-one-chrom, cache=TRUE}
 # Step 1: Identify informative sites: where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
 F0AA_F1AB <- all_param %>%
@@ -504,7 +697,7 @@ selected_positions <- fam2_common %>%
   pull(pos)
 
 # Filter the dataset based on these selected positions
-fam2_selected <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter(!is.na(member), !is.na(pos), !is.na(GT))
+fam_478_F0AA_F1AB <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter(!is.na(member), !is.na(pos), !is.na(GT))
   
 ```
 
@@ -512,7 +705,7 @@ fam2_selected <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter
 
 ```{r filter-site-qual-and-plot, cache=TRUE}
 # Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
-fam2_selected %>%
+fam_478_F0AA_F1AB %>%
  filter(
     (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
     (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
@@ -542,6 +735,125 @@ Position (Mb)"
     axis.ticks.x = element_blank())  # Removes x-axis ticks
 ```
 
+```{r save-selected-fam}
+# save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
+write.csv(fam_478_F0AA_F1AB, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_478_F0AA_F1AB.csv", row.names = FALSE)
+```
+
+## crossing F1 female AA, daughter of AB F0 mother
+```{r informative-sites-on-one-chrom, cache=TRUE}
+# Step 1: Identify informative sites: where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
+F0AB_F1AA <- all_param %>%
+  filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
+   filter(chrom %in% c("1")) %>%  # Keep only chromosome 1
+ group_by(family, site) %>%  # Group by family and site
+  summarise(
+    grandmother_homo_ref = any(GT == "AB" & generation == "F0" & sex == "female"),
+    mother_heterozygous = any(GT == "AA" & generation == "F1" & sex == "female"),
+    .groups = "drop"
+  ) %>%
+  filter(grandmother_homo_ref & mother_heterozygous) %>%  # Ensure criteria are met
+  select(family, site)  # Extract only relevant columns
+
+# Step 2: Count the number of positions per family that passed the filtering
+positions = F0AB_F1AA %>%
+  group_by(family) %>%
+  summarise(num_sites_passed = n()) 
+
+```
+
+Now we have data on all families, will pick one family each time to plot
+### family 534
+```{r one-family, cache=TRUE}
+# set up family and members
+fam_id <- 534
+
+one_fam <- F0AB_F1AA %>% filter(family == fam_id)
+
+# Step 3: Extract all family members' genotypes at these sites
+family_sites <- one_fam %>%
+  inner_join(filtered_sites, by = c("family", "site")) %>% # Keep only sites that passed filtering
+  separate(site, into = c("chrom", "pos"), sep = "\\.1_", remove = FALSE) %>% # Split site into chrom and pos
+  mutate(pos = as.numeric(pos)) %>% # Convert pos to numeric
+  mutate(member = case_when(
+    str_detect(Sample, "fnd") ~ "grandmother",
+    str_detect(Sample, "_dat") ~ "mother",
+    str_detect(Sample, "_son") ~ "father",
+    str_detect(Sample, "_grndat") ~ "daughter",
+    str_detect(Sample, "_grnson") ~ "son",
+    TRUE ~ "unknown"
+  )) %>%
+  mutate(member = factor(member, levels = c("grandmother", "father", "mother", "son", "daughter"), ordered = TRUE)) %>%
+  mutate(member_num = as.numeric(member))
+
+# Find positions that appear in all members
+positions_all_members <- family_sites %>%
+  group_by(pos) %>%
+  summarise(member_count = n_distinct(member), .groups = "drop") %>%
+  filter(member_count == n_distinct(family_sites$member)) %>%
+  pull(pos)
+
+# Filter f2_filtered to keep only rows with these positions
+fam2_common <- family_sites %>% filter(pos %in% positions_all_members)
+
+# Filter f2_filtered to keep only sites with depth higher then 20
+#fam2_common <- fam2_common %>% filter(DP > 30)
+
+# Ensure positions are sorted
+fam2_common <- fam2_common %>% arrange(pos)
+
+# Generate 30 evenly spaced indices and round them to ensure integer indices
+#indices <- round(seq(1, nrow(fam2_common), length.out = 30))
+
+# Select the corresponding positions
+selected_positions <- fam2_common %>% 
+  #slice(indices) %>% 
+  pull(pos)
+
+# Filter the dataset based on these selected positions
+fam_534_F0AA_F1AA <- fam2_common %>% filter(pos %in% selected_positions) %>%  filter(!is.na(member), !is.na(pos), !is.na(GT))
+  
+```
+
+#### vizualize genotype flow in one family, for fig A1
+
+```{r filter-site-qual-and-plot, cache=TRUE}
+# Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
+fam_534_F0AA_F1AA %>%
+ filter(
+    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
+    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
+    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB)
+  ) %>%
+  ggplot(aes(x = member_num, y = pos / 1e6, color = GT)) +  # Convert pos to Mb
+ geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, 
+                   y = pos / 1e6, yend = pos / 1e6), size = 1.5) +  # Apply same conversion
+    scale_x_continuous(breaks = unique(fam2_selected$member_num), labels = unique(fam2_selected$member)) +  # Restore original labels
+  scale_color_manual(
+    values = c("AA" = "#ffbf00", "AB" = "#66b032", "BB" = "#1982c4"),  # Updated colors for renamed genotypes
+    name = "Genotype",
+    breaks = c("AA", "AB", "BB")  # Ensures BB appears in the legend even if absent
+  ) +
+  theme_classic() +
+  labs(
+    title = paste("Genotype Flow Across Family Members 
+Family ID:", fam_id),
+    x = "Family Member",
+    y = "Genomic 
+Position (Mb)"
+  ) +
+  theme(
+    axis.text.x = element_text(size = 12, face = "bold", angle = 30, hjust = 1),  # Rotate labels
+    panel.grid.major = element_blank(), 
+    axis.line.x = element_blank(),  # <-- Removes the x-axis line
+    axis.ticks.x = element_blank())  # Removes x-axis ticks
+```
+
+```{r save-selected-fam}
+# save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
+write.csv(fam_534_F0AA_F1AA, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_534_F0AA_F1AA.csv", row.names = FALSE)
+```
+
 save the filtered sites,to be used in the pulled data analysis
 (\~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd)
 
@@ -567,10 +879,6 @@ filtered_sites_summary <- filtered_sites %>%
 write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
 ```
 
-```{r load-f2-filtered}
-# save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
-write.csv(fam2_selected, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam2_selected.csv", row.names = FALSE)
-```
 
 ------------------------------------------------------------------------
 
@@ -605,3 +913,4 @@ Family ID:", fam_id),
     axis.line.x = element_blank(),  # <-- Removes the x-axis line
     axis.ticks.x = element_blank())  # Removes x-axis ticks
 ```
+
