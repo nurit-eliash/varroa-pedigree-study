@@ -508,9 +508,9 @@ write.csv(f2_AB_combined, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-s
 The plots make sense. Its visible that there's a peak of local quality
 heterozygotes below 0.4, which we can safely filter at.\
 We therefore propose the following boundaries for each genotype:\
-AA \< 0.03\
-AB \> 0.4 and \< 0.6\
-BB \> 0.8
+AA \< 0.01\
+AB \> 0.2 and \< 0.8\
+BB \> 0.9
 
 Create the filtered sites *"filtered_sites"* dataset that will be used
 in the final supp Rmd file, and save as csv
@@ -519,9 +519,9 @@ in the final supp Rmd file, and save as csv
 # Create the filtered sites dataset that will be used in the next Rmd file
 filtered_sites <- all_param %>%
   filter(
-    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
-    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
-    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB)
+    (GT == "AA" & QAF < 0.01 & VAF < 0.01) |   # Homozygous Reference (AA)
+    (GT == "AB" & QAF > 0.2 & QAF < 0.8 & VAF > 0.2 & VAF < 0.8) |  # Heterozygous (AB)
+    (GT == "BB" & QAF > 0.9 & VAF > 0.9)    # Homozygous Alternate (BB)
   ) %>%
   select(family, Sample, site, QAF, VAF, GT)  # Keep only necessary columns
 
@@ -627,7 +627,7 @@ Based on the determined site-quality threshold, we now filter the sites,
 and plot informative sites in one family on chromosome 1:
 
 ## crossing F1 female AB, daughter of AA F0 mother
-```{r informative-sites-on-one-chrom, cache=TRUE}
+```{r informative-sites-on-one-chrom-AB-AA, cache=TRUE}
 # Step 1: Identify informative sites: where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
 F0AA_F1AB <- all_param %>%
   filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
@@ -650,7 +650,7 @@ F0AA_F1AB %>%
 
 Now we have data on all families, will pick one family each time to plot
 
-```{r one-family, cache=TRUE}
+```{r one-family-478, cache=TRUE}
 # set up family and members
 fam_id <- 478
 
@@ -703,13 +703,13 @@ fam_478_F0AA_F1AB <- fam2_common %>% filter(pos %in% selected_positions) %>%  fi
 
 #### vizualize genotype flow in one family, for fig A1
 
-```{r filter-site-qual-and-plot, cache=TRUE}
+```{r filter-site-qual-and-plot-fam478, cache=TRUE}
 # Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
 fam_478_F0AA_F1AB %>%
  filter(
-    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
-    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
-    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB)
+    (GT == "AA" & QAF < 0.01 & VAF < 0.01) |   # Homozygous Reference (AA)
+    (GT == "AB" & QAF > 0.2 & QAF < 0.8 & VAF > 0.2 & VAF < 0.8) |  # Heterozygous (AB)
+    (GT == "BB" & QAF > 0.9 & VAF > 0.9)    # Homozygous Alternate (BB)
   ) %>%
   ggplot(aes(x = member_num, y = pos / 1e6, color = GT)) +  # Convert pos to Mb
  geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, 
@@ -735,13 +735,13 @@ Position (Mb)"
     axis.ticks.x = element_blank())  # Removes x-axis ticks
 ```
 
-```{r save-selected-fam}
+```{r save-selected-fam-478}
 # save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
 write.csv(fam_478_F0AA_F1AB, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_478_F0AA_F1AB.csv", row.names = FALSE)
 ```
 
 ## crossing F1 female AA, daughter of AB F0 mother
-```{r informative-sites-on-one-chrom, cache=TRUE}
+```{r informative-sites-on-one-chrom-AA-AB, cache=TRUE}
 # Step 1: Identify informative sites: where F0 (grandmother) = 0/0 and F1 (mother) = 0/1
 F0AB_F1AA <- all_param %>%
   filter(generation %in% c("F0", "F1")) %>%  # Keep only F0 and F1 individuals
@@ -764,7 +764,7 @@ positions = F0AB_F1AA %>%
 
 Now we have data on all families, will pick one family each time to plot
 ### family 534
-```{r one-family, cache=TRUE}
+```{r one-family-534, cache=TRUE}
 # set up family and members
 fam_id <- 534
 
@@ -821,9 +821,9 @@ fam_534_F0AA_F1AA <- fam2_common %>% filter(pos %in% selected_positions) %>%  fi
 # Create a numeric x-axis for spacing (convert 'member' to factor and assign spacing)
 fam_534_F0AA_F1AA %>%
  filter(
-    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
-    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
-    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB)
+    (GT == "AA" & QAF < 0.01 & VAF < 0.01) |   # Homozygous Reference (AA)
+    (GT == "AB" & QAF > 0.2 & QAF < 0.8 & VAF > 0.2 & VAF < 0.8) |  # Heterozygous (AB)
+    (GT == "BB" & QAF > 0.9 & VAF > 0.9)    # Homozygous Alternate (BB)
   ) %>%
   ggplot(aes(x = member_num, y = pos / 1e6, color = GT)) +  # Convert pos to Mb
  geom_segment(aes(x = member_num - 0.3, xend = member_num + 0.3, 
@@ -862,9 +862,9 @@ save the filtered sites,to be used in the pulled data analysis
 filtered_sites <- all_param %>%
   group_by(family, site, Sample) %>%  # Keep sites grouped by family
   filter(
-    (GT == "AA" & QAF < 0.03 & VAF < 0.03) |   # Homozygous Reference (AA)
-    (GT == "AB" & QAF > 0.4 & QAF < 0.6 & VAF > 0.4 & VAF < 0.6) |  # Heterozygous (AB)
-    (GT == "BB" & QAF > 0.8 & VAF > 0.8)    # Homozygous Alternate (BB)
+    (GT == "AA" & QAF < 0.01 & VAF < 0.01) |   # Homozygous Reference (AA)
+    (GT == "AB" & QAF > 0.2 & QAF < 0.8 & VAF > 0.2 & VAF < 0.8) |  # Heterozygous (AB)
+    (GT == "BB" & QAF > 0.9 & VAF > 0.9)    # Homozygous Alternate (BB)
   ) %>%
   ungroup() %>%  # Ensure the result is ungrouped for later use
   select(family, Sample, site, QAF, VAF, GT)  # Keep family-site-sample pairs without removing duplicates

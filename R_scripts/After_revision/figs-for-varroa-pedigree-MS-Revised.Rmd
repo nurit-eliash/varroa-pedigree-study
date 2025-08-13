@@ -1,5 +1,5 @@
 ---
-title: "Figures and Analysis for *Varroa Destructor* Inheritance Study"
+title: "Main and supplementary figures and analysis for *Varroa Destructor* Inheritance Study"
 author: "Nurit Eliash and Sasha Mikheyev"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -25,43 +25,6 @@ editor_options:
 }
 </style>
 ```
-# Overview
-
-This document contains supplementary figures and analyses for our study
-on the mode of genetic inheritance in *Varroa destructor*. It should be
-read in conjunction with the detailed methodology presented in [Site
-Quality Analysis](site_quality_exploration.html).
-
-## Data Availability
-
--   Raw sequencing data: [BioProject
-    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
--   Analysis code: [GitHub
-    Repository](https://github.com/nurit-eliash/varroa-pedigree-study/)
--   Filtered datasets: Available upon request
-
-# Prerequisites and Setup
-
-## Project Overview
-
-This analysis is part of a comprehensive study investigating the genetic
-inheritance patterns in *Varroa destructor* mites. We analyzed genomic
-data from 223 mite samples across 30 families, collected from three
-*Apis mellifera* colonies. Each family consists of three generations: F0 foundress adult female mite, F1 male and female adult offspring mites, and their F2 offspring, composed of immature mites (nymphs and eggs) and at least one adult male.    
-
-## Data Sources
-
--   Raw fastq reads: [BioProject
-    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
--   Code repository:
-    [GitHub](https://github.com/nurit-eliash/varroa-pedigree-study/tree/main#varroa-pedigree-study)
-
-## Required Files
-
-Before running this analysis, ensure you have:\
-1. The VCF file processed with the specified parameters\
-2. The filtered sites CSV file generated from site quality exploration\
-3. All required R packages installed
 
 ```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 library("tidyverse")
@@ -89,7 +52,97 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                       out.width = "100%")
 ```
 
-# Data Processing
+This document contains analyses and figures for our study on the mode of genetic inheritance in *Varroa destructor*.     
+The full paper by Eliash et al. 2025, "Varroa mites escape the evolutionary trap of haplodiploidy", can be found in [here](https://www.biorxiv.org/content/10.1101/2024.05.10.593493v2).      
+
+The document is composed of two main sections: 
+
+- Supplementary figures    
+
+- Main figures    
+
+Note, that apart from Figure S1 (Karyotyping of varroa males and females), all the rest of the analysis and figures are focused on the Genomic Pedigree study.   
+
+
+# Supplementry figures
+
+## Figure S1: Karyotyping of varroa males and females
+```{r karyotyping-plot, echo=TRUE}
+dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/data/karyo_varroa_sasha.csv", col_types = "cccnnn")
+
+dat_means <- dat %>% group_by(ID) %>% 
+    reframe(
+        chroms = sum(cell_count * chromo_number) / sum(cell_count), 
+        count = sum(cell_count), 
+        sd = sqrt(sum(cell_count * (chromo_number - chroms)^2) / sum(cell_count)), 
+        sem = sd / sqrt(count), 
+        ci_lower = chroms - qt(0.975, df = count - 1) * sem, 
+        ci_upper = chroms + qt(0.975, df = count - 1) * sem, 
+        sex = Sex[1])
+
+dat_means %>%
+ggplot(aes(x = sex, y = chroms, color = sex, size = count)) + 
+  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), size = 1, width = 0.05, position=position_jitter(width=0.2)) + 
+  scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) +  # Custom colors
+  scale_size_continuous(range = c(3, 10)) +  # Custom size range
+  geom_hline(yintercept = 7, color = "blue") + 
+  geom_hline(yintercept = 14, color = "#E31C79") + 
+  theme_bw() + 
+  ylab("Chromosome count") + 
+  geom_signif(comparisons = list(c("Male", "Female")), map_signif_level = TRUE, test = "wilcox.test", color = "black") + 
+  scale_y_continuous(breaks = scales::breaks_pretty()) + 
+  theme(legend.position = "bottom") + 
+  guides(color = "none") +  
+  labs(size = "Number of cells examined per individual") + 
+  xlab("Sex")
+#ggsave("karyptype.pdf", heigh=5, width=5)
+```
+
+cat("\n**Figure S1.** Chromosome count analysis in male and female Varroa destructor mites. Points show mean chromosome counts for individual mites, with error bars representing 95% confidence intervals. Point size indicates the number of cells examined per individual. Blue and pink horizontal lines represent the expected haploid (n=7) and diploid (2n=14) chromosome numbers, respectively. Statistical significance between male and female counts is indicated by the horizontal bar.")
+
+Do males have significantly less chromosomes than the diploid number of 14?
+```{r karyotyping-stats}
+filter(dat_means, sex == "Male") %>% pull(chroms) %>% t.test(., mu = 14)
+```
+
+
+
+
+
+
+## Genomic Pedigree study
+This analysis is part of a comprehensive study investigating the genetic
+inheritance patterns in *Varroa destructor* mites. We analyzed genomic
+data from 223 mite samples across 30 families, collected from three
+*Apis mellifera* colonies. Each family consists of three generations: F0 foundress adult female mite, F1 male and female adult offspring mites, and their F2 offspring, composed of immature mites (nymphs and eggs) and at least one adult male.    
+
+The analysis should be read in conjunction with the detailed methodology presented in [Site
+Quality Analysis](https://github.com/nurit-eliash/varroa-pedigree-study/blob/main/R_scripts/After_revision/site_quality_exploration.Rmd).
+
+### Data Availability
+
+-   Raw sequencing data: [BioProject
+    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
+-   Analysis code: [GitHub
+    Repository](https://github.com/nurit-eliash/varroa-pedigree-study/)
+-   Filtered datasets: Available upon request
+
+### Data Sources
+
+-   Raw fastq reads: [BioProject
+    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
+-   Code repository:
+    [GitHub](https://github.com/nurit-eliash/varroa-pedigree-study/tree/main#varroa-pedigree-study)
+
+### Required Files
+
+Before running this analysis, ensure you have:\
+1. The VCF file processed with the specified parameters\
+2. The filtered sites CSV file generated from site quality exploration\
+3. All required R packages installed
+
+
+## Data Processing
 
 ## VCF File Processing
 
@@ -117,7 +170,7 @@ vcftools --vcf snponly_freebayes.vcf \
   --out Q15000BIALLDP16HDP40mis.5maf.2Chr7
 ```
 
-### Filtering Rationale
+### VCF file filtering rationale
 
 -   **Chromosomes**: Selected the 7 largest chromosomes
     (NW_019211454.1-460.1)
@@ -148,9 +201,43 @@ We implemented three key metrics to assess genotype quality:
     -   QO: Quality scores for reference allele
     -   Weights allele calls by base quality
 
-### Genotype Classification Thresholds
+### Figure S6: Variant Quality Distribution 
+```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+# Read the variant quality data
+var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", 
+                       delim = "\t",
+                       col_names = c("chr", "pos", "qual"), 
+                       skip = 1)
 
-Based on empirical distribution analysis (see Figures 1-2), we
+# Print summary statistics
+cat("Summary of variant quality scores:\n")
+print(summary(var_qual$qual))
+
+# Create main plot
+ggplot(var_qual, aes(x = qual)) +
+  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
+    theme_classic() +
+  ggtitle("Variant Quality Distribution") +
+  scale_x_continuous(n.breaks = 12, limits = c(0, 50000)) +  # Adjusted x-axis range
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(size = 12),
+    axis.title = element_text(size = 10)
+  ) +
+  xlab("Variant Quality") + 
+  ylab("Density") +
+  geom_vline(xintercept = 15000, color = "red", linetype = "dashed")
+
+# Calculate percentage of variants above threshold
+pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
+
+# Add caption below the plot
+cat("\n**Figure S6.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
+```
+
+### Genotype Classification Thresholds, VAF and QAF
+
+Based on empirical distribution analysis (see the following figures S7-9), we
 established the following thresholds:
 
 | Genotype | VAF Range | QAF Range | Interpretation                 |
@@ -190,8 +277,6 @@ table <- gt %>%
     TRUE ~ .  # Keep other values unchanged
   )))
 ```
-
-## Site Quality Filtering
 
 The site quality filtering criteria were developed based on Variant
 Allele Frequency (VAF) and Genotype Quality Allele Frequency (QAF)
@@ -328,7 +413,7 @@ combined_plot <- (QAF_AA_gt_log + VAF_AA_gt_log + QAF_AA_gt + VAF_AA_gt) + plot_
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S1.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.03). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
+cat("\n**Figure S1.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
 ```
 
 ### Figure S8, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of BB parents. 
@@ -588,11 +673,11 @@ cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant
 
 Based on the distribution of sites' VAF and QAF values, the following
 filtering criteria were applied:\
-- Homozygous Reference (AA): VAF \< 0.03 and QAF \< 0.03, sites exhibit
+- Homozygous Reference (AA): VAF \< 0.01 and QAF \< 0.01, sites exhibit
 low alternate allele support\
-- Heterozygous (AB): 0.4 \< VAF \< 0.6 and 0.4 \< QAF \< 0.6, sites
+- Heterozygous (AB): 0.2 \< VAF \< 0.8 and 0.2 \< QAF \< 0.8, sites
 maintain a balanced allele distribution\
-- Homozygous Alternate (BB): VAF \> 0.8 and QAF \> 0.8, sites
+- Homozygous Alternate (BB): VAF \> 0.9 and QAF \> 0.9, sites
 demonstrate high alternate allele support
 
 This filtering approach enhances the accuracy of genotype classification
@@ -618,7 +703,7 @@ chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
 rename(gt = GT) # Keep only necessary columns
 ```
 
-# Main Figures
+# Main figures
 
 ## Figure 1A: Crossing F1 mother AB with F1 father AA, one family
 
@@ -665,6 +750,11 @@ cat("\n**Figure 1A.** Genotype flow visualization across a single family (Family
 ## Figure 1C: Crossing F1 mother AB with F1 father AA, all families
 
 ```{r load-and-process-ABxAA-pooled}
+# Set the families (include only families with at least one adult F2)
+family <- grep("grndat|grnson", gt$ID, value=TRUE) %>%
+  str_extract("[^_]+") %>%
+  unique()
+
 # Define a list to store all data frames per family
 obs <- list()
 
@@ -1152,79 +1242,3 @@ df_wide <- rna_dat_summary %>%
 # Paired t-test
 t.test(df_wide$Female, df_wide$Male, paired = TRUE)
 ```
-
-# Supplementary Figures for Manuscript
-
-## Variant Quality Distribution (Figure S6) 
-```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
-# Read the variant quality data
-var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", 
-                       delim = "\t",
-                       col_names = c("chr", "pos", "qual"), 
-                       skip = 1)
-
-# Print summary statistics
-cat("Summary of variant quality scores:\n")
-print(summary(var_qual$qual))
-
-# Create main plot
-ggplot(var_qual, aes(x = qual)) +
-  geom_density(fill = "dodgerblue1", colour = "black", alpha = 0.3) + 
-    theme_classic() +
-  ggtitle("Variant Quality Distribution") +
-  scale_x_continuous(n.breaks = 12, limits = c(0, 50000)) +  # Adjusted x-axis range
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(size = 12),
-    axis.title = element_text(size = 10)
-  ) +
-  xlab("Variant Quality") + 
-  ylab("Density") +
-  geom_vline(xintercept = 15000, color = "red", linetype = "dashed")
-
-# Calculate percentage of variants above threshold
-pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
-
-# Add caption below the plot
-cat("\n**Figure S6.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
-```
-
-## Karyotyping of males and females (Figure S1)
-```{r karyotyping-plot, echo=TRUE}
-dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-karyotyping/data/karyo_varroa_sasha.csv", col_types = "cccnnn")
-
-dat_means <- dat %>% group_by(ID) %>% 
-    reframe(
-        chroms = sum(cell_count * chromo_number) / sum(cell_count), 
-        count = sum(cell_count), 
-        sd = sqrt(sum(cell_count * (chromo_number - chroms)^2) / sum(cell_count)), 
-        sem = sd / sqrt(count), 
-        ci_lower = chroms - qt(0.975, df = count - 1) * sem, 
-        ci_upper = chroms + qt(0.975, df = count - 1) * sem, 
-        sex = Sex[1])
-
-dat_means %>%
-ggplot(aes(x = sex, y = chroms, color = sex, size = count)) + 
-  geom_pointrange(aes(ymin = ci_lower, ymax = ci_upper), size = 1, width = 0.05, position=position_jitter(width=0.2)) + 
-  scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) +  # Custom colors
-  scale_size_continuous(range = c(3, 10)) +  # Custom size range
-  geom_hline(yintercept = 7, color = "blue") + 
-  geom_hline(yintercept = 14, color = "#E31C79") + 
-  theme_bw() + 
-  ylab("Chromosome count") + 
-  geom_signif(comparisons = list(c("Male", "Female")), map_signif_level = TRUE, test = "wilcox.test", color = "black") + 
-  scale_y_continuous(breaks = scales::breaks_pretty()) + 
-  theme(legend.position = "bottom") + 
-  guides(color = "none") +  
-  labs(size = "Number of cells examined per individual") + 
-  xlab("Sex")
-#ggsave("karyptype.pdf", heigh=5, width=5)
-```
-
-cat("\n**Figure S1.** Chromosome count analysis in male and female Varroa destructor mites. Points show mean chromosome counts for individual mites, with error bars representing 95% confidence intervals. Point size indicates the number of cells examined per individual. Blue and pink horizontal lines represent the expected haploid (n=7) and diploid (2n=14) chromosome numbers, respectively. Statistical significance between male and female counts is indicated by the horizontal bar.")
-
-Do males have significantly less chromosomes than the diploid number of 14?
-```{r karyotyping-stats}
-filter(dat_means, sex == "Male") %>% pull(chroms) %>% t.test(., mu = 14)
-```
-
