@@ -148,7 +148,7 @@ We implemented three key metrics to assess genotype quality:
     -   QO: Quality scores for reference allele
     -   Weights allele calls by base quality
 
-### Figure S6: Variant Quality Distribution 
+### Figure S2: Variant Quality Distribution 
 ```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 # Read the variant quality data
 var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", 
@@ -179,7 +179,7 @@ ggplot(var_qual, aes(x = qual)) +
 pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
 
 # Add caption below the plot
-cat("\n**Figure S6.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
+cat("\n**Figure S2.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
 ```
 
 ### Genotype Classification Thresholds, VAF and QAF
@@ -243,9 +243,9 @@ Phred-scaled base quality scores for reads supporting the alternate
 allele, and QO (Quality of Reference Allele) is the sum of Phred-scaled
 base quality scores for reads supporting the reference allele.
 
-## Figure S7-9 : Picking the thresholds for site quality: Distribution of VAF and QAF in F2 Offspring of homozygous parents
+## Figure S3-5 : Picking the thresholds for site quality: Distribution of VAF and QAF in F2 Offspring of homozygous parents
 
-### Figure S7, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA parents. 
+### Figure S3, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA parents. 
 ```{r load-f2-AA-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
 # the file was created using the ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
@@ -360,10 +360,10 @@ combined_plot <- (QAF_AA_gt_log + VAF_AA_gt_log + QAF_AA_gt + VAF_AA_gt) + plot_
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S1.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
+cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
 ```
 
-### Figure S8, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of BB parents. 
+### Figure S4, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of BB parents. 
 ```{r load-f2-BB-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
 # the file was created using the ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
@@ -478,10 +478,10 @@ combined_plot <- (QAF_BB_gt_log + VAF_BB_gt_log + QAF_BB_gt + VAF_BB_gt) + plot_
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S2.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.9). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.9 threshold range.")
+cat("\n**Figure S4.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.9). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.9 threshold range.")
 ```
 
-### Figure S9, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA and AB parents. 
+### Figure S5, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA and AB parents. 
 
 ```{r load-f2-AB-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
@@ -613,7 +613,7 @@ combined_plot <- (QAF_AB_gt_log + VAF_AB_gt_log) / (QAF_AB_gt + VAF_AB_gt) + plo
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with heterozygous AB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AB (green, 0.2-0.8). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AB genotypes predominantly falling within the 0.2-0.8 threshold range.")
+cat("\n**Figure S5.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with heterozygous AB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AB (green, 0.2-0.8). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AB genotypes predominantly falling within the 0.2-0.8 threshold range.")
 ```
 
 
