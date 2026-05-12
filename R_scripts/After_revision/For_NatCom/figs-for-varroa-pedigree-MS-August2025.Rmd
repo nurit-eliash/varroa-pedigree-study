@@ -57,7 +57,310 @@ The full paper by Eliash et al. 2025, "Varroa mites escape the evolutionary trap
 
 The document is composed of two main sections: 
 
-## Genomic Pedigree study
+- Modeling the Effective population size (Ne)      
+- Genomic pedigree study   
+
+# Modeling the Effective population size (Ne)
+
+### Supplementary Figure 1: Model-predicted effective population size (Ne) 
+
+This model starts each scenario from the same initial condition: a single
+founding female mite (`N[1] = 1`). Population size then changes across
+generations according to the same demographic rule, while only the
+scenario parameters (`C` and `K`) are changed. Here, `C` is the carrying
+capacity (the maximum sustainable number of reproducing females), and
+`K` is the number of available brood cells. The dashed vertical line in
+each panel marks the first generation at which the modeled population
+reaches carrying capacity (`N = C`). Because each panel has its own `C`
+and `K` values, this saturation point can occur at different generations.
+Importantly, even when two scenarios have the same ratio (`C/K`), the
+curves are not expected to be identical: the model depends on the
+absolute values of `C` and `K` (not only their ratio), so changing scale
+can change both population dynamics and the resulting effective population
+size (`Ne`).
+
+```{r model, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+# Revised model (April 2026) wrapped as a reusable function
+run_varroa_model <- function(C, K, n = 2, p0 = 0.1, f1 = 0.1, Tt = 50) {
+  # Demographic dynamics
+  N <- rep(0, Tt)
+  N[1] <- 1
+  for (t in 2:(Tt - 1)) {
+    N[t] <- round((1 + (n - 1) * (1 - N[t - 1] / C)) * N[t - 1])
+  }
+  P <- c(0, K / N * (1 - (1 - 1 / K)^N))
+
+  # Cell occupancy probabilities
+  P1 <- rep(0, Tt)
+  for (i in 3:(Tt + 1)) {
+    P1[i - 1] <- 1 / N[i - 2] / n * sum(sapply(
+      1:N[i - 2],
+      function(x) 1 / x^2 * choose(N[i - 2] - 1, x - 1) / K^(x - 1) * (1 - 1 / K)^(N[i - 2] - x)
+    ))
+  }
+  P2 <- rep(0, Tt)
+  for (i in 3:(Tt + 1)) {
+    P2[i - 1] <- 1 / N[i - 2] * sum(sapply(
+      1:N[i - 2],
+      function(x) 1 / x * (1 - 1 / x / n) * choose(N[i - 2] - 1, x - 1) / K^(x - 1) * (1 - 1 / K)^(N[i - 2] - x)
+    ))
+  }
+  P3 <- rep(0, Tt)
+  for (i in 3:(Tt + 1)) {
+    P3[i - 1] <- 1 / N[i - 2] * sum(sapply(
+      2:N[i - 2],
+      function(x) (1 - 1 / x) / x / n * choose(N[i - 2] - 1, x - 1) / K^(x - 1) * (1 - 1 / K)^(N[i - 2] - x)
+    ))
+  }
+  P4 <- 1 - P1 - P2 - P3
+
+  # -----------------------------
+  # Model 1: haplo-diploidy
+  # -----------------------------
+  p1 <- rep(0, Tt)
+  p1[1] <- (1 - f1) * p0
+  f2 <- (1 / 2 + 3 / 2 * f1) / 2
+  p1[2] <- (1 - f2) * p0
+  ff2 <- (3 + 5 * f1) / 8 / n + (1 - 1 / n) / 4 * (1 + 3 * f1)
+  f3 <- P[3] * (1 / 4 + 1 / 4 * f1) + f2 / 2 + (1 - P[3]) / 2 * ff2
+  p1[3] <- (1 - f3) * p0
+  ff3 <- P1[3] / 8 * (3 + 4 * f2 + f1) +
+    P2[3] / 4 * (1 + 2 * f2 + ff2) +
+    P3[3] / 4 * (2 * f2 + f1 + 1 / 2 + f1 / 2) +
+    P4[3] / 4 * (2 * f2 + ff2 + f1)
+  f4 <- P[4] * (1 / 4 + 1 / 4 * f2) + f3 / 2 + (1 - P[4]) / 2 * ff3
+  p1[4] <- (1 - f4) * p0
+
+  cal_coef_hd <- function(P, P_, P__, P1, P2, P3) {
+    c(
+      P / 4 + (1 - P) / 2 * (P1 * 3 / 8 + P2 / 4 + P3 / 8 -
+        (1 - P1 - P3) / 2 / (1 - P_) / 4 * P_ -
+        (1 - P1 - P2) / 2 / (1 - P__) / 4 * P__),
+      1 / 2 + (1 - P) / 2 * (1 - P1 - P3) / 2 / (1 - P_),
+      P / 4 + (1 - P) / 4 - (1 - P) / 2 * (1 - P1 - P3) / 4 / (1 - P_) +
+        (1 - P) / 2 * (1 - P1 - P2) / 2 / (1 - P__),
+      (1 - P) / 2 * (P1 / 8 + P3 / 8 - (1 - P1 - P3) * P_ / 8 / (1 - P_) -
+        (1 - P1 - P2) / 4 / (1 - P__)),
+      -(1 - P) / 2 * (1 - P1 - P2) * P__ / 8 / (1 - P__)
+    )
+  }
+  for (t in 5:Tt) {
+    c_hd <- cal_coef_hd(P[t], P[t - 1], P[t - 2], P1[t - 1], P2[t - 1], P3[t - 1])
+    p1[t] <- c_hd[2] * p1[t - 1] + c_hd[3] * p1[t - 2] + c_hd[4] * p1[t - 3] + c_hd[5] * p1[t - 4]
+  }
+
+  # -----------------------------
+  # Model 2: diploid arrhenotoky
+  # -----------------------------
+  p2 <- rep(0, Tt)
+  p2[1] <- (1 - f1) * p0
+  f2 <- (1 / 2 + 3 / 2 * f1) / 2
+  p2[2] <- (1 - f2) * p0
+  ff2 <- (1 + 3 * f1) / 4 / n + (1 + 7 * f1) / 8 * (1 - 1 / n)
+  f3 <- P[3] * (1 / 4 + 1 / 4 * f1) + f2 / 2 + (1 - P[3]) / 2 * ff2
+  p2[3] <- (1 - f3) * p0
+  ff3 <- P1[3] / 4 * (1 + 2 * f2 + f1) +
+    P2[3] / 4 * (1 / 2 + 2 * f2 + f1 / 2 + ff2) +
+    P3[3] / 4 * (2 * f2 + f1 + 1 / 2 + f1 / 2) +
+    P4[3] / 4 * (2 * f2 + ff2 + f1)
+  f4 <- P[4] * (1 / 4 + 1 / 4 * f2) + f3 / 2 + (1 - P[4]) / 2 * ff3
+  p2[4] <- (1 - f4) * p0
+
+  cal_coef_da <- function(P, P_, P__, P1, P2, P3) {
+    c(
+      P / 4 + (1 - P) / 2 * (P1 / 4 + P2 / 8 + P3 / 8 -
+        (1 - P1 - P3) / 2 / (1 - P_) / 4 * P_ -
+        (1 - P1 - P2) / 2 / (1 - P__) / 4 * P__),
+      1 / 2 + (1 - P) / 2 * (1 - P1 - P3) / 2 / (1 - P_),
+      P / 4 + (1 - P) / 4 - (1 - P) / 2 * (1 - P1 - P3) / 4 / (1 - P_) +
+        (1 - P) / 2 * (1 - P1 - P2) / 2 / (1 - P__),
+      (1 - P) / 2 * (P1 / 8 + P3 / 8 - (1 - P1 - P3) * P_ / 8 / (1 - P_) -
+        (1 - P1 - P2) / 4 / (1 - P__)),
+      (1 - P) / 2 * (P1 / 8 + P2 / 8 - (1 - P1 - P2) * P__ / 8 / (1 - P__))
+    )
+  }
+  for (t in 5:Tt) {
+    c_da <- cal_coef_da(P[t], P[t - 1], P[t - 2], P1[t - 1], P2[t - 1], P3[t - 1])
+    p2[t] <- c_da[2] * p2[t - 1] + c_da[3] * p2[t - 2] + c_da[4] * p2[t - 3] + c_da[5] * p2[t - 4]
+  }
+
+  # -----------------------------
+  # Model 3: complete diploidy
+  # -----------------------------
+  p3 <- rep(0, Tt)
+  p3[1] <- (1 - f1) * p0
+  f2 <- (1 + 3 * f1) / 4 / n + (1 + 7 * f1) / 8 * (1 - 1 / n)
+  p3[2] <- (1 - f2) * p0
+  fm2 <- (1 / 2 + 7 / 2 * f1) / 4
+  f3 <- P1[3] / 4 * (1 + 2 * f2 + f1) +
+    P2[3] / 4 * (1 / 2 + 2 * f2 + f1 / 2 + f2) +
+    P3[3] / 4 * (2 * f2 + 1 / 2 + f1 / 2) +
+    P4[3] / 4 * (2 * f2 + f2 + fm2)
+  p3[3] <- (1 - f3) * p0
+  if (N[3] > 1) {
+    fm3 <- f2 / 2 + f2 / 4 + P2[3] / (1 - P1[3] - P3[3]) / 4 * (1 / 2 + f1 / 2) +
+      P4[3] / (1 - P1[3] - P3[3]) / 4 * fm2
+    f4 <- P1[4] / 4 * (1 + 2 * f3 + f2) +
+      P2[4] / 4 * (1 / 2 + 2 * f3 + f2 / 2 + f3) +
+      P3[4] / 4 * (2 * f3 + 1 / 2 + f2 / 2) +
+      P4[4] / 4 * (2 * f3 + f3 + fm3)
+  } else {
+    f4 <- P1[4] / 4 * (1 + 2 * f3 + f2) + P2[4] / 4 * (1 / 2 + 2 * f3 + f2 / 2 + f3)
+  }
+  p3[4] <- (1 - f4) * p0
+
+  cal_coef_cd <- function(P1, P2, P3, P4, P1_, P2_, P3_, P4_) {
+    c(
+      P1 / 4 + P2 / 8 + P3 / 8 + (1 - P1 - P2) / 4 * (P2_ / (1 - P1_ - P3_) / 8 -
+        P4_ / (1 - P1_ - P3_) / (1 - P1_ - P2_) * (P1_ / 4 + P2_ / 8 + P3_ / 8)),
+      1 / 2 + (1 - P1 - P3) / 4 + (1 - P1 - P2) / 4 * P4_ / (1 - P1_ - P3_) / (1 - P1_ - P2_),
+      P1 / 4 + P2 / 8 + P3 / 8 + (1 - P1 - P2) / 4 * (3 / 4 -
+        P4_ / (1 - P1_ - P2_) / (1 - P1_ - P3_) * (1 / 2 + (1 - P1_ - P3_) / 4)),
+      (1 - P1 - P2) / 4 * (P2_ / (1 - P1_ - P3_) / 8 -
+        P4_ / (1 - P1_ - P3_) / (1 - P1_ - P2_) * (P1_ / 4 + P2_ / 8 + P3_ / 8))
+    )
+  }
+  for (t in 5:Tt) {
+    if (N[t - 2] > 1) {
+      c_cd <- cal_coef_cd(P1[t], P2[t], P3[t], P4[t], P1[t - 1], P2[t - 1], P3[t - 1], P4[t - 1])
+      p3[t] <- c_cd[2] * p3[t - 1] + c_cd[3] * p3[t - 2] + c_cd[4] * p3[t - 3]
+    } else if (n > 1) {
+      c_cd <- c(P1[t] / 4 + P2[t] / 8, P1[t] / 2 + 3 * P2[t] / 4, P1[t] / 4 + P2[t] / 8)
+      p3[t] <- c_cd[2] * p3[t - 1] + c_cd[3] * p3[t - 2]
+    } else {
+      c_cd <- c(P1[t] / 4, P1[t] / 2, P1[t] / 4)
+      p3[t] <- c_cd[2] * p3[t - 1] + c_cd[3] * p3[t - 2]
+    }
+  }
+
+  # Derived trajectories
+  gen <- 2:Tt
+  loss_hd <- p1[-1] / p1[-Tt] - 1
+  loss_da <- p2[-1] / p2[-Tt] - 1
+  loss_cd <- p3[-1] / p3[-Tt] - 1
+  ne_hd <- -1 / 2 / loss_hd
+  ne_da <- -1 / 2 / loss_da
+  ne_cd <- -1 / 2 / loss_cd
+
+  list(
+    model_df = tibble(
+      generation = rep(gen, 3),
+      model = factor(
+        rep(c("Haplo-diploidy", "Diploid arrhenotoky", "Complete diploidy"), each = length(gen)),
+        levels = c("Haplo-diploidy", "Diploid arrhenotoky", "Complete diploidy")
+      ),
+      heterozygosity_loss = c(loss_hd, loss_da, loss_cd),
+      effective_ne = c(ne_hd, ne_da, ne_cd)
+    ),
+    saturation_gen = suppressWarnings(min(which(N == C))),
+    C = C,
+    K = K
+  )
+}
+
+# Two scenarios with the same C/K ratio (C/K = 2)
+scenario_low <- run_varroa_model(C = 20, K = 10)
+scenario_high <- run_varroa_model(C = 200, K = 100)
+
+# Keep these objects available for the heterozygosity chunk (panel B)
+model_df <- scenario_high$model_df
+model_colors <- c(
+  "Haplo-diploidy" = "red3",
+  "Diploid arrhenotoky" = "dodgerblue3",
+  "Complete diploidy" = "black"
+)
+
+ne_panel_df <- bind_rows(
+  scenario_low$model_df %>%
+    filter(model != "Complete diploidy") %>%
+    mutate(panel = "a"),
+  scenario_high$model_df %>%
+    filter(model != "Complete diploidy") %>%
+    mutate(panel = "b")
+) %>%
+  mutate(panel = factor(panel, levels = c("a", "b")))
+
+vline_df <- tibble(
+  panel = factor(c("a", "b"), levels = c("a", "b")),
+  saturation_gen = c(scenario_low$saturation_gen, scenario_high$saturation_gen)
+)
+
+panel_label_df <- tibble(
+  panel = factor(c("a", "b"), levels = c("a", "b")),
+  x = c(5.2, 5.2),
+  y = c(14.6, 14.6),
+  label = c("a", "b")
+)
+
+model_colors <- c(
+  "Haplo-diploidy" = "red3",
+  "Diploid arrhenotoky" = "dodgerblue3",
+  "Complete diploidy" = "black"
+)
+
+# Plot 1A-B: Effective population size (Ne), two C/K scenarios
+g_ne <- ggplot(
+  ne_panel_df,
+  aes(x = generation, y = effective_ne, color = model)
+) +
+  geom_line(linewidth = 1) +
+  theme_classic() +
+  scale_color_manual(values = model_colors) +
+  coord_cartesian(xlim = c(5, 30), ylim = c(2, 15)) +
+  facet_wrap(~panel, ncol = 2) +
+  labs(
+    x = "Generation",
+    y = "Effective population size (Ne)",
+    color = "Model"
+  ) +
+  geom_vline(
+    data = vline_df %>% filter(is.finite(saturation_gen)),
+    aes(xintercept = saturation_gen),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    color = "gray40"
+  ) +
+  geom_text(
+    data = panel_label_df,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    fontface = "bold",
+    size = 5
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.6),
+    panel.spacing = unit(1.2, "lines"),
+    strip.text = element_blank(),
+    strip.background = element_blank()
+  )
+
+g_ne
+
+cat("\n**Supplementary Figure 1.** Effective population size (Ne) across generations under haplo-diploidy (red) and diploid arrhenotoky (blue), shown for two model scenarios with the same C/K ratio (C/K = 2). **Panel (a):** C = 20, K = 10. **Panel (b):** C = 200, K = 100. Dashed vertical lines mark the generation at which the simulated population first reaches carrying capacity in each scenario.")
+```
+
+```{r model-heterozygosity, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# Relative heterozygosity loss rate per generation
+g_loss <- ggplot(model_df, aes(x = generation, y = heterozygosity_loss, color = model)) +
+  geom_line(linewidth = 1) +
+  theme_classic() +
+  scale_color_manual(values = model_colors) +
+  labs(
+    title = "B",
+    x = "Generation",
+    y = "Relative heterozygosity loss rate",
+    color = "Model"
+  ) +
+  theme(legend.position = "bottom")
+
+g_loss
+
+cat("\n**Supplementary Figure 1B.** Relative heterozygosity loss rate per generation under haplo-diploidy (red), diploid arrhenotoky (blue), and complete diploidy (black).")
+```
+
+
+# Genomic Pedigree study
 This analysis is part of a comprehensive study investigating the genetic
 inheritance patterns in *Varroa destructor* mites. We analyzed genomic
 data from 223 mite samples across 30 families, collected from three
@@ -135,7 +438,7 @@ vcftools --vcf snponly_freebayes.vcf \
 
 We implemented three key metrics to assess genotype quality:
 
-1.  **Variant Quality Distribution** (see Figure S6)    
+1.  **Variant Quality Distribution**       
 
 2.  **Variant Allele Frequency (VAF)**
     -   Calculated as: VAF = AO/DP
@@ -148,7 +451,7 @@ We implemented three key metrics to assess genotype quality:
     -   QO: Quality scores for reference allele
     -   Weights allele calls by base quality
 
-### Figure S2: Variant Quality Distribution 
+### Supplementary Figure 3: Variant Quality Distribution 
 ```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 # Read the variant quality data
 var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", 
@@ -179,12 +482,12 @@ ggplot(var_qual, aes(x = qual)) +
 pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
 
 # Add caption below the plot
-cat("\n**Figure S2.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
+cat("\n**Supplementary Figure 3.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
 ```
 
 ### Genotype Classification Thresholds, VAF and QAF
 
-Based on empirical distribution analysis (see the following figures S7-9), we
+Based on empirical distribution analysis, we
 established the following thresholds:
 
 | Genotype | VAF Range | QAF Range | Interpretation                 |
@@ -243,9 +546,9 @@ Phred-scaled base quality scores for reads supporting the alternate
 allele, and QO (Quality of Reference Allele) is the sum of Phred-scaled
 base quality scores for reads supporting the reference allele.
 
-## Figure S3-5 : Picking the thresholds for site quality: Distribution of VAF and QAF in F2 Offspring of homozygous parents
+## Supplementary Figures 4-6 : Picking the thresholds for site quality: Distribution of VAF and QAF in F2 Offspring of homozygous parents
 
-### Figure S3, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA parents. 
+### Supplementary Figure 4, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA parents. 
 ```{r load-f2-AA-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
 # the file was created using the ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
@@ -363,7 +666,7 @@ combined_plot
 cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
 ```
 
-### Figure S4, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of BB parents. 
+### Supplementary Figure 5, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of BB parents. 
 ```{r load-f2-BB-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
 # the file was created using the ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/site_quality_exploration.Rmd
@@ -481,7 +784,7 @@ combined_plot
 cat("\n**Figure S4.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.9). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.9 threshold range.")
 ```
 
-### Figure S5, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA and AB parents. 
+### Supplementary Figure 6, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA and AB parents. 
 
 ```{r load-f2-AB-parents}
 # Read the f2_homo_parents data (sanity check data) from CSV: F2 females at the filtered positions, on chrom 1, where F1 male and female are homozygous (AA)
@@ -613,7 +916,7 @@ combined_plot <- (QAF_AB_gt_log + VAF_AB_gt_log) / (QAF_AB_gt + VAF_AB_gt) + plo
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S5.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with heterozygous AB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AB (green, 0.2-0.8). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AB genotypes predominantly falling within the 0.2-0.8 threshold range.")
+cat("\n**Supplementary Figure 6.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with heterozygous AB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AB (green, 0.2-0.8). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AB genotypes predominantly falling within the 0.2-0.8 threshold range.")
 ```
 
 
@@ -650,7 +953,7 @@ chrom = str_split(site, pattern = "_", simplify = TRUE)[, 2]) %>%
 rename(gt = GT) # Keep only necessary columns
 ```
 
-# Main figures
+## Main figures
 
 ## Figure 1A: Crossing F1 mother AB with F1 father AA, one family
 
@@ -1156,7 +1459,7 @@ rna_dat <- read_csv("/Users/nuriteliash/Documents/GitHub/Varroa-RNAseq-Zheng-202
 rna_dat_summary <- rna_dat %>%
   group_by(family, sex) %>%
   summarize(
-    het_prop = sum(het) / sum(het + homo),  # Proportion of heterozygous
+    het_prop = sum(het) / sum(het + homo),  # Percentage of heterozygous
     count = sum(het + homo),                # Total trials
     sem = sqrt((het_prop * (1 - het_prop)) / count),  # Standard error of the mean
     ci_lower = het_prop - qt(0.975, df = count - 1) * sem,  # Lower confidence interval
@@ -1171,7 +1474,7 @@ rna_dat_summary %>%
   ylab("Proportion of heterozygous sites") +
   xlab("Sex") +
   theme(legend.position = "bottom") +
-  scale_y_continuous(labels = scales::percent_format())  + 
+ # scale_y_continuous(labels = scales::percent_format())  + 
   scale_color_manual(values = c("Male" = "blue", "Female" = "#E31C79")) + # Custom colors
   theme(legend.position = "none")
 
