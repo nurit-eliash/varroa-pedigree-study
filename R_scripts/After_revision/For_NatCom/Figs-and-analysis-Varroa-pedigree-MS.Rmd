@@ -58,7 +58,7 @@ if (!dir.exists(source_dir)) dir.create(source_dir, recursive = TRUE)
 ```
 
 This document contains analyses and figures for our study on the mode of genetic inheritance in *Varroa destructor*.     
-The full paper by Eliash et al. 2025, "Varroa mites escape the evolutionary trap of haplodiploidy", can be found in [here](https://www.biorxiv.org/content/10.1101/2024.05.10.593493v2).      
+The full paper by Eliash et al. 2025, "Varroa mites escape the evolutionary trap of haplodiploidy", can be found in [here](https://doi.org/10.1101/2024.05.10.593493).  
 
 The document is composed of two main sections: 
 
@@ -377,9 +377,9 @@ data from 223 mite samples across 30 families, collected from three
 *Apis mellifera* colonies. Each family consists of three generations: F0 foundress adult female mite, F1 male and female adult offspring mites, and their F2 offspring, composed of immature mites (nymphs and eggs) and at least one adult male.    
 
 The analysis should be read in conjunction with the detailed methodology presented in [Site
-Quality Analysis](https://github.com/nurit-eliash/varroa-pedigree-study/blob/main/R_scripts/After_revision/site_quality_exploration.Rmd).
+Quality Analysis](https://github.com/nurit-eliash/varroa-pedigree-study/blob/main/R_scripts/After_revision/For_NatCom/site_quality_exploration.Rmd).
 
-### Data Availability
+### Data sources and availability
 
 -   Raw sequencing data: [BioProject
     PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
@@ -387,12 +387,6 @@ Quality Analysis](https://github.com/nurit-eliash/varroa-pedigree-study/blob/mai
     Repository](https://github.com/nurit-eliash/varroa-pedigree-study/)
 -   Filtered datasets: Available upon request
 
-### Data Sources
-
--   Raw fastq reads: [BioProject
-    PRJNA794941](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA794941/)
--   Code repository:
-    [GitHub](https://github.com/nurit-eliash/varroa-pedigree-study/tree/main#varroa-pedigree-study)
 
 ### Required Files
 
