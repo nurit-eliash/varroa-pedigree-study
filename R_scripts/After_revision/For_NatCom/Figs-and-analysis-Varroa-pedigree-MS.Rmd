@@ -26,7 +26,7 @@ editor_options:
 </style>
 ```
 
-```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+```{r libraries, echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 library("tidyverse")
 library("dplyr")
 library("ggplot2")
@@ -50,6 +50,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
                      fig.width = 10,
                       fig.asp = 0.4,
                       out.width = "100%")
+
+# setup-source-data
+rmd_dir   <- dirname(rstudioapi::getActiveDocumentContext()$path)
+source_dir <- file.path(rmd_dir, "Source_data")
+if (!dir.exists(source_dir)) dir.create(source_dir, recursive = TRUE)
 ```
 
 This document contains analyses and figures for our study on the mode of genetic inheritance in *Varroa destructor*.     
@@ -79,7 +84,7 @@ absolute values of `C` and `K` (not only their ratio), so changing scale
 can change both population dynamics and the resulting effective population
 size (`Ne`).
 
-```{r model, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+```{r model, echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 # Revised model (April 2026) wrapped as a reusable function
 run_varroa_model <- function(C, K, n = 2, p0 = 0.1, f1 = 0.1, Tt = 50) {
   # Demographic dynamics
@@ -338,6 +343,11 @@ g_ne <- ggplot(
 g_ne
 
 cat("\n**Supplementary Figure 1.** Effective population size (Ne) across generations under haplo-diploidy (red) and diploid arrhenotoky (blue), shown for two model scenarios with the same C/K ratio (C/K = 2). **Panel (a):** C = 20, K = 10. **Panel (b):** C = 200, K = 100. Dashed vertical lines mark the generation at which the simulated population first reaches carrying capacity in each scenario.")
+
+# save ne_panel_df for the Source data excel file
+#write.csv(ne_panel_df,
+#  file = file.path(source_dir, "SuppFig1_Ne_model_curves.csv"),
+#  row.names = FALSE)
 ```
 
 ```{r model-heterozygosity, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
@@ -452,7 +462,7 @@ We implemented three key metrics to assess genotype quality:
     -   Weights allele calls by base quality
 
 ### Supplementary Figure 3: Variant Quality Distribution 
-```{r variant-quality-dist, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+```{r variant-quality-dist, echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 # Read the variant quality data
 var_qual <- read_delim("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/Q40BIALLDP16HDP40mis.5Chr7/Q40BIALLDP16HDP40mis.5Chr7.lqual", 
                        delim = "\t",
@@ -483,6 +493,11 @@ pct_above_threshold <- mean(var_qual$qual >= 15000) * 100
 
 # Add caption below the plot
 cat("\n**Supplementary Figure 3.** Distribution of variant quality scores across sites that passed initial filtering (depth ≥16, ≤40; maximum 50% missing data). The red dashed line indicates the quality threshold (15000) used for final filtering. %.1f%% of variants have quality scores above this threshold. Higher quality scores indicate greater confidence in variant calls.", pct_above_threshold)
+
+# save var_qual for the Source data excel file
+#write.csv(var_qual,
+#  file = file.path(source_dir, "SuppFig3_varqual_density.csv"),
+#  row.names = FALSE)
 ```
 
 ### Genotype Classification Thresholds, VAF and QAF
@@ -499,7 +514,7 @@ established the following thresholds:
 These thresholds were validated using known inheritance patterns in our
 pedigree structure.
 
-```{r process-vcf, echo=FALSE, eval=TRUE}
+```{r process-vcf, echo=TRUE, eval=TRUE}
 # Read and process VCF file
 vcf <- read.vcfR("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/vcf_filter/minQ_filter/Q15000BIALLDP16HDP40mis.5maf.2Chr7.recode.vcf", verbose = FALSE)
 
@@ -555,7 +570,7 @@ base quality scores for reads supporting the reference allele.
 f2_AA_parents <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AA_parents.csv")
 ```
 
-```{r plot-f2-AA-parents, echo=FALSE, eval=TRUE, fig.width=12}
+```{r plot-f2-AA-parents, echo=TRUE, eval=TRUE, fig.width=12}
 # QAF log-scale plot
 QAF_AA_gt_log <- ggplot(f2_AA_parents, aes(x = QAF, fill = GT)) +
   scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
@@ -664,6 +679,11 @@ combined_plot
 
 # Add unified caption below the plot
 cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
+
+# save f2_AA_parents for the Source data excel file
+#write.csv(f2_AA_parents,
+#          file = file.path(source_dir, "SuppFig4_QAF_VAF_F2_AA.csv"),
+#          row.names = FALSE)
 ```
 
 ### Supplementary Figure 5, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of BB parents. 
@@ -673,7 +693,7 @@ cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant
 f2_BB_parents <- read.csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_BB_parents.csv")
 ```
 
-```{r plot-f2-BB-parents, echo=FALSE, eval=TRUE, fig.width=12}
+```{r plot-f2-BB-parents, echo=TRUE, eval=TRUE, fig.width=12}
 # QAF log-scale plot
 QAF_BB_gt_log <- ggplot(f2_BB_parents, aes(x = QAF, fill = GT)) +
   scale_x_continuous(breaks = seq(0, 1, by = 0.1), limits = c(-0.05, 1.05)) +
@@ -782,6 +802,11 @@ combined_plot
 
 # Add unified caption below the plot
 cat("\n**Figure S4.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.9). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.9 threshold range.")
+
+# save f2_BB_parents for the Source data excel file
+#write.csv(f2_BB_parents,
+#          file = file.path(source_dir, "SuppFig5_QAF_VAF_F2_BB.csv"),
+#          row.names = FALSE)
 ```
 
 ### Supplementary Figure 6, Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) in F2 females of AA and AB parents. 
@@ -917,6 +942,12 @@ combined_plot
 
 # Add unified caption below the plot
 cat("\n**Supplementary Figure 6.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with heterozygous AB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AB (green, 0.2-0.8). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AB genotypes predominantly falling within the 0.2-0.8 threshold range.")
+
+# save f2_AB_combined for the Source data excel file
+#write.csv(f2_AB_combined,
+#          file = file.path(source_dir, "SuppFig6_QAF_VAF_F2_AB.csv"),
+#          row.names = FALSE)
+
 ```
 
 
@@ -995,6 +1026,11 @@ fam_478_F0AA_F1AB %>%
 
 # Add caption below the plot
 cat("\n**Figure 1A.** Genotype flow visualization across a single family (Family ID: 478). Each horizontal line represents a genomic position on chromosome NW_019211454.1, with colors indicating genotypes (yellow = AA, green = AB, blue = BB). Family members are arranged in generational order, showing the inheritance pattern from parents to offspring. The y-axis shows the genomic position in megabases (Mb).")
+
+# save fam_478_F0AA_F1AB for the Source data excel file
+#write.csv(fam_478_F0AA_F1AB,
+#          file = file.path(source_dir, "Fig1A_single_family_tracks.csv"),
+#          row.names = FALSE)
 ```
 
 ## Figure 1C: Crossing F1 mother AB with F1 father AA, all families
@@ -1178,6 +1214,16 @@ ggplot(samples_obs_filtered_ABxAA %>% filter(total >= site_threshold),
             inherit.aes = FALSE,
             size = 2.8,
             vjust = 0.5) 
+
+ # save var_qual for the Source data excel file
+#write.csv(samples_obs_filtered_ABxAA,
+#          file = file.path(source_dir, "Fig1C_ABxAA_barplot.csv"),
+#          row.names = FALSE)
+
+# save summary_df_filtered for the Source data excel file
+#write.csv(summary_df_filtered,
+#          file = file.path(source_dir, "Fig1C_sites_per_sample.csv"),
+#          row.names = FALSE)
 ```
 
 ```{r fig1C-clean plot-no lables, echo=TRUE, eval=TRUE, message=FALSE}
@@ -1242,6 +1288,12 @@ fam_534_F0AA_F1AA %>%
 
 # Add caption below the plot
 cat("\n**Figure 1A.** Genotype flow visualization across a single family (Family ID: 534). Each horizontal line represents a genomic position on chromosome NW_019211454.1, with colors indicating genotypes (yellow = AA, green = AB, blue = BB). Family members are arranged in generational order, showing the inheritance pattern from parents to offspring. The y-axis shows the genomic position in megabases (Mb).")
+
+# save fam_534_F0AA_F1AA for the Source data excel file
+#write.csv(fam_534_F0AA_F1AA,
+#          file = file.path(source_dir, "Fig1B_single_family_tracks.csv"),
+#          row.names = FALSE)
+
 ```
 
 ## Figure 1D: Crossing F1 mother AA with F1 father AB, all families
@@ -1424,6 +1476,16 @@ ggplot(samples_obs_filtered_AAxAB %>% filter(total >= site_threshold),
             inherit.aes = FALSE,
             size = 2.8,
             vjust = 0.5)
+
+ # save samples_obs_filtered_AAxAB for the Source data excel file
+#write.csv(samples_obs_filtered_AAxAB,
+#          file = file.path(source_dir, "Fig1D_AAxAB_barplot.csv"),
+#          row.names = FALSE)
+
+ # save summary_df_filtered for the Source data excel file
+#write.csv(summary_df_filtered,
+#          file = file.path(source_dir, "Fig1D_sites_per_sample.csv"),
+#          row.names = FALSE)
 ```
 
 ```{r clean plot-no lables, echo=TRUE, eval=TRUE, message=FALSE}
@@ -1479,6 +1541,12 @@ rna_dat_summary %>%
   theme(legend.position = "none")
 
 cat("\n**Figure 2.** RNA-seq analysis of heterozygous site proportions in male and female mites. Each point represents the mean proportion of heterozygous sites per individual mite, with error bars showing 95% confidence intervals. Points are connected by lines to show family relatedness of mother and son. The y-axis shows the proportion of heterozygous sites as a percentage of total sites analyzed.")
+
+# save rna_dat for the Source data excel file
+#write.csv(rna_dat,
+#          file = file.path(source_dir, "Fig2_hetprop_RNAseq.csv"),
+#          row.names = FALSE)
+
 ```
 
 Do  heterozygocity proportion differ significantly between male and female mites?
