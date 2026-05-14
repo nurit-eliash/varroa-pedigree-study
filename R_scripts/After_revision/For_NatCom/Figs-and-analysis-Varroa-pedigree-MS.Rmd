@@ -678,7 +678,7 @@ combined_plot <- (QAF_AA_gt_log + VAF_AA_gt_log + QAF_AA_gt + VAF_AA_gt) + plot_
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S3.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
+cat("\n**Figure S4.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous AA parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: AA (yellow, < 0.01). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with AA genotypes predominantly falling below the 0.01 threshold range.")
 
 # save f2_AA_parents for the Source data excel file
 #write.csv(f2_AA_parents,
@@ -801,7 +801,7 @@ combined_plot <- (QAF_BB_gt_log + VAF_BB_gt_log + QAF_BB_gt + VAF_BB_gt) + plot_
 combined_plot
 
 # Add unified caption below the plot
-cat("\n**Figure S4.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.9). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.9 threshold range.")
+cat("\n**Figure S5.** Distribution of Quality Allele Frequency (QAF) and Variant Allele Frequency (VAF) values in F2 females from crosses with homozygous BB parents. **A-B.** QAF and VAF distributions shown on logarithmic scales. **C-D.** Same distributions shown on linear scales. In all plots, shaded regions indicate the thresholds for genotype classification: BB (blue, > 0.9). Vertical dashed lines mark the threshold boundaries. The plots show the distribution of genotype calls, with BB genotypes predominantly falling above the 0.9 threshold range.")
 
 # save f2_BB_parents for the Source data excel file
 #write.csv(f2_BB_parents,
@@ -1287,7 +1287,7 @@ fam_534_F0AA_F1AA %>%
   )
 
 # Add caption below the plot
-cat("\n**Figure 1A.** Genotype flow visualization across a single family (Family ID: 534). Each horizontal line represents a genomic position on chromosome NW_019211454.1, with colors indicating genotypes (yellow = AA, green = AB, blue = BB). Family members are arranged in generational order, showing the inheritance pattern from parents to offspring. The y-axis shows the genomic position in megabases (Mb).")
+cat("\n**Figure 1B.** Genotype flow visualization across a single family (Family ID: 534). Each horizontal line represents a genomic position on chromosome NW_019211454.1, with colors indicating genotypes (yellow = AA, green = AB, blue = BB). Family members are arranged in generational order, showing the inheritance pattern from parents to offspring. The y-axis shows the genomic position in megabases (Mb).")
 
 # save fam_534_F0AA_F1AA for the Source data excel file
 #write.csv(fam_534_F0AA_F1AA,

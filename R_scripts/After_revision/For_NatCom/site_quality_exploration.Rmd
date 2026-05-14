@@ -1,5 +1,5 @@
 ---
-title: "site quality exploration"
+title: "Site quality exploration"
 output:
   html_document:
     code_folding: hide
@@ -15,7 +15,6 @@ editor_options:
     wrap: 72
 ---
 
-hello
 
 ```{=html}
 <!--
@@ -28,6 +27,7 @@ you can speed up subsequent runs by:
 This will skip the time-consuming data processing steps and load the processed data directly.
 -->
 ```
+
 ```{=html}
 <style type="text/css">
   body{
@@ -36,7 +36,7 @@ This will skip the time-consuming data processing steps and load the processed d
 </style>
 ```
 
-```{r libraries, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r libraries, echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 library(vcfR)
 library(tidyverse)
 library(ggokabeito) 
@@ -46,7 +46,7 @@ library(purrr)
 library(patchwork)
 ```
 
-```{r load-data, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r load-data, echo=TRUE, message=FALSE, warning=FALSE, cache=TRUE}
 # Load the metadata CSV file into a data frame 'dat', and keep only one F1 female per family. 
 dat <- read_csv("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/meta_data_223.csv") %>% 
    rename(id = sample) %>% # Rename 'sample' column to 'id'
@@ -187,7 +187,7 @@ all_param <- all_param %>% filter(!(member %in% "unknown")) %>% # remove nymphs,
 ```{r load-all-param, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 # Load the saved all_param data
 # Comment out the previous chunks and use this instead for faster loading
-# all_param <- readRDS("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/all_param.rds")
+ all_param <- readRDS("/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/all_param.rds")
 ```
 
 # Sanity check, to determine the threshold for site filtering
@@ -227,7 +227,7 @@ f2_AA_parents <- all_param %>%
   inner_join(AA_sites_F0F1, by = c("family", "site"))
 
 
-write.csv(f2_AA_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AA_parents.csv", row.names = FALSE)
+#write.csv(f2_AA_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AA_parents.csv", row.names = FALSE)
 
 # Visualize VAF and QAF distributions to determine thresholds
 # QAF: All genotypes overlaid
@@ -332,7 +332,7 @@ f2_BB_parents <- all_param %>%
   # Join with AA_sites_F0F1 to keep only sites that passed the filtering
   inner_join(BB_sites_F0F1, by = c("family", "site"))
 
-write.csv(f2_BB_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_BB_parents.csv", row.names = FALSE)
+#write.csv(f2_BB_parents, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_BB_parents.csv", row.names = FALSE)
 
 # QAF log-scale plot
 QAF_BB_gt_log <- ggplot(f2_BB_parents, aes(x = QAF, fill = GT)) +
@@ -488,7 +488,7 @@ f2_AB_BB_female_AA_male <- all_param %>%
 f2_AB_combined <- bind_rows(f2_AB_AA_female_BB_male, f2_AB_BB_female_AA_male)
 
 # Save for later use
-write.csv(f2_AB_combined, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AB_combined.csv", row.names = FALSE)
+#write.csv(f2_AB_combined, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/f2_AB_combined.csv", row.names = FALSE)
 
 # Now you can use f2_AB_combined for QAF/VAF threshold analysis, and stratify by cross_direction if needed.
 
@@ -737,7 +737,7 @@ Position (Mb)"
 
 ```{r save-selected-fam-478}
 # save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
-write.csv(fam_478_F0AA_F1AB, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_478_F0AA_F1AB.csv", row.names = FALSE)
+#write.csv(fam_478_F0AA_F1AB, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_478_F0AA_F1AB.csv", row.names = FALSE)
 ```
 
 ## crossing F1 female AA, daughter of AB F0 mother
@@ -851,10 +851,10 @@ Position (Mb)"
 
 ```{r save-selected-fam}
 # save the fam2_selected to make the figure 1A in the figures RMD:  ~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd
-write.csv(fam_534_F0AA_F1AA, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_534_F0AA_F1AA.csv", row.names = FALSE)
+#write.csv(fam_534_F0AA_F1AA, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/fam_534_F0AA_F1AA.csv", row.names = FALSE)
 ```
 
-save the filtered sites,to be used in the pulled data analysis
+save the filtered sites,to be used in the pooled data analysis
 (\~/Documents/GitHub/varroa-pedigree-study/R_scripts/After_revision/figs-for-varroa-pedigree-MS.Rmd)
 
 ```{r}
@@ -876,7 +876,7 @@ filtered_sites_summary <- filtered_sites %>%
          num_sites_kept = as.numeric(num_sites_kept))
 
 # Save to CSV
-write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
+#write.csv(filtered_sites, "/Users/nuriteliash/Documents/GitHub/varroa-pedigree-study/data/filtered_sites.csv", row.names = FALSE)
 ```
 
 
