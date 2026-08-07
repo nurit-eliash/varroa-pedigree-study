@@ -192,51 +192,23 @@ run_varroa_model <- function(C, K, n = 2, p0 = 0.1, f1 = 0.1, Tt = 50) {
   # -----------------------------
   # Model 3: complete diploidy
   # -----------------------------
-  p3 <- rep(0, Tt)
-  p3[1] <- (1 - f1) * p0
-  f2 <- (1 + 3 * f1) / 4 / n + (1 + 7 * f1) / 8 * (1 - 1 / n)
-  p3[2] <- (1 - f2) * p0
-  fm2 <- (1 / 2 + 7 / 2 * f1) / 4
-  f3 <- P1[3] / 4 * (1 + 2 * f2 + f1) +
-    P2[3] / 4 * (1 / 2 + 2 * f2 + f1 / 2 + f2) +
-    P3[3] / 4 * (2 * f2 + 1 / 2 + f1 / 2) +
-    P4[3] / 4 * (2 * f2 + f2 + fm2)
-  p3[3] <- (1 - f3) * p0
-  if (N[3] > 1) {
-    fm3 <- f2 / 2 + f2 / 4 + P2[3] / (1 - P1[3] - P3[3]) / 4 * (1 / 2 + f1 / 2) +
-      P4[3] / (1 - P1[3] - P3[3]) / 4 * fm2
-    f4 <- P1[4] / 4 * (1 + 2 * f3 + f2) +
-      P2[4] / 4 * (1 / 2 + 2 * f3 + f2 / 2 + f3) +
-      P3[4] / 4 * (2 * f3 + 1 / 2 + f2 / 2) +
-      P4[4] / 4 * (2 * f3 + f3 + fm3)
-  } else {
-    f4 <- P1[4] / 4 * (1 + 2 * f3 + f2) + P2[4] / 4 * (1 / 2 + 2 * f3 + f2 / 2 + f3)
-  }
-  p3[4] <- (1 - f4) * p0
+  
+#complete-diploidy assuming exact varroa life history
+#initialize
+f <- rep(0,Tt)
+ff <- rep(0,Tt)
+fm <- rep(0,Tt)
+f[1] <- ff[1] <- fm[1] <- f1
+f[2] <- P[2]/8*(1+f[1])+f[1]/2+(1-P[2])/4*ff[1]+fm[1]/4
+ff[2] <- (P1[3]/4+P2[3]/8+P3[3]/8)*(1+f[1])+f[1]/2+(1-P1[3]-P3[3])/4*ff[1]+(1-P1[3]-P2[3])/4*fm[1]
+fm[2] <- P2[3]/(1-P1[3]-P3[3])/8*(1+f[1])+f[1]/2+ff[1]/4+P4[3]/(1-P1[3]-P3[3])/4*fm[1]
 
-  cal_coef_cd <- function(P1, P2, P3, P4, P1_, P2_, P3_, P4_) {
-    c(
-      P1 / 4 + P2 / 8 + P3 / 8 + (1 - P1 - P2) / 4 * (P2_ / (1 - P1_ - P3_) / 8 -
-        P4_ / (1 - P1_ - P3_) / (1 - P1_ - P2_) * (P1_ / 4 + P2_ / 8 + P3_ / 8)),
-      1 / 2 + (1 - P1 - P3) / 4 + (1 - P1 - P2) / 4 * P4_ / (1 - P1_ - P3_) / (1 - P1_ - P2_),
-      P1 / 4 + P2 / 8 + P3 / 8 + (1 - P1 - P2) / 4 * (3 / 4 -
-        P4_ / (1 - P1_ - P2_) / (1 - P1_ - P3_) * (1 / 2 + (1 - P1_ - P3_) / 4)),
-      (1 - P1 - P2) / 4 * (P2_ / (1 - P1_ - P3_) / 8 -
-        P4_ / (1 - P1_ - P3_) / (1 - P1_ - P2_) * (P1_ / 4 + P2_ / 8 + P3_ / 8))
-    )
-  }
-  for (t in 5:Tt) {
-    if (N[t - 2] > 1) {
-      c_cd <- cal_coef_cd(P1[t], P2[t], P3[t], P4[t], P1[t - 1], P2[t - 1], P3[t - 1], P4[t - 1])
-      p3[t] <- c_cd[2] * p3[t - 1] + c_cd[3] * p3[t - 2] + c_cd[4] * p3[t - 3]
-    } else if (n > 1) {
-      c_cd <- c(P1[t] / 4 + P2[t] / 8, P1[t] / 2 + 3 * P2[t] / 4, P1[t] / 4 + P2[t] / 8)
-      p3[t] <- c_cd[2] * p3[t - 1] + c_cd[3] * p3[t - 2]
-    } else {
-      c_cd <- c(P1[t] / 4, P1[t] / 2, P1[t] / 4)
-      p3[t] <- c_cd[2] * p3[t - 1] + c_cd[3] * p3[t - 2]
-    }
-  }
+for (t in 3:Tt) {
+    f[t] <- P[t]/8*(1+f[t-2])+f[t-1]/2+(1-P[t])/4*ff[t-1]+fm[t-1]/4
+    ff[t] <- (P1[t]/4+P2[t]/8+P3[t]/8)*(1+f[t-2])+f[t-1]/2+(1-P1[t]-P3[t])/4*ff[t-1]+(1-P1[t]-P2[t])/4*fm[t-1]
+    fm[t] <- P2[t]/(1-P1[t]-P3[t])/8*(1+f[t-2])+f[t-1]/2+ff[t-1]/4+P4[t]/(1-P1[t]-P3[t])/4*fm[t-1]
+}
+p3 <- (1-f)*p0
 
   # Derived trajectories
   gen <- 2:Tt
@@ -277,10 +249,10 @@ model_colors <- c(
 
 ne_panel_df <- bind_rows(
   scenario_low$model_df %>%
-    filter(model != "Complete diploidy") %>%
+  #  filter(model != "Complete diploidy") %>%
     mutate(panel = "a"),
   scenario_high$model_df %>%
-    filter(model != "Complete diploidy") %>%
+   # filter(model != "Complete diploidy") %>%
     mutate(panel = "b")
 ) %>%
   mutate(panel = factor(panel, levels = c("a", "b")))
@@ -293,7 +265,7 @@ vline_df <- tibble(
 panel_label_df <- tibble(
   panel = factor(c("a", "b"), levels = c("a", "b")),
   x = c(5.2, 5.2),
-  y = c(14.6, 14.6),
+  y = c(20, 20),
   label = c("a", "b")
 )
 
@@ -311,7 +283,7 @@ g_ne <- ggplot(
   geom_line(linewidth = 1) +
   theme_classic() +
   scale_color_manual(values = model_colors) +
-  coord_cartesian(xlim = c(5, 30), ylim = c(2, 15)) +
+coord_cartesian(xlim = c(4, 31), ylim = c(2, 20)) +
   facet_wrap(~panel, ncol = 2) +
   labs(
     x = "Generation",
@@ -342,7 +314,8 @@ g_ne <- ggplot(
 
 g_ne
 
-cat("\n**Supplementary Figure 1.** Effective population size (Ne) across generations under haplo-diploidy (red) and diploid arrhenotoky (blue), shown for two model scenarios with the same C/K ratio (C/K = 2). **Panel (a):** C = 20, K = 10. **Panel (b):** C = 200, K = 100. Dashed vertical lines mark the generation at which the simulated population first reaches carrying capacity in each scenario.")
+cat("\n**Supplementary Figure 1.** Model-predicted decrease in effective
+population size (Ne) under haplo-diploidy, diploid arrhenotoky, complete diploidy across two demographic scenarios with constant ratio between carrying capacity (C) and number of brood cells (K). The ratio is set to 2 to match the average number of females co-infest a single brood cell in Varroa4. The number of adult daughters (n) is set to 2 to match the observed average number of adult daughters per female in Varroa5. The Effective population size is calculated from the per-generation change in heterozygosity as N_e=-1/2[(p(t))/(p(t-1))-1] , where p(t) is heterozygosity at generation t. Simulations start with one founding female. Red lines show haplo-diploidy, blue lines show diploid arrhenotoky, and black lines show complete diploidy. Panel a: C = 20, K = 10. At carrying capacity (generation 7), N_e equals 9.01 under haplo-diploidy, 10.73 under diploid arrhenotoky, and 17.19 under complete diploidy. At equilibrium, N_e equals 8.46 under haplo-diploidy, 8.60 under diploid arrhenotoky, and 16.41 under complete diploidy (not plotted). Panel b: C = 200, K = 100. At carrying capacity (generation 12), N_e equals 11.04 under haplo-diploidy, 11.24 under diploid arrhenotoky, and 18.29 under complete diploidy (not plotted). At equilibrium, N_e equals 8.96 under haplo-diploidy, 8.97 under diploid arrhenotoky, and 17.35 under complete diploidy. Dashed vertical lines indicate the first generation at which the modeled population reaches carrying capacity (N=C).")
 
 # save ne_panel_df for the Source data excel file
 #write.csv(ne_panel_df,
@@ -1543,7 +1516,7 @@ cat("\n**Figure 2.** RNA-seq analysis of heterozygous site proportions in male a
 
 ```
 
-Do  heterozygocity proportion differ significantly between male and female mites?
+Do heterozygocity proportion differ significantly between male and female mites?
 ```{r rnaseq-stats}
 # Reshape to wide format
 df_wide <- rna_dat_summary %>%
@@ -1551,5 +1524,26 @@ df_wide <- rna_dat_summary %>%
   pivot_wider(names_from = sex, values_from = het_prop)
 
 # Paired t-test
-t.test(df_wide$Female, df_wide$Male, paired = TRUE)
+tt <- t.test(df_wide$Female, df_wide$Male, paired = TRUE)
+
+# Paired Cohen's d = mean(diff) / sd(diff)
+diffs <- df_wide$Female - df_wide$Male
+n <- length(diffs)
+d <- mean(diffs) / sd(diffs)
+
+# 95% CI for Cohen's d via noncentral t inversion
+t_obs <- as.numeric(tt$statistic)
+df <- as.numeric(tt$parameter)
+ncp_low <- suppressWarnings(
+  uniroot(function(ncp) pt(t_obs, df, ncp) - 0.975, c(-100, 100))$root
+)
+ncp_high <- suppressWarnings(
+  uniroot(function(ncp) pt(t_obs, df, ncp) - 0.025, c(-100, 100))$root
+)
+d_ci <- c(ncp_low, ncp_high) / sqrt(n)
+
+cat(sprintf(
+  "t(%.0f) = %.2f, p = %.3f, Cohen's d = %.2f, 95%% CI [%.2f, %.2f]\n",
+  df, t_obs, tt$p.value, d, d_ci[1], d_ci[2]
+))
 ```
